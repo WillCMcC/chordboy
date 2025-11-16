@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { parseKeys } from "../lib/parseKeys";
-import { buildChord, invertChord } from "../lib/chordBuilder";
+import {
+  buildChord,
+  invertChord,
+  spreadVoicing,
+  applyTopNoteDrop,
+} from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
 
 /**
@@ -11,8 +16,7 @@ import { getChordName } from "../lib/chordNamer";
 export function useChordEngine(pressedKeys) {
   const [inversionIndex, setInversionIndex] = useState(0);
   const [octave, setOctave] = useState(4); // Default to middle octave
-  const [droppedNotes, setDroppedNotes] = useState(0); // How many notes have been dropped
-  const [spreadAmount, setSpreadAmount] = useState(0); // 0, 1, 2, 3
+  const [voicing, setVoicing] = useState("default"); // 'default', 'topNoteDrop', 'drop2'
   const [savedPresets, setSavedPresets] = useState(new Map()); // Store chord presets for number keys
   const [recalledKeys, setRecalledKeys] = useState(null); // Keys recalled from a preset
   const [recalledOctave, setRecalledOctave] = useState(null); // Octave from recalled preset
@@ -41,30 +45,37 @@ export function useChordEngine(pressedKeys) {
 
     let notes = [...baseChord.notes];
 
-    // Apply progressive note dropping (Caps Lock behavior)
-    if (droppedNotes > 0) {
-      notes = applyProgressiveDrop(notes, droppedNotes);
-    }
-
-    // Apply spread (spread notes across more octaves)
-    if (spreadAmount > 0) {
-      notes = applySpread(notes, spreadAmount);
+    // Apply voicing style
+    switch (voicing) {
+      case "topNoteDrop":
+        notes = applyTopNoteDrop(notes);
+        break;
+      case "drop2":
+        notes = spreadVoicing(notes, "drop2");
+        break;
+      default:
+        // Default voicing, no change
+        break;
     }
 
     // Apply inversion last
     notes = invertChord(notes, inversionIndex);
 
-    const chordName = getChordName(baseChord.root, baseChord.modifiers);
+    const chordName = getChordName(
+      baseChord.root,
+      baseChord.modifiers,
+      inversionIndex,
+      voicing
+    );
 
     return {
       ...baseChord,
       notes,
       name: chordName,
       inversion: inversionIndex,
-      droppedNotes,
-      spreadAmount,
+      voicing,
     };
-  }, [baseChord, inversionIndex, droppedNotes, spreadAmount]);
+  }, [baseChord, inversionIndex, voicing]);
 
   // Handle voicing controls and chord presets
   useEffect(() => {
@@ -89,13 +100,12 @@ export function useChordEngine(pressedKeys) {
               keys: new Set(pressedKeys),
               octave: octave,
               inversionIndex: inversionIndex,
-              droppedNotes: droppedNotes,
-              spreadAmount: spreadAmount,
+              voicing: voicing,
             });
             console.log(
               `Saved chord to slot ${slotNumber}:`,
               Array.from(pressedKeys),
-              `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
+              `at octave ${octave}, inversion ${inversionIndex}, voicing ${voicing}`
             );
             return newPresets;
           });
@@ -106,13 +116,12 @@ export function useChordEngine(pressedKeys) {
           setRecalledKeys(savedPreset.keys);
           setRecalledOctave(savedPreset.octave);
           setInversionIndex(savedPreset.inversionIndex);
-          setDroppedNotes(savedPreset.droppedNotes);
-          setSpreadAmount(savedPreset.spreadAmount);
+          setVoicing(savedPreset.voicing);
           setActivePresetSlot(slotNumber);
           console.log(
             `Recalled chord from slot ${slotNumber}:`,
             Array.from(savedPreset.keys),
-            `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, dropped ${savedPreset.droppedNotes}, spread ${savedPreset.spreadAmount}`
+            `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, voicing ${savedPreset.voicing}`
           );
         }
         return;
@@ -142,44 +151,25 @@ export function useChordEngine(pressedKeys) {
         }
       }
 
-      // Caps Lock = progressively drop notes down an octave
+      // Caps Lock = cycle through voicing styles
       if (event.key === "CapsLock") {
         event.preventDefault();
-
-        if (currentChord && currentChord.notes) {
-          setDroppedNotes((prev) => {
-            // Cycle through 0 to number of notes - 1
-            const maxDrops = currentChord.notes.length - 1;
-            const newDropped = (prev + 1) % (maxDrops + 1);
-
-            // If a preset is active, update it
-            if (
-              activePresetSlot !== null &&
-              savedPresets.has(activePresetSlot)
-            ) {
-              updatePresetVoicing(activePresetSlot, {
-                droppedNotes: newDropped,
-              });
-            }
-
-            return newDropped;
-          });
-        }
-      }
-
-      // Space = increase spread
-      if (event.key === " " && event.code === "Space") {
-        event.preventDefault();
-
-        setSpreadAmount((prev) => {
-          const newSpread = (prev + 1) % 4; // 0, 1, 2, 3
+        const voicingOptions = ["default", "topNoteDrop", "drop2"];
+        setVoicing((prev) => {
+          const currentIndex = voicingOptions.indexOf(prev);
+          const nextIndex = (currentIndex + 1) % voicingOptions.length;
+          const newVoicing = voicingOptions[nextIndex];
 
           // If a preset is active, update it
-          if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-            updatePresetVoicing(activePresetSlot, { spreadAmount: newSpread });
+          if (
+            activePresetSlot !== null &&
+            savedPresets.has(activePresetSlot)
+          ) {
+            updatePresetVoicing(activePresetSlot, {
+              voicing: newVoicing,
+            });
           }
-
-          return newSpread;
+          return newVoicing;
         });
       }
 
@@ -242,8 +232,7 @@ export function useChordEngine(pressedKeys) {
     recalledKeys,
     activePresetSlot,
     inversionIndex,
-    droppedNotes,
-    spreadAmount,
+    voicing,
   ]);
 
   // Clear recalled keys when user starts pressing chord keys manually
@@ -261,8 +250,7 @@ export function useChordEngine(pressedKeys) {
     // Only reset if we're not in preset recall mode
     if (!recalledKeys && parsedKeys.root) {
       setInversionIndex(0);
-      setDroppedNotes(0);
-      setSpreadAmount(0);
+      setVoicing("default");
     }
   }, [parsedKeys.root, parsedKeys.modifiers.join(","), recalledKeys]);
 
@@ -300,8 +288,7 @@ export function useChordEngine(pressedKeys) {
     parsedKeys,
     inversionIndex,
     octave,
-    droppedNotes,
-    spreadAmount,
+    voicing,
     savedPresets,
     clearPreset,
     clearAllPresets,
@@ -310,36 +297,4 @@ export function useChordEngine(pressedKeys) {
     resetOctave,
     setOctave,
   };
-}
-
-// Helper function to drop the highest note down an octave
-function applyProgressiveDrop(notes, dropCount) {
-  if (dropCount === 0 || notes.length === 0) return notes;
-
-  const sorted = [...notes].sort((a, b) => a - b);
-
-  // Simply take the highest note and drop it down an octave
-  if (dropCount === 1) {
-    const result = [...sorted];
-    const highestIndex = result.length - 1;
-    result[highestIndex] = result[highestIndex] - 12;
-    return result.sort((a, b) => a - b);
-  }
-
-  // If dropCount > 1, cycle back to no drop
-  return sorted;
-}
-
-// Helper function to spread notes across octaves
-function applySpread(notes, spreadAmount) {
-  if (spreadAmount === 0 || notes.length < 2) return notes;
-
-  const result = [...notes].sort((a, b) => a - b);
-
-  // Spread by moving alternating notes up by octaves
-  for (let i = 1; i < result.length; i += 2) {
-    result[i] += 12 * spreadAmount;
-  }
-
-  return result.sort((a, b) => a - b);
 }

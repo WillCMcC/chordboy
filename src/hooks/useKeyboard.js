@@ -65,10 +65,9 @@ export function useKeyboard(onAllKeysUp) {
     setPressedKeys((prev) => {
       const newSet = new Set(prev);
       newSet.add(key);
+      console.log("Key down:", key, "Pressed keys:", newSet.size);
       return newSet;
     });
-
-    console.log("Key down:", key, "Pressed keys:", pressedKeys.size + 1);
   }, []);
 
   /**
@@ -102,10 +101,9 @@ export function useKeyboard(onAllKeysUp) {
           setAllKeysReleased(true);
         }
 
+        console.log("Key up:", key, "Pressed keys:", newSet.size);
         return newSet;
       });
-
-      console.log("Key up:", key, "Pressed keys:", pressedKeys.size - 1);
     },
     [onAllKeysUp]
   );

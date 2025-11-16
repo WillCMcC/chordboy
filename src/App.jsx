@@ -9,21 +9,16 @@ import "./App.css";
 function App() {
   const { playChord, stopAllNotes, isConnected } = useMIDI();
   const { pressedKeys } = useKeyboard(stopAllNotes);
-  const {
-    currentChord,
-    inversionIndex,
-    octave,
-    droppedNotes,
-    spreadAmount,
-    savedPresets,
-    clearPreset,
-  } = useChordEngine(pressedKeys);
+  const { currentChord, octave, savedPresets, clearPreset } =
+    useChordEngine(pressedKeys);
 
   // Play chord when it changes
   useEffect(() => {
-    if (currentChord && currentChord.notes && isConnected) {
-      console.log("Playing chord:", currentChord.name, currentChord.notes);
-      playChord(currentChord.notes);
+    if (currentChord && currentChord.notes) {
+      console.log("Chord updated:", currentChord.name, currentChord.notes);
+      if (isConnected) {
+        playChord(currentChord.notes);
+      }
     } else if (isConnected) {
       // No chord, stop all notes
       stopAllNotes();
@@ -48,10 +43,6 @@ function App() {
               {currentChord ? currentChord.notes.map((n) => n).join(", ") : "—"}{" "}
               | Octave: {octave}
             </p>
-            <p style={{ visibility: currentChord ? "visible" : "hidden" }}>
-              Inversion: {inversionIndex} | Dropped: {droppedNotes} | Spread:{" "}
-              {spreadAmount}
-            </p>
             <p
               style={{
                 fontSize: "0.9rem",
@@ -60,8 +51,8 @@ function App() {
               }}
             >
               <strong>Left Shift</strong> = inversions |{" "}
-              <strong>Caps Lock</strong> = drop top note |{" "}
-              <strong>Space</strong> = spread | <strong>← →</strong> = octave
+              <strong>Caps Lock</strong> = change voicing | <strong>← →</strong> =
+              octave
             </p>
             <p
               style={{

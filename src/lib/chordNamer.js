@@ -7,9 +7,16 @@
  * Get a human-readable chord name from root and modifiers
  * @param {string} root - Root note name
  * @param {Array<string>} modifiers - Array of modifier names
+ * @param {number} inversionIndex - Current inversion index
+ * @param {string} voicing - Current voicing style
  * @returns {string} Formatted chord name (e.g., "C Maj7♯11")
  */
-export function getChordName(root, modifiers = []) {
+export function getChordName(
+  root,
+  modifiers = [],
+  inversionIndex = 0,
+  voicing = "default"
+) {
   if (!root) return "";
 
   let name = root;
@@ -131,6 +138,30 @@ export function getChordName(root, modifiers = []) {
 
   if (alterations.length > 0) {
     name += " " + alterations.join(" ");
+  }
+
+  // Add inversion and voicing details
+  let details = [];
+  if (inversionIndex > 0) {
+    const suffix =
+      inversionIndex === 1
+        ? "st"
+        : inversionIndex === 2
+        ? "nd"
+        : inversionIndex === 3
+        ? "rd"
+        : "th";
+    details.push(`${inversionIndex}${suffix} Inversion`);
+  }
+
+  if (voicing === "topNoteDrop") {
+    details.push("Top Note Drop");
+  } else if (voicing === "drop2") {
+    details.push("Drop 2");
+  }
+
+  if (details.length > 0) {
+    name += ` (${details.join(", ")})`;
   }
 
   return name.trim();
