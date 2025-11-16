@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MIDIStatus } from "./components/MIDIStatus";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { useKeyboard } from "./hooks/useKeyboard";
@@ -19,16 +19,23 @@ function App() {
     clearPreset,
   } = useChordEngine(pressedKeys);
 
+  // Track the last chord played
+  const [lastChord, setLastChord] = useState(null);
+
   // Play chord when it changes
   useEffect(() => {
     if (currentChord && currentChord.notes && isConnected) {
       console.log("Playing chord:", currentChord.name, currentChord.notes);
       playChord(currentChord.notes);
+      setLastChord(currentChord); // Store the last chord
     } else if (isConnected) {
       // No chord, stop all notes
       stopAllNotes();
     }
   }, [currentChord, isConnected]);
+
+  // Determine which chord to display
+  const displayChord = currentChord || lastChord;
 
   return (
     <div className="app">
@@ -40,15 +47,15 @@ function App() {
       <main className="main">
         <div className="chord-display">
           <p className="chord-name">
-            {currentChord ? currentChord.name : "Press keys to play chords"}
+            {displayChord ? displayChord.name : "Press keys to play chords"}
           </p>
           <div style={{ fontSize: "1rem", color: "var(--text-secondary)" }}>
-            <p style={{ visibility: currentChord ? "visible" : "hidden" }}>
+            <p style={{ visibility: displayChord ? "visible" : "hidden" }}>
               Notes:{" "}
-              {currentChord ? currentChord.notes.map((n) => n).join(", ") : "—"}{" "}
+              {displayChord ? displayChord.notes.map((n) => n).join(", ") : "—"}{" "}
               | Octave: {octave}
             </p>
-            <p style={{ visibility: currentChord ? "visible" : "hidden" }}>
+            <p style={{ visibility: displayChord ? "visible" : "hidden" }}>
               Inversion: {inversionIndex} | Dropped: {droppedNotes} | Spread:{" "}
               {spreadAmount}
             </p>
@@ -56,7 +63,7 @@ function App() {
               style={{
                 fontSize: "0.9rem",
                 marginTop: "0.5rem",
-                visibility: currentChord ? "visible" : "hidden",
+                visibility: displayChord ? "visible" : "hidden",
               }}
             >
               <strong>Left Shift</strong> = inversions |{" "}
@@ -67,7 +74,7 @@ function App() {
               style={{
                 fontSize: "0.8rem",
                 marginTop: "0.5rem",
-                visibility: currentChord ? "visible" : "hidden",
+                visibility: displayChord ? "visible" : "hidden",
               }}
             >
               <strong>Presets:</strong> <strong>Cmd/Ctrl</strong> = save to next
