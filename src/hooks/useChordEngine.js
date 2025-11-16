@@ -75,77 +75,6 @@ export function useChordEngine(pressedKeys) {
   // Handle voicing controls and chord presets
   useEffect(() => {
     const handleVoicingKeys = (event) => {
-      // Command/Meta key + any key = save to next open slot
-      if (event.metaKey || event.ctrlKey) {
-        event.preventDefault();
-
-        // Only save once per Command key press
-        if (commandSaveTriggered.current) {
-          return;
-        }
-
-        // Find the next available slot (1-9, then 0)
-        let nextSlot = null;
-        for (let i = 1; i <= 9; i++) {
-          const slotKey = i.toString();
-          if (!savedPresets.has(slotKey)) {
-            nextSlot = slotKey;
-            break;
-          }
-        }
-        // If 1-9 are all full, check slot 0
-        if (nextSlot === null && !savedPresets.has("0")) {
-          nextSlot = "0";
-        }
-
-        if (nextSlot !== null) {
-          commandSaveTriggered.current = true; // Mark as triggered
-
-          // If there's a current chord, save it
-          if (currentChord && pressedKeys.size > 0 && !recalledKeys) {
-            setSavedPresets((prev) => {
-              const newPresets = new Map(prev);
-              newPresets.set(nextSlot, {
-                keys: new Set(pressedKeys),
-                octave: octave,
-                inversionIndex: inversionIndex,
-                droppedNotes: droppedNotes,
-                spreadAmount: spreadAmount,
-              });
-              console.log(
-                `Command+key: Saved chord to next available slot ${nextSlot}:`,
-                Array.from(pressedKeys),
-                `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
-              );
-              return newPresets;
-            });
-          }
-          // If no chord is selected, generate and save a random chord
-          else if (!currentChord && pressedKeys.size === 0) {
-            const randomChordKeys = generateRandomChord();
-            setSavedPresets((prev) => {
-              const newPresets = new Map(prev);
-              newPresets.set(nextSlot, {
-                keys: randomChordKeys,
-                octave: octave,
-                inversionIndex: 0,
-                droppedNotes: 0,
-                spreadAmount: 0,
-              });
-              console.log(
-                `Command+key: Saved RANDOM chord to slot ${nextSlot}:`,
-                Array.from(randomChordKeys),
-                `at octave ${octave}`
-              );
-              return newPresets;
-            });
-          }
-        } else {
-          console.log("No available slots - all presets (0-9) are full");
-        }
-        return;
-      }
-
       // Number keys 0-9 = save/recall chord presets
       if (event.key >= "0" && event.key <= "9") {
         event.preventDefault();
@@ -244,12 +173,99 @@ export function useChordEngine(pressedKeys) {
         }
       }
 
-      // Space = increase spread
+      // Space = save to next open slot (or generate random if no chord)
       if (event.key === " " && event.code === "Space") {
         event.preventDefault();
 
+        // Only save once per Space key press
+        if (commandSaveTriggered.current) {
+          return;
+        }
+
+        // Find the next available slot (1-9, then 0)
+        let nextSlot = null;
+        for (let i = 1; i <= 9; i++) {
+          const slotKey = i.toString();
+          if (!savedPresets.has(slotKey)) {
+            nextSlot = slotKey;
+            break;
+          }
+        }
+        // If 1-9 are all full, check slot 0
+        if (nextSlot === null && !savedPresets.has("0")) {
+          nextSlot = "0";
+        }
+
+        if (nextSlot !== null) {
+          commandSaveTriggered.current = true; // Mark as triggered
+
+          // If there's a current chord, save it
+          if (currentChord && pressedKeys.size > 0 && !recalledKeys) {
+            setSavedPresets((prev) => {
+              const newPresets = new Map(prev);
+              newPresets.set(nextSlot, {
+                keys: new Set(pressedKeys),
+                octave: octave,
+                inversionIndex: inversionIndex,
+                droppedNotes: droppedNotes,
+                spreadAmount: spreadAmount,
+              });
+              console.log(
+                `Space: Saved chord to next available slot ${nextSlot}:`,
+                Array.from(pressedKeys),
+                `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
+              );
+              return newPresets;
+            });
+          }
+          // If no chord is selected, generate and save a random chord
+          else if (!currentChord && pressedKeys.size === 0) {
+            const randomChordKeys = generateRandomChord();
+            setSavedPresets((prev) => {
+              const newPresets = new Map(prev);
+              newPresets.set(nextSlot, {
+                keys: randomChordKeys,
+                octave: octave,
+                inversionIndex: 0,
+                droppedNotes: 0,
+                spreadAmount: 0,
+              });
+              console.log(
+                `Space: Saved RANDOM chord to slot ${nextSlot}:`,
+                Array.from(randomChordKeys),
+                `at octave ${octave}`
+              );
+              return newPresets;
+            });
+          }
+        } else {
+          console.log("No available slots - all presets (0-9) are full");
+        }
+        return;
+      }
+
+      // Up Arrow = increase spread
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+
         setSpreadAmount((prev) => {
-          const newSpread = (prev + 1) % 4; // 0, 1, 2, 3
+          const newSpread = Math.min(3, prev + 1); // Max 3
+
+          // If a preset is active, update it
+          if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+            updatePresetVoicing(activePresetSlot, { spreadAmount: newSpread });
+          }
+
+          return newSpread;
+        });
+      }
+
+      // Down Arrow = decrease spread
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+
+        setSpreadAmount((prev) => {
+          const newSpread = Math.max(0, prev - 1); // Min 0
 
           // If a preset is active, update it
           if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
@@ -263,19 +279,49 @@ export function useChordEngine(pressedKeys) {
       // Left Arrow = decrease octave
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        setOctave((prev) => Math.max(0, prev - 1));
+
+        // If a preset is active, modify the preset's octave
+        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+          setRecalledOctave((prev) => {
+            const currentOctave = prev !== null ? prev : octave;
+            const newOctave = Math.max(0, currentOctave - 1);
+
+            // Update the saved preset
+            updatePresetVoicing(activePresetSlot, { octave: newOctave });
+
+            return newOctave;
+          });
+        } else {
+          // Otherwise, change global octave
+          setOctave((prev) => Math.max(0, prev - 1));
+        }
       }
 
       // Right Arrow = increase octave
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        setOctave((prev) => Math.min(7, prev + 1));
+
+        // If a preset is active, modify the preset's octave
+        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+          setRecalledOctave((prev) => {
+            const currentOctave = prev !== null ? prev : octave;
+            const newOctave = Math.min(7, currentOctave + 1);
+
+            // Update the saved preset
+            updatePresetVoicing(activePresetSlot, { octave: newOctave });
+
+            return newOctave;
+          });
+        } else {
+          // Otherwise, change global octave
+          setOctave((prev) => Math.min(7, prev + 1));
+        }
       }
     };
 
     const handleVoicingKeyUp = (event) => {
-      // Reset Command save flag when Command/Ctrl key is released
-      if (event.key === "Meta" || event.key === "Control") {
+      // Reset save flag when Space key is released
+      if (event.key === " ") {
         commandSaveTriggered.current = false;
       }
 

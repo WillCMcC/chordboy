@@ -67,8 +67,8 @@ function App() {
               }}
             >
               <strong>Left Shift</strong> = inversions |{" "}
-              <strong>Caps Lock</strong> = drop top note |{" "}
-              <strong>Space</strong> = spread | <strong>← →</strong> = octave
+              <strong>Caps Lock</strong> = drop top note | <strong>↑ ↓</strong>{" "}
+              = spread | <strong>← →</strong> = octave
             </p>
             <p
               style={{
@@ -77,7 +77,7 @@ function App() {
                 visibility: displayChord ? "visible" : "hidden",
               }}
             >
-              <strong>Presets:</strong> <strong>Cmd/Ctrl</strong> = save to next
+              <strong>Presets:</strong> <strong>Space</strong> = save to next
               open slot (random if no chord) | Hold chord + press empty number
               to save | Press number alone to recall
             </p>
