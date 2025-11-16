@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import {
   requestMIDIAccess,
@@ -29,7 +30,7 @@ export function MIDIProvider({ children }) {
   const [channel, setChannel] = useState(0); // MIDI channel (0-15, where 0 = channel 1)
   const [velocity, setVelocity] = useState(80); // Default velocity
   const [currentNotes, setCurrentNotes] = useState([]); // Track currently playing notes
-
+  const currentNoteRef = useRef(currentNotes);
   /**
    * Connect to MIDI and enumerate devices
    */
@@ -142,7 +143,7 @@ export function MIDIProvider({ children }) {
     (notes, vel = velocity) => {
       if (!selectedOutput || !notes || notes.length === 0) return;
 
-      // Stop any currently playing notes first
+      // Stop all currently playing notes first
       currentNotes.forEach((note) => {
         sendNoteOff(selectedOutput, channel, note);
       });
@@ -151,7 +152,6 @@ export function MIDIProvider({ children }) {
       notes.forEach((note) => {
         sendNoteOn(selectedOutput, channel, note, vel);
       });
-
       setCurrentNotes(notes);
     },
     [selectedOutput, channel, velocity, currentNotes]
@@ -202,12 +202,12 @@ export function MIDIProvider({ children }) {
 
       // Also cleanup when component unmounts
       if (selectedOutput && currentNotes.length > 0) {
-        currentNotes.forEach((note) => {
+        currentNoteRef.current.forEach((note) => {
           sendNoteOff(selectedOutput, channel, note);
         });
       }
     };
-  }, [selectedOutput, currentNotes, channel]);
+  }, [selectedOutput, channel]);
 
   const value = {
     // State

@@ -5,8 +5,20 @@ import { useState, useEffect, useCallback } from "react";
  * Captures keyboard events and tracks currently pressed keys
  * Handles multi-key detection for chord input
  */
-export function useKeyboard() {
+export function useKeyboard(onAllKeysUp) {
   const [pressedKeys, setPressedKeys] = useState(new Set());
+  const [allKeysReleased, setAllKeysReleased] = useState(false);
+
+  /**
+   * Trigger callback when all keys are released
+   */
+  useEffect(() => {
+    if (allKeysReleased && onAllKeysUp) {
+      console.log("All keys released - stopping MIDI output");
+      onAllKeysUp();
+      setAllKeysReleased(false);
+    }
+  }, [allKeysReleased, onAllKeysUp]);
 
   /**
    * Handle key down events
@@ -62,32 +74,41 @@ export function useKeyboard() {
   /**
    * Handle key up events
    */
-  const handleKeyUp = useCallback((event) => {
-    const key = event.key.toLowerCase();
+  const handleKeyUp = useCallback(
+    (event) => {
+      const key = event.key.toLowerCase();
 
-    // Ignore modifier/control keys and number keys
-    const isControlKey =
-      event.key === "Shift" ||
-      event.key === "CapsLock" ||
-      event.key === " " ||
-      event.key === "Control" ||
-      event.key === "Alt" ||
-      event.key === "Meta" ||
-      (event.key >= "0" && event.key <= "9"); // Filter out number keys
+      // Ignore modifier/control keys and number keys
+      const isControlKey =
+        event.key === "Shift" ||
+        event.key === "CapsLock" ||
+        event.key === " " ||
+        event.key === "Control" ||
+        event.key === "Alt" ||
+        event.key === "Meta" ||
+        (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
-    if (isControlKey) {
-      return; // Don't remove from pressed keys (wasn't added)
-    }
+      if (isControlKey) {
+        return; // Don't remove from pressed keys (wasn't added)
+      }
 
-    // Remove key from pressed keys set
-    setPressedKeys((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(key);
-      return newSet;
-    });
+      // Remove key from pressed keys set
+      setPressedKeys((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
 
-    console.log("Key up:", key, "Pressed keys:", pressedKeys.size - 1);
-  }, []);
+        // If all keys are now released, set flag
+        if (newSet.size === 0) {
+          setAllKeysReleased(true);
+        }
+
+        return newSet;
+      });
+
+      console.log("Key up:", key, "Pressed keys:", pressedKeys.size - 1);
+    },
+    [onAllKeysUp]
+  );
 
   /**
    * Set up event listeners

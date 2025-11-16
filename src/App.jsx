@@ -7,7 +7,8 @@ import { useMIDI } from "./hooks/useMIDI";
 import "./App.css";
 
 function App() {
-  const { pressedKeys } = useKeyboard();
+  const { playChord, stopAllNotes, isConnected } = useMIDI();
+  const { pressedKeys } = useKeyboard(stopAllNotes);
   const {
     currentChord,
     inversionIndex,
@@ -17,7 +18,6 @@ function App() {
     savedPresets,
     clearPreset,
   } = useChordEngine(pressedKeys);
-  const { playChord, stopAllNotes, isConnected } = useMIDI();
 
   // Play chord when it changes
   useEffect(() => {

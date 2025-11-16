@@ -147,10 +147,22 @@ export function useChordEngine(pressedKeys) {
       }
     };
 
+    const handleVoicingKeyUp = (event) => {
+      // When number key is released, clear recalled preset
+      if (event.key >= "0" && event.key <= "9") {
+        if (recalledKeys) {
+          setRecalledKeys(null);
+          console.log("Number key released - clearing recalled preset");
+        }
+      }
+    };
+
     window.addEventListener("keydown", handleVoicingKeys);
+    window.addEventListener("keyup", handleVoicingKeyUp);
 
     return () => {
       window.removeEventListener("keydown", handleVoicingKeys);
+      window.removeEventListener("keyup", handleVoicingKeyUp);
     };
   }, [currentChord, pressedKeys, savedPresets, recalledKeys]);
 
