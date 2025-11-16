@@ -78,11 +78,11 @@ function App() {
 
         <div className="presets-panel">
           <div className="preset-slots">
-            {Array.from(savedPresets.entries()).map(([slot, keys]) => (
+            {Array.from(savedPresets.entries()).map(([slot, preset]) => (
               <div key={slot} className="preset-slot">
                 <span className="preset-number">{slot}</span>
                 <span className="preset-keys">
-                  {Array.from(keys).join(" + ")}
+                  {Array.from(preset.keys).join(" + ")} (oct {preset.octave})
                 </span>
                 <button onClick={() => clearPreset(slot)} className="clear-btn">
                   ×
