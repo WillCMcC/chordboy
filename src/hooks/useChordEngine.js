@@ -13,10 +13,10 @@ export function useChordEngine(pressedKeys) {
   const [octave, setOctave] = useState(4); // Default to middle octave
   const [droppedNotes, setDroppedNotes] = useState(0); // How many notes have been dropped
   const [spreadAmount, setSpreadAmount] = useState(0); // 0, 1, 2, 3
-  const [chordMemory, setChordMemory] = useState(new Map()); // Store voicing settings per chord
   const [savedPresets, setSavedPresets] = useState(new Map()); // Store chord presets for number keys
   const [recalledKeys, setRecalledKeys] = useState(null); // Keys recalled from a preset
   const [recalledOctave, setRecalledOctave] = useState(null); // Octave from recalled preset
+  const [activePresetSlot, setActivePresetSlot] = useState(null); // Track which preset is currently active
 
   // Parse the currently pressed keys (or use recalled keys if active)
   const parsedKeys = useMemo(() => {
@@ -88,11 +88,14 @@ export function useChordEngine(pressedKeys) {
             newPresets.set(slotNumber, {
               keys: new Set(pressedKeys),
               octave: octave,
+              inversionIndex: inversionIndex,
+              droppedNotes: droppedNotes,
+              spreadAmount: spreadAmount,
             });
             console.log(
               `Saved chord to slot ${slotNumber}:`,
               Array.from(pressedKeys),
-              `at octave ${octave}`
+              `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
             );
             return newPresets;
           });
@@ -102,10 +105,14 @@ export function useChordEngine(pressedKeys) {
           const savedPreset = savedPresets.get(slotNumber);
           setRecalledKeys(savedPreset.keys);
           setRecalledOctave(savedPreset.octave);
+          setInversionIndex(savedPreset.inversionIndex);
+          setDroppedNotes(savedPreset.droppedNotes);
+          setSpreadAmount(savedPreset.spreadAmount);
+          setActivePresetSlot(slotNumber);
           console.log(
             `Recalled chord from slot ${slotNumber}:`,
             Array.from(savedPreset.keys),
-            `at octave ${savedPreset.octave}`
+            `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, dropped ${savedPreset.droppedNotes}, spread ${savedPreset.spreadAmount}`
           );
         }
         return;
@@ -118,7 +125,19 @@ export function useChordEngine(pressedKeys) {
         if (currentChord && currentChord.notes) {
           setInversionIndex((prev) => {
             const maxInversions = currentChord.notes.length;
-            return (prev + 1) % maxInversions;
+            const newInversion = (prev + 1) % maxInversions;
+
+            // If a preset is active, update it
+            if (
+              activePresetSlot !== null &&
+              savedPresets.has(activePresetSlot)
+            ) {
+              updatePresetVoicing(activePresetSlot, {
+                inversionIndex: newInversion,
+              });
+            }
+
+            return newInversion;
           });
         }
       }
@@ -131,7 +150,19 @@ export function useChordEngine(pressedKeys) {
           setDroppedNotes((prev) => {
             // Cycle through 0 to number of notes - 1
             const maxDrops = currentChord.notes.length - 1;
-            return (prev + 1) % (maxDrops + 1);
+            const newDropped = (prev + 1) % (maxDrops + 1);
+
+            // If a preset is active, update it
+            if (
+              activePresetSlot !== null &&
+              savedPresets.has(activePresetSlot)
+            ) {
+              updatePresetVoicing(activePresetSlot, {
+                droppedNotes: newDropped,
+              });
+            }
+
+            return newDropped;
           });
         }
       }
@@ -141,7 +172,14 @@ export function useChordEngine(pressedKeys) {
         event.preventDefault();
 
         setSpreadAmount((prev) => {
-          return (prev + 1) % 4; // 0, 1, 2, 3
+          const newSpread = (prev + 1) % 4; // 0, 1, 2, 3
+
+          // If a preset is active, update it
+          if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+            updatePresetVoicing(activePresetSlot, { spreadAmount: newSpread });
+          }
+
+          return newSpread;
         });
       }
 
@@ -164,9 +202,26 @@ export function useChordEngine(pressedKeys) {
         if (recalledKeys) {
           setRecalledKeys(null);
           setRecalledOctave(null);
+          setActivePresetSlot(null);
           console.log("Number key released - clearing recalled preset");
         }
       }
+    };
+
+    // Helper function to update preset voicing
+    const updatePresetVoicing = (slotNumber, updates) => {
+      setSavedPresets((prev) => {
+        const newPresets = new Map(prev);
+        const existingPreset = newPresets.get(slotNumber);
+        if (existingPreset) {
+          newPresets.set(slotNumber, {
+            ...existingPreset,
+            ...updates,
+          });
+          console.log(`Updated preset ${slotNumber} voicing:`, updates);
+        }
+        return newPresets;
+      });
     };
 
     window.addEventListener("keydown", handleVoicingKeys);
@@ -176,59 +231,36 @@ export function useChordEngine(pressedKeys) {
       window.removeEventListener("keydown", handleVoicingKeys);
       window.removeEventListener("keyup", handleVoicingKeyUp);
     };
-  }, [currentChord, pressedKeys, savedPresets, recalledKeys]);
+  }, [
+    currentChord,
+    pressedKeys,
+    savedPresets,
+    recalledKeys,
+    activePresetSlot,
+    inversionIndex,
+    droppedNotes,
+    spreadAmount,
+  ]);
 
   // Clear recalled keys when user starts pressing chord keys manually
   useEffect(() => {
     if (recalledKeys && pressedKeys.size > 0) {
       // User is manually pressing keys, clear the recalled preset
       setRecalledKeys(null);
+      setRecalledOctave(null);
+      setActivePresetSlot(null);
     }
   }, [pressedKeys.size, recalledKeys]);
 
-  // Handle chord memory - restore/save voicing settings when chord changes
+  // Reset voicing to defaults when chord changes (not from a preset)
   useEffect(() => {
-    if (!parsedKeys.root) return;
-
-    // Create a unique key for this chord
-    const chordKey = `${parsedKeys.root}-${parsedKeys.modifiers.sort().join("-")}`;
-
-    // Check if we have saved settings for this chord
-    if (chordMemory.has(chordKey)) {
-      const savedSettings = chordMemory.get(chordKey);
-      setInversionIndex(savedSettings.inversionIndex);
-      setDroppedNotes(savedSettings.droppedNotes);
-      setSpreadAmount(savedSettings.spreadAmount);
-    } else {
-      // New chord - use defaults
+    // Only reset if we're not in preset recall mode
+    if (!recalledKeys && parsedKeys.root) {
       setInversionIndex(0);
       setDroppedNotes(0);
       setSpreadAmount(0);
     }
-  }, [parsedKeys.root, parsedKeys.modifiers.join(",")]);
-
-  // Save current voicing settings whenever they change
-  useEffect(() => {
-    if (!parsedKeys.root) return;
-
-    const chordKey = `${parsedKeys.root}-${parsedKeys.modifiers.sort().join("-")}`;
-
-    setChordMemory((prev) => {
-      const newMemory = new Map(prev);
-      newMemory.set(chordKey, {
-        inversionIndex,
-        droppedNotes,
-        spreadAmount,
-      });
-      return newMemory;
-    });
-  }, [
-    parsedKeys.root,
-    parsedKeys.modifiers.join(","),
-    inversionIndex,
-    droppedNotes,
-    spreadAmount,
-  ]);
+  }, [parsedKeys.root, parsedKeys.modifiers.join(","), recalledKeys]);
 
   // Functions to control octave
   const increaseOctave = () => {
