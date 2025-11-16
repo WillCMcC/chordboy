@@ -66,9 +66,8 @@
   max-width: 800px;
   margin: 2rem auto;
   padding: 1.5rem;
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
   border-radius: 8px;
+  height: 90px;
 }
 
 .presets-header {

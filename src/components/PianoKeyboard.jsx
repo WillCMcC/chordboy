@@ -42,7 +42,7 @@ export function PianoKeyboard({
         <div className="black-keys">
           {blackKeys.map((key) => {
             const offset = getBlackKeyOffset(key.midi);
-            const leftPosition = key.whiteKeyIndex * 40 + 40 * offset - 14;
+            const leftPosition = key.whiteKeyIndex * 25 + 25 * offset - 8;
 
             return (
               <PianoKey

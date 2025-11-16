@@ -70,8 +70,9 @@ function App() {
                 visibility: currentChord ? "visible" : "hidden",
               }}
             >
-              <strong>Presets:</strong> Hold chord + press empty number to save
-              | Press number alone to recall
+              <strong>Presets:</strong> <strong>Cmd/Ctrl</strong> = save to next
+              open slot | Hold chord + press empty number to save | Press number
+              alone to recall
             </p>
           </div>
         </div>
@@ -94,8 +95,8 @@ function App() {
 
         <PianoKeyboard
           activeNotes={currentChord ? currentChord.notes : []}
-          startOctave={3}
-          endOctave={5}
+          startOctave={1}
+          endOctave={7}
         />
       </main>
 

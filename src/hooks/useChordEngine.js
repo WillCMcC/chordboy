@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
@@ -17,6 +17,7 @@ export function useChordEngine(pressedKeys) {
   const [recalledKeys, setRecalledKeys] = useState(null); // Keys recalled from a preset
   const [recalledOctave, setRecalledOctave] = useState(null); // Octave from recalled preset
   const [activePresetSlot, setActivePresetSlot] = useState(null); // Track which preset is currently active
+  const commandSaveTriggered = useRef(false); // Track if Command+key save has been triggered
 
   // Parse the currently pressed keys (or use recalled keys if active)
   const parsedKeys = useMemo(() => {
@@ -69,6 +70,53 @@ export function useChordEngine(pressedKeys) {
   // Handle voicing controls and chord presets
   useEffect(() => {
     const handleVoicingKeys = (event) => {
+      // Command/Meta key + any key = save to next open slot
+      if ((event.metaKey || event.ctrlKey) && currentChord) {
+        event.preventDefault();
+
+        // Only save once per Command key press
+        if (commandSaveTriggered.current) {
+          return;
+        }
+
+        // Find the next available slot (1-9, then 0)
+        let nextSlot = null;
+        for (let i = 1; i <= 9; i++) {
+          const slotKey = i.toString();
+          if (!savedPresets.has(slotKey)) {
+            nextSlot = slotKey;
+            break;
+          }
+        }
+        // If 1-9 are all full, check slot 0
+        if (nextSlot === null && !savedPresets.has("0")) {
+          nextSlot = "0";
+        }
+
+        if (nextSlot !== null && pressedKeys.size > 0 && !recalledKeys) {
+          commandSaveTriggered.current = true; // Mark as triggered
+          setSavedPresets((prev) => {
+            const newPresets = new Map(prev);
+            newPresets.set(nextSlot, {
+              keys: new Set(pressedKeys),
+              octave: octave,
+              inversionIndex: inversionIndex,
+              droppedNotes: droppedNotes,
+              spreadAmount: spreadAmount,
+            });
+            console.log(
+              `Command+key: Saved chord to next available slot ${nextSlot}:`,
+              Array.from(pressedKeys),
+              `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
+            );
+            return newPresets;
+          });
+        } else if (nextSlot === null) {
+          console.log("No available slots - all presets (0-9) are full");
+        }
+        return;
+      }
+
       // Number keys 0-9 = save/recall chord presets
       if (event.key >= "0" && event.key <= "9") {
         event.preventDefault();
@@ -197,6 +245,11 @@ export function useChordEngine(pressedKeys) {
     };
 
     const handleVoicingKeyUp = (event) => {
+      // Reset Command save flag when Command/Ctrl key is released
+      if (event.key === "Meta" || event.key === "Control") {
+        commandSaveTriggered.current = false;
+      }
+
       // When number key is released, clear recalled preset ONLY if it's the active one
       if (event.key >= "0" && event.key <= "9") {
         const releasedKey = event.key;
