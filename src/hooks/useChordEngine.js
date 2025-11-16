@@ -197,13 +197,17 @@ export function useChordEngine(pressedKeys) {
     };
 
     const handleVoicingKeyUp = (event) => {
-      // When number key is released, clear recalled preset
+      // When number key is released, clear recalled preset ONLY if it's the active one
       if (event.key >= "0" && event.key <= "9") {
-        if (recalledKeys) {
+        const releasedKey = event.key;
+        // Only clear if this is the currently active preset
+        if (recalledKeys && activePresetSlot === releasedKey) {
           setRecalledKeys(null);
           setRecalledOctave(null);
           setActivePresetSlot(null);
-          console.log("Number key released - clearing recalled preset");
+          console.log(
+            `Number key ${releasedKey} released - clearing recalled preset`
+          );
         }
       }
     };
