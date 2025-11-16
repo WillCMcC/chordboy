@@ -1,0 +1,177 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: var(--secondary-bg);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.header h1 {
+  font-size: 2rem;
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.midi-status {
+  padding: 0.5rem 1rem;
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.chord-display {
+  margin-bottom: 3rem;
+}
+
+.chord-name {
+  font-size: 4rem;
+  font-weight: bold;
+  text-align: center;
+  color: var(--accent-color);
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.piano-placeholder {
+  padding: 3rem;
+  background-color: var(--secondary-bg);
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.presets-panel {
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.presets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.presets-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.clear-all-btn {
+  padding: 0.4rem 0.8rem;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.clear-all-btn:hover {
+  background-color: #b71c1c;
+}
+
+.preset-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.preset-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.preset-slot:hover {
+  border-color: var(--accent-color);
+}
+
+.preset-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: var(--accent-color);
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.preset-keys {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.clear-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.clear-btn:hover {
+  background-color: #d32f2f;
+  color: white;
+  border-color: #d32f2f;
+}
+
+.footer {
+  padding: 1rem 2rem;
+  text-align: center;
+  background-color: var(--secondary-bg);
+  border-top: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
