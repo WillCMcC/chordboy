@@ -3,6 +3,10 @@ import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
+import {
+  loadPresetsFromStorage,
+  savePresetsToStorage,
+} from "../lib/presetStorage";
 
 /**
  * useChordEngine Hook
@@ -323,6 +327,25 @@ export function useChordEngine(pressedKeys) {
     droppedNotes,
     spreadAmount,
   ]);
+
+  // Load presets from IndexedDB on mount
+  useEffect(() => {
+    const loadPresets = async () => {
+      const loadedPresets = await loadPresetsFromStorage();
+      if (loadedPresets.size > 0) {
+        setSavedPresets(loadedPresets);
+      }
+    };
+    loadPresets();
+  }, []); // Run only once on mount
+
+  // Save presets to IndexedDB whenever they change
+  useEffect(() => {
+    // Only save if we have presets (avoid saving empty state on mount)
+    if (savedPresets.size > 0) {
+      savePresetsToStorage(savedPresets);
+    }
+  }, [savedPresets]);
 
   // Clear recalled keys when user starts pressing chord keys manually
   useEffect(() => {
