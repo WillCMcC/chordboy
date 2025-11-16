@@ -71,8 +71,8 @@ function App() {
               }}
             >
               <strong>Presets:</strong> <strong>Cmd/Ctrl</strong> = save to next
-              open slot | Hold chord + press empty number to save | Press number
-              alone to recall
+              open slot (random if no chord) | Hold chord + press empty number
+              to save | Press number alone to recall
             </p>
           </div>
         </div>

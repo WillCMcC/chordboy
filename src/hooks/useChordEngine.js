@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
+import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 
 /**
  * useChordEngine Hook
@@ -71,7 +72,7 @@ export function useChordEngine(pressedKeys) {
   useEffect(() => {
     const handleVoicingKeys = (event) => {
       // Command/Meta key + any key = save to next open slot
-      if ((event.metaKey || event.ctrlKey) && currentChord) {
+      if (event.metaKey || event.ctrlKey) {
         event.preventDefault();
 
         // Only save once per Command key press
@@ -93,25 +94,49 @@ export function useChordEngine(pressedKeys) {
           nextSlot = "0";
         }
 
-        if (nextSlot !== null && pressedKeys.size > 0 && !recalledKeys) {
+        if (nextSlot !== null) {
           commandSaveTriggered.current = true; // Mark as triggered
-          setSavedPresets((prev) => {
-            const newPresets = new Map(prev);
-            newPresets.set(nextSlot, {
-              keys: new Set(pressedKeys),
-              octave: octave,
-              inversionIndex: inversionIndex,
-              droppedNotes: droppedNotes,
-              spreadAmount: spreadAmount,
+
+          // If there's a current chord, save it
+          if (currentChord && pressedKeys.size > 0 && !recalledKeys) {
+            setSavedPresets((prev) => {
+              const newPresets = new Map(prev);
+              newPresets.set(nextSlot, {
+                keys: new Set(pressedKeys),
+                octave: octave,
+                inversionIndex: inversionIndex,
+                droppedNotes: droppedNotes,
+                spreadAmount: spreadAmount,
+              });
+              console.log(
+                `Command+key: Saved chord to next available slot ${nextSlot}:`,
+                Array.from(pressedKeys),
+                `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
+              );
+              return newPresets;
             });
-            console.log(
-              `Command+key: Saved chord to next available slot ${nextSlot}:`,
-              Array.from(pressedKeys),
-              `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
-            );
-            return newPresets;
-          });
-        } else if (nextSlot === null) {
+          }
+          // If no chord is selected, generate and save a random chord
+          else if (!currentChord && pressedKeys.size === 0) {
+            const randomChordKeys = generateRandomChord();
+            setSavedPresets((prev) => {
+              const newPresets = new Map(prev);
+              newPresets.set(nextSlot, {
+                keys: randomChordKeys,
+                octave: octave,
+                inversionIndex: 0,
+                droppedNotes: 0,
+                spreadAmount: 0,
+              });
+              console.log(
+                `Command+key: Saved RANDOM chord to slot ${nextSlot}:`,
+                Array.from(randomChordKeys),
+                `at octave ${octave}`
+              );
+              return newPresets;
+            });
+          }
+        } else {
           console.log("No available slots - all presets (0-9) are full");
         }
         return;
@@ -363,6 +388,31 @@ export function useChordEngine(pressedKeys) {
     resetOctave,
     setOctave,
   };
+}
+
+// Helper function to generate a random chord combination
+function generateRandomChord() {
+  const rootKeys = Object.keys(LEFT_HAND_KEYS);
+  const modifierKeys = Object.keys(RIGHT_HAND_MODIFIERS);
+
+  // Pick a random root note (1 key required)
+  const randomRoot = rootKeys[Math.floor(Math.random() * rootKeys.length)];
+
+  // Pick 0-4 random modifiers
+  const numModifiers = Math.floor(Math.random() * 5); // 0, 1, 2, 3, or 4
+  const selectedModifiers = new Set();
+
+  for (let i = 0; i < numModifiers; i++) {
+    const randomModifier =
+      modifierKeys[Math.floor(Math.random() * modifierKeys.length)];
+    selectedModifiers.add(randomModifier);
+  }
+
+  // Combine into a Set of keys
+  const chordKeys = new Set([randomRoot, ...selectedModifiers]);
+
+  console.log("Generated random chord:", Array.from(chordKeys));
+  return chordKeys;
 }
 
 // Helper function to drop the highest note down an octave
