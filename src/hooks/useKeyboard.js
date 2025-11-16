@@ -47,15 +47,14 @@ export function useKeyboard(onAllKeysUp) {
       event.preventDefault();
     }
 
-    // Ignore modifier/control keys and number keys - these are handled separately
+    // Ignore modifier/control keys, which are handled separately
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
       event.key === " " ||
       event.key === "Control" ||
       event.key === "Alt" ||
-      event.key === "Meta" ||
-      (event.key >= "0" && event.key <= "9"); // Filter out number keys
+      event.key === "Meta";
 
     if (isControlKey) {
       return; // Don't add to pressed keys
@@ -78,15 +77,14 @@ export function useKeyboard(onAllKeysUp) {
     (event) => {
       const key = event.key.toLowerCase();
 
-      // Ignore modifier/control keys and number keys
+      // Ignore modifier/control keys
       const isControlKey =
         event.key === "Shift" ||
         event.key === "CapsLock" ||
         event.key === " " ||
         event.key === "Control" ||
         event.key === "Alt" ||
-        event.key === "Meta" ||
-        (event.key >= "0" && event.key <= "9"); // Filter out number keys
+        event.key === "Meta";
 
       if (isControlKey) {
         return; // Don't remove from pressed keys (wasn't added)
