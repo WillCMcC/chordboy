@@ -312,22 +312,21 @@ export function useChordEngine(pressedKeys) {
   };
 }
 
-// Helper function to drop the highest note down an octave
+// Helper function to drop the highest notes down an octave
 function applyProgressiveDrop(notes, dropCount) {
-  if (dropCount === 0 || notes.length === 0) return notes;
+  if (dropCount === 0 || notes.length < 2) return notes;
 
   const sorted = [...notes].sort((a, b) => a - b);
+  const result = [...sorted];
+  const numNotes = notes.length;
 
-  // Simply take the highest note and drop it down an octave
-  if (dropCount === 1) {
-    const result = [...sorted];
-    const highestIndex = result.length - 1;
-    result[highestIndex] = result[highestIndex] - 12;
-    return result.sort((a, b) => a - b);
+  // Drop the top `dropCount` notes
+  for (let i = 0; i < dropCount; i++) {
+    const noteIndexToDrop = numNotes - 1 - i;
+    result[noteIndexToDrop] -= 12;
   }
 
-  // If dropCount > 1, cycle back to no drop
-  return sorted;
+  return result.sort((a, b) => a - b);
 }
 
 // Helper function to spread notes across octaves
