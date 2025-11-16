@@ -203,3 +203,18 @@ export function spreadVoicing(notes, voicingType = "drop2") {
 
   return notes;
 }
+
+/**
+ * Drop the highest note of a chord down an octave
+ * @param {Array<number>} notes - Array of MIDI notes
+ * @returns {Array<number>} Chord notes with the top note dropped
+ */
+export function applyTopNoteDrop(notes) {
+  if (notes.length < 2) return notes;
+
+  const sorted = [...notes].sort((a, b) => a - b);
+  const result = [...sorted];
+  const highestIndex = result.length - 1;
+  result[highestIndex] = result[highestIndex] - 12;
+  return result.sort((a, b) => a - b);
+}

@@ -23,8 +23,9 @@ export const LEFT_HAND_KEYS = {
   // Row 3 (ZXCV): G#, A, A#, B
   z: "G#",
   x: "A",
-  c: "A#",
+  c: "C",
   v: "B",
+  n: "A#",
 };
 
 /**
