@@ -5,6 +5,10 @@ node_modules/
 dist/
 build/
 
+# Caprover deployment
+caprover-deploy/
+*.tar
+
 # Environment variables
 .env
 .env.local
