@@ -24,6 +24,59 @@ export function useChordEngine(pressedKeys) {
   const [activePresetSlot, setActivePresetSlot] = useState(null); // Track which preset is currently active
   const commandSaveTriggered = useRef(false); // Track if Command+key save has been triggered
 
+  // Function to save current chord to a specific slot
+  const saveCurrentChordToSlot = (slotNumber) => {
+    if (pressedKeys.size > 0 && !recalledKeys) {
+      setSavedPresets((prev) => {
+        const newPresets = new Map(prev);
+        newPresets.set(slotNumber, {
+          keys: new Set(pressedKeys),
+          octave: octave,
+          inversionIndex: inversionIndex,
+          droppedNotes: droppedNotes,
+          spreadAmount: spreadAmount,
+        });
+        console.log(
+          `Saved chord to slot ${slotNumber}:`,
+          Array.from(pressedKeys),
+          `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
+        );
+        return newPresets;
+      });
+      return true;
+    }
+    return false;
+  };
+
+  // Function to recall a preset from a slot
+  const recallPresetFromSlot = (slotNumber) => {
+    if (savedPresets.has(slotNumber)) {
+      const savedPreset = savedPresets.get(slotNumber);
+      setRecalledKeys(savedPreset.keys);
+      setRecalledOctave(savedPreset.octave);
+      setInversionIndex(savedPreset.inversionIndex);
+      setDroppedNotes(savedPreset.droppedNotes);
+      setSpreadAmount(savedPreset.spreadAmount);
+      setActivePresetSlot(slotNumber);
+      console.log(
+        `Recalled chord from slot ${slotNumber}:`,
+        Array.from(savedPreset.keys),
+        `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, dropped ${savedPreset.droppedNotes}, spread ${savedPreset.spreadAmount}`
+      );
+      return true;
+    }
+    return false;
+  };
+
+  // Function to stop recalling a preset
+  const stopRecallingPreset = () => {
+    if (recalledKeys) {
+      setRecalledKeys(null);
+      setRecalledOctave(null);
+      setActivePresetSlot(null);
+    }
+  };
+
   // Parse the currently pressed keys (or use recalled keys if active)
   const parsedKeys = useMemo(() => {
     const keysToUse = recalledKeys || pressedKeys;
@@ -89,37 +142,11 @@ export function useChordEngine(pressedKeys) {
           !recalledKeys &&
           !savedPresets.has(slotNumber)
         ) {
-          setSavedPresets((prev) => {
-            const newPresets = new Map(prev);
-            newPresets.set(slotNumber, {
-              keys: new Set(pressedKeys),
-              octave: octave,
-              inversionIndex: inversionIndex,
-              droppedNotes: droppedNotes,
-              spreadAmount: spreadAmount,
-            });
-            console.log(
-              `Saved chord to slot ${slotNumber}:`,
-              Array.from(pressedKeys),
-              `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
-            );
-            return newPresets;
-          });
+          saveCurrentChordToSlot(slotNumber);
         }
         // If not holding keys, recall the saved preset
         else if (pressedKeys.size === 0 && savedPresets.has(slotNumber)) {
-          const savedPreset = savedPresets.get(slotNumber);
-          setRecalledKeys(savedPreset.keys);
-          setRecalledOctave(savedPreset.octave);
-          setInversionIndex(savedPreset.inversionIndex);
-          setDroppedNotes(savedPreset.droppedNotes);
-          setSpreadAmount(savedPreset.spreadAmount);
-          setActivePresetSlot(slotNumber);
-          console.log(
-            `Recalled chord from slot ${slotNumber}:`,
-            Array.from(savedPreset.keys),
-            `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, dropped ${savedPreset.droppedNotes}, spread ${savedPreset.spreadAmount}`
-          );
+          recallPresetFromSlot(slotNumber);
         }
         return;
       }
@@ -330,9 +357,7 @@ export function useChordEngine(pressedKeys) {
         const releasedKey = event.key;
         // Only clear if this is the currently active preset
         if (recalledKeys && activePresetSlot === releasedKey) {
-          setRecalledKeys(null);
-          setRecalledOctave(null);
-          setActivePresetSlot(null);
+          stopRecallingPreset();
           console.log(
             `Number key ${releasedKey} released - clearing recalled preset`
           );
@@ -456,6 +481,13 @@ export function useChordEngine(pressedKeys) {
     decreaseOctave,
     resetOctave,
     setOctave,
+    setInversionIndex,
+    setDroppedNotes,
+    setSpreadAmount,
+    saveCurrentChordToSlot,
+    recallPresetFromSlot,
+    stopRecallingPreset,
+    activePresetSlot,
   };
 }
 
