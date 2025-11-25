@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 import "./MobileControls.css";
+
+// Threshold in pixels for drag-down to "hold" a preset
+const DRAG_DOWN_THRESHOLD = 40;
 
 export function MobileControls({
   mobileKeys,
@@ -16,8 +19,19 @@ export function MobileControls({
   onClearPreset,
   onStopRecall,
   activePresetSlot,
+  showKeyboard,
+  onToggleKeyboard,
 }) {
   const [clearMode, setClearMode] = useState(false);
+
+  // Track touch/pointer state for drag-down-to-hold gesture
+  const presetTouchRef = useRef({
+    activeSlot: null,
+    startY: 0,
+    isHeld: false,
+  });
+  const [heldPreset, setHeldPreset] = useState(null); // Which preset is "held" via drag
+  const presetsGridRef = useRef(null);
 
   // Sort root notes chromatically
   const sortedRoots = useMemo(() => {
@@ -67,7 +81,7 @@ export function MobileControls({
     setMobileKeys(new Set());
   };
 
-  const handlePresetDown = (slot) => {
+  const handlePresetDown = (slot, clientY) => {
     const slotStr = slot.toString();
 
     if (clearMode) {
@@ -76,27 +90,113 @@ export function MobileControls({
       return;
     }
 
+    // Initialize touch tracking
+    presetTouchRef.current = {
+      activeSlot: slotStr,
+      startY: clientY,
+      isHeld: false,
+    };
+
     if (savedPresets.has(slotStr)) {
       onRecallPreset(slotStr);
     } else {
       // Try to save
       const success = onSavePreset(slotStr);
-      if (!success) {
-        // Maybe feedback?
+      if (success) {
+        // Clear notes after saving a preset on mobile
+        clearAll();
       }
     }
   };
 
+  const handlePresetMove = useCallback((e) => {
+    const touch = presetTouchRef.current;
+    if (touch.activeSlot === null) return;
+
+    // Get clientY from either pointer event or touch event
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? touch.startY;
+
+    // Check if user has dragged down enough to "hold"
+    const deltaY = clientY - touch.startY;
+
+    // If dragging down significantly, prevent default to stop pull-to-refresh
+    if (deltaY > 10) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (deltaY > DRAG_DOWN_THRESHOLD && !touch.isHeld) {
+      touch.isHeld = true;
+      setHeldPreset(touch.activeSlot);
+      // Provide haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }
+  }, []);
+
   const handlePresetUp = (slot) => {
     const slotStr = slot.toString();
+    const touch = presetTouchRef.current;
+
+    // Only stop recall if this preset wasn't "held" via drag-down
     if (savedPresets.has(slotStr) && activePresetSlot === slotStr) {
-      onStopRecall();
+      if (!touch.isHeld && heldPreset !== slotStr) {
+        onStopRecall();
+      }
     }
+
+    // Reset touch tracking
+    presetTouchRef.current = {
+      activeSlot: null,
+      startY: 0,
+      isHeld: false,
+    };
+  };
+
+  // Attach non-passive touch event listener to prevent pull-to-refresh
+  useEffect(() => {
+    const presetsGrid = presetsGridRef.current;
+    if (!presetsGrid) return;
+
+    const handleTouchMoveNonPassive = (e) => {
+      const touch = presetTouchRef.current;
+      if (touch.activeSlot === null) return;
+
+      // Get touch position
+      const clientY = e.touches?.[0]?.clientY ?? touch.startY;
+      const deltaY = clientY - touch.startY;
+
+      // If dragging down while touching a preset, prevent default (pull-to-refresh)
+      if (deltaY > 5) {
+        e.preventDefault();
+      }
+    };
+
+    // Add non-passive event listener to allow preventDefault
+    presetsGrid.addEventListener("touchmove", handleTouchMoveNonPassive, {
+      passive: false,
+    });
+
+    return () => {
+      presetsGrid.removeEventListener("touchmove", handleTouchMoveNonPassive);
+    };
+  }, []);
+
+  // Release a held preset when tapping it again
+  const handleHeldPresetTap = (slot) => {
+    const slotStr = slot.toString();
+    if (heldPreset === slotStr) {
+      setHeldPreset(null);
+      onStopRecall();
+      return true;
+    }
+    return false;
   };
 
   return (
     <div className="mobile-controls">
-      <div className="mobile-controls-section">
+      <div className="mobile-controls-section presets-section">
         <div className="mobile-controls-header">
           <span className="mobile-controls-label">Presets</span>
           <button
@@ -108,7 +208,8 @@ export function MobileControls({
           </button>
         </div>
         <div
-          className="mobile-grid"
+          ref={presetsGridRef}
+          className="mobile-grid presets-grid"
           style={{ gridTemplateColumns: "repeat(5, 1fr)" }}
         >
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((num) => {
@@ -119,7 +220,7 @@ export function MobileControls({
             return (
               <button
                 key={num}
-                className={`mobile-btn ${isActive ? "active" : ""} ${isSaved ? "saved" : ""}`}
+                className={`mobile-btn ${isActive ? "active" : ""} ${isSaved ? "saved" : ""} ${heldPreset === slotStr ? "held" : ""}`}
                 style={{
                   backgroundColor: isActive
                     ? "var(--accent-color)"
@@ -134,7 +235,21 @@ export function MobileControls({
                 }}
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  handlePresetDown(num);
+                  // If this preset is already held, tapping releases it
+                  if (handleHeldPresetTap(num)) {
+                    return;
+                  }
+                  // If another preset is held, release it first
+                  if (heldPreset !== null && heldPreset !== slotStr) {
+                    setHeldPreset(null);
+                  }
+                  handlePresetDown(num, e.clientY);
+                }}
+                onPointerMove={(e) => {
+                  handlePresetMove(e);
+                }}
+                onTouchMove={(e) => {
+                  handlePresetMove(e);
                 }}
                 onPointerUp={(e) => {
                   e.preventDefault();
@@ -146,6 +261,9 @@ export function MobileControls({
                 }}
               >
                 {num}
+                {heldPreset === slotStr && (
+                  <span className="held-indicator">⬇</span>
+                )}
               </button>
             );
           })}
@@ -216,6 +334,15 @@ export function MobileControls({
             + Oct
           </button>
         </div>
+      </div>
+
+      <div className="mobile-controls-section">
+        <button
+          className={`control-btn keyboard-toggle ${showKeyboard ? "active" : ""}`}
+          onClick={onToggleKeyboard}
+        >
+          {showKeyboard ? "🎹 Hide Piano" : "🎹 Show Piano"}
+        </button>
       </div>
     </div>
   );

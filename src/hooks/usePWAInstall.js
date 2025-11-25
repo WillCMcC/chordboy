@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import "./PWAInstallPrompt.css";
+import { useState, useEffect } from "react";
 
-export function PWAInstallPrompt() {
+export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
     const handler = (e) => {
@@ -11,8 +10,7 @@ export function PWAInstallPrompt() {
       e.preventDefault();
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
-      setIsVisible(true);
+      setIsInstallable(true);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
@@ -20,7 +18,7 @@ export function PWAInstallPrompt() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleInstallClick = async () => {
+  const install = async () => {
     if (!deferredPrompt) return;
 
     // Show the install prompt
@@ -32,23 +30,8 @@ export function PWAInstallPrompt() {
 
     // We've used the prompt, so it can't be used again, discard it
     setDeferredPrompt(null);
-    setIsVisible(false);
+    setIsInstallable(false);
   };
 
-  if (!isVisible) return null;
-
-  return (
-    <div className="pwa-install-prompt">
-      <button onClick={handleInstallClick} className="install-button">
-        Install App
-      </button>
-      <button
-        onClick={() => setIsVisible(false)}
-        className="close-button"
-        aria-label="Close"
-      >
-        ×
-      </button>
-    </div>
-  );
+  return { isInstallable, install };
 }

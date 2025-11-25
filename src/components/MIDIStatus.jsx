@@ -58,9 +58,9 @@ export function MIDIStatus() {
       ) : (
         <div className="midi-status-content">
           <span className="status-indicator disconnected"></span>
-          <span>MIDI: Not Connected</span>
+          <span>No Devices Found</span>
           <button onClick={connectMIDI} className="connect-button">
-            Connect
+            Rescan
           </button>
         </div>
       )}

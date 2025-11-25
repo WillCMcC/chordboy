@@ -12,7 +12,12 @@ export function PianoKeyboard({
   activeNotes = [],
   startOctave = 3,
   endOctave = 5,
+  isMobile = false,
 }) {
+  // Key dimensions based on mobile or desktop
+  const whiteKeyWidth = isMobile ? 22 : 25;
+  const blackKeyWidth = isMobile ? 14 : 16;
+  const blackKeyOffset = isMobile ? 5 : 8;
   // Generate keyboard layout
   const keys = useMemo(() => {
     return generateKeyboard(startOctave, endOctave);
@@ -34,6 +39,7 @@ export function PianoKeyboard({
               noteName={key.noteName}
               isBlack={false}
               isActive={activeNotes.includes(key.midi)}
+              isMobile={isMobile}
             />
           ))}
         </div>
@@ -42,7 +48,10 @@ export function PianoKeyboard({
         <div className="black-keys">
           {blackKeys.map((key) => {
             const offset = getBlackKeyOffset(key.midi);
-            const leftPosition = key.whiteKeyIndex * 25 + 25 * offset - 8;
+            const leftPosition =
+              key.whiteKeyIndex * whiteKeyWidth +
+              whiteKeyWidth * offset -
+              blackKeyOffset;
 
             return (
               <PianoKey
@@ -52,6 +61,7 @@ export function PianoKeyboard({
                 isBlack={true}
                 isActive={activeNotes.includes(key.midi)}
                 style={{ left: `${leftPosition}px` }}
+                isMobile={isMobile}
               />
             );
           })}
