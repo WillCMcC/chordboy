@@ -69,6 +69,7 @@ function App() {
   const { pressedKeys: keyboardKeys } = useKeyboard(stopAllNotes);
   const [mobileKeys, setMobileKeys] = useState(new Set());
   const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const mobileKeyboardRef = useRef(null);
 
   const allPressedKeys = useMemo(() => {
@@ -219,19 +220,58 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-branding">
-          <h1>ChordBoy</h1>
+      {/* Settings button */}
+      <button
+        className="settings-btn"
+        onClick={() => setShowSettings(!showSettings)}
+        aria-label="Settings"
+      >
+        ⚙️
+      </button>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div
+          className="settings-overlay"
+          onClick={() => setShowSettings(false)}
+        >
+          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <h2>Settings</h2>
+              <button
+                className="settings-close"
+                onClick={() => setShowSettings(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="settings-content">
+              <div className="settings-section">
+                <h3>MIDI Interface</h3>
+                <MIDIStatus />
+              </div>
+              {isInstallable && (
+                <div className="settings-section">
+                  <h3>Install App</h3>
+                  <p className="settings-description">
+                    Install ChordBoy as a standalone app for the best
+                    experience.
+                  </p>
+                  <button onClick={install} className="install-btn">
+                    Install App
+                  </button>
+                </div>
+              )}
+              <div className="settings-section">
+                <h3>About</h3>
+                <p className="settings-description">
+                  ChordBoy - MIDI Chord Controller for Jazz Performance
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="header-controls">
-          {isInstallable && (
-            <button onClick={install} className="install-btn-header">
-              Install App
-            </button>
-          )}
-          <MIDIStatus />
-        </div>
-      </header>
+      )}
 
       <main
         className="main"
@@ -439,10 +479,6 @@ function App() {
           />
         )}
       </main>
-
-      <footer className="footer">
-        <p>MIDI Chord Controller for Jazz Performance</p>
-      </footer>
     </div>
   );
 }
