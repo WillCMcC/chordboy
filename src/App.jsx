@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { MIDIStatus } from "./components/MIDIStatus";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
@@ -8,6 +8,59 @@ import { useMIDI } from "./hooks/useMIDI";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
 import "./App.css";
+
+// ROYGBIV colors mapped to the 12 chromatic notes (C through B)
+// Spread across the rainbow with bright, vivid colors
+const NOTE_COLORS = {
+  0: "#ff3333", // C - Bright Red
+  1: "#ff6622", // C# - Red-Orange
+  2: "#ff9900", // D - Bright Orange
+  3: "#ffcc00", // D# - Gold
+  4: "#ffff33", // E - Bright Yellow
+  5: "#33ff33", // F - Bright Green
+  6: "#00ffcc", // F# - Cyan/Turquoise
+  7: "#3399ff", // G - Bright Blue
+  8: "#6633ff", // G# - Indigo
+  9: "#9933ff", // A - Bright Violet
+  10: "#ff33cc", // A# - Magenta
+  11: "#ff3399", // B - Hot Pink
+};
+
+// Get color for a MIDI note
+const getNoteColor = (midiNote) => {
+  const noteIndex = midiNote % 12;
+  return NOTE_COLORS[noteIndex];
+};
+
+// Build northern lights gradient from active notes
+const buildNorthernLightsGradient = (notes) => {
+  if (!notes || notes.length === 0) {
+    return null;
+  }
+
+  // Get unique note classes (0-11) from the chord, sorted
+  const noteClasses = [...new Set(notes.map((n) => n % 12))].sort(
+    (a, b) => a - b
+  );
+
+  // Build color stops for the gradient
+  const colors = noteClasses.map((nc) => NOTE_COLORS[nc]);
+
+  // Create a flowing gradient with multiple color stops
+  if (colors.length === 1) {
+    return `radial-gradient(ellipse at 50% 100%, ${colors[0]}40 0%, ${colors[0]}20 40%, transparent 70%)`;
+  }
+
+  // For multiple colors, create a flowing horizontal gradient
+  const colorStops = colors
+    .map((color, i) => {
+      const percent = (i / (colors.length - 1)) * 100;
+      return `${color}35 ${percent}%`;
+    })
+    .join(", ");
+
+  return `linear-gradient(90deg, ${colorStops})`;
+};
 
 function App() {
   const isMobile = useIsMobile();
@@ -38,10 +91,44 @@ function App() {
     recallPresetFromSlot,
     stopRecallingPreset,
     activePresetSlot,
+    solvePresets,
   } = useChordEngine(allPressedKeys);
 
   // Track the last chord played
   const [lastChord, setLastChord] = useState(null);
+
+  // Multi-select state for chord solving
+  const [selectedPresets, setSelectedPresets] = useState([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+
+  // Toggle preset selection
+  const togglePresetSelection = useCallback((slot) => {
+    setSelectedPresets((prev) => {
+      if (prev.includes(slot)) {
+        return prev.filter((s) => s !== slot);
+      } else {
+        return [...prev, slot];
+      }
+    });
+  }, []);
+
+  // Handle solve button click
+  const handleSolveChords = useCallback(() => {
+    if (selectedPresets.length >= 2) {
+      const success = solvePresets(selectedPresets);
+      if (success) {
+        // Clear selection after successful solve
+        setSelectedPresets([]);
+        setIsSelectMode(false);
+      }
+    }
+  }, [selectedPresets, solvePresets]);
+
+  // Cancel selection mode
+  const cancelSelectMode = useCallback(() => {
+    setSelectedPresets([]);
+    setIsSelectMode(false);
+  }, []);
 
   // Play chord when it changes
   useEffect(() => {
@@ -150,66 +237,150 @@ function App() {
         className="main"
         style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}
       >
-        <div className="chord-display">
+        <div
+          className={`chord-display ${currentChord ? "active" : ""}`}
+          style={
+            currentChord
+              ? {
+                  "--aurora-gradient": buildNorthernLightsGradient(
+                    currentChord.notes
+                  ),
+                }
+              : {}
+          }
+        >
           <p className="chord-name">
             {displayChord ? displayChord.name : "Press keys to play chords"}
           </p>
-          <div style={{ fontSize: "1rem", color: "var(--text-secondary)" }}>
-            <p style={{ visibility: displayChord ? "visible" : "hidden" }}>
-              Notes:{" "}
+          <div
+            className="chord-info"
+            style={{ visibility: displayChord ? "visible" : "hidden" }}
+          >
+            <p>
+              <strong>Notes:</strong>{" "}
               {displayChord ? displayChord.notes.map((n) => n).join(", ") : "—"}{" "}
-              | Octave: {octave}
+              <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
+              {octave}
             </p>
-            <p style={{ visibility: displayChord ? "visible" : "hidden" }}>
-              Inversion: {inversionIndex} | Dropped: {droppedNotes} | Spread:{" "}
-              {spreadAmount}
+            <p>
+              <strong>Inversion:</strong> {inversionIndex}{" "}
+              <span style={{ opacity: 0.5 }}>|</span> <strong>Dropped:</strong>{" "}
+              {droppedNotes} <span style={{ opacity: 0.5 }}>|</span>{" "}
+              <strong>Spread:</strong> {spreadAmount}
             </p>
-            {!isMobile && (
-              <>
-                <p
-                  style={{
-                    fontSize: "0.9rem",
-                    marginTop: "0.5rem",
-                    visibility: displayChord ? "visible" : "hidden",
-                  }}
-                >
-                  <strong>Left Shift</strong> = inversions |{" "}
-                  <strong>Caps Lock</strong> = drop top note |{" "}
-                  <strong>↑ ↓</strong> = spread | <strong>← →</strong> = octave
-                </p>
-                <p
-                  style={{
-                    fontSize: "0.8rem",
-                    marginTop: "0.5rem",
-                    visibility: displayChord ? "visible" : "hidden",
-                  }}
-                >
-                  <strong>Presets:</strong> <strong>Space</strong> = save to
-                  next open slot (random if no chord) | Hold chord + press empty
-                  number to save | Press number alone to recall
-                </p>
-              </>
-            )}
           </div>
+          {!isMobile && (
+            <div
+              className="keyboard-hints"
+              style={{ visibility: displayChord ? "visible" : "hidden" }}
+            >
+              <span className="keyboard-hint">
+                <kbd>Shift</kbd> Inversions
+              </span>
+              <span className="keyboard-hint">
+                <kbd>Caps</kbd> Drop note
+              </span>
+              <span className="keyboard-hint">
+                <kbd>↑</kbd>
+                <kbd>↓</kbd> Spread
+              </span>
+              <span className="keyboard-hint">
+                <kbd>←</kbd>
+                <kbd>→</kbd> Octave
+              </span>
+              <span className="keyboard-hint">
+                <kbd>Space</kbd> Save preset
+              </span>
+              <span className="keyboard-hint">
+                <kbd>1-9</kbd> Recall preset
+              </span>
+            </div>
+          )}
         </div>
 
         {!isMobile && (
           <div className="presets-panel">
-            <div className="preset-slots">
-              {Array.from(savedPresets.entries()).map(([slot, preset]) => (
-                <div key={slot} className="preset-slot">
-                  <span className="preset-number">{slot}</span>
-                  <span className="preset-keys">
-                    {Array.from(preset.keys).join(" + ")} (oct {preset.octave})
-                  </span>
+            <div className="presets-header">
+              <h3>Saved Presets</h3>
+              <div className="presets-actions">
+                {!isSelectMode ? (
                   <button
-                    onClick={() => clearPreset(slot)}
-                    className="clear-btn"
+                    onClick={() => setIsSelectMode(true)}
+                    className="solve-mode-btn"
+                    disabled={savedPresets.size < 2}
                   >
-                    ×
+                    Select to Solve
                   </button>
-                </div>
-              ))}
+                ) : (
+                  <>
+                    <span className="select-hint">
+                      Select{" "}
+                      {selectedPresets.length < 2
+                        ? `${2 - selectedPresets.length} more`
+                        : selectedPresets.length}{" "}
+                      chords
+                    </span>
+                    <button
+                      onClick={handleSolveChords}
+                      className="solve-btn"
+                      disabled={selectedPresets.length < 2}
+                    >
+                      Solve Voicings
+                    </button>
+                    <button onClick={cancelSelectMode} className="cancel-btn">
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="preset-slots">
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(
+                (slot) => {
+                  const preset = savedPresets.get(slot);
+                  const hasPreset = !!preset;
+                  const isSelected = selectedPresets.includes(slot);
+
+                  return (
+                    <div
+                      key={slot}
+                      className={`preset-slot compact ${hasPreset ? "filled" : "empty"} ${isSelectMode && hasPreset ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
+                      onClick={
+                        isSelectMode && hasPreset
+                          ? () => togglePresetSelection(slot)
+                          : undefined
+                      }
+                      title={
+                        hasPreset
+                          ? `${Array.from(preset.keys).join(" + ")} | Oct: ${preset.octave} | Inv: ${preset.inversionIndex} | Spr: ${preset.spreadAmount} | Drp: ${preset.droppedNotes}`
+                          : `Slot ${slot} - Empty`
+                      }
+                    >
+                      {isSelectMode && isSelected && (
+                        <span className="selection-order-badge">
+                          {selectedPresets.indexOf(slot) + 1}
+                        </span>
+                      )}
+                      <span
+                        className={`preset-number ${hasPreset ? "" : "empty"}`}
+                      >
+                        {slot}
+                      </span>
+                      {!isSelectMode && hasPreset && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearPreset(slot);
+                          }}
+                          className="clear-btn-mini"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+              )}
             </div>
           </div>
         )}
@@ -219,6 +390,7 @@ function App() {
             activeNotes={currentChord ? currentChord.notes : []}
             startOctave={1}
             endOctave={7}
+            getNoteColor={getNoteColor}
           />
         )}
 
@@ -229,6 +401,7 @@ function App() {
               startOctave={2}
               endOctave={6}
               isMobile={true}
+              getNoteColor={getNoteColor}
             />
           </div>
         )}

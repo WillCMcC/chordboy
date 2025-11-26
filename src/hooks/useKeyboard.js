@@ -47,7 +47,7 @@ export function useKeyboard(onAllKeysUp) {
       event.preventDefault();
     }
 
-    // Ignore modifier/control keys and number keys - these are handled separately
+    // Ignore modifier/control keys, arrow keys, and number keys - these are handled separately
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
@@ -55,6 +55,10 @@ export function useKeyboard(onAllKeysUp) {
       event.key === "Control" ||
       event.key === "Alt" ||
       event.key === "Meta" ||
+      event.key === "ArrowUp" ||
+      event.key === "ArrowDown" ||
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight" ||
       (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
     if (isControlKey) {
@@ -78,7 +82,7 @@ export function useKeyboard(onAllKeysUp) {
     (event) => {
       const key = event.key.toLowerCase();
 
-      // Ignore modifier/control keys and number keys
+      // Ignore modifier/control keys, arrow keys, and number keys
       const isControlKey =
         event.key === "Shift" ||
         event.key === "CapsLock" ||
@@ -86,6 +90,10 @@ export function useKeyboard(onAllKeysUp) {
         event.key === "Control" ||
         event.key === "Alt" ||
         event.key === "Meta" ||
+        event.key === "ArrowUp" ||
+        event.key === "ArrowDown" ||
+        event.key === "ArrowLeft" ||
+        event.key === "ArrowRight" ||
         (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
       if (isControlKey) {

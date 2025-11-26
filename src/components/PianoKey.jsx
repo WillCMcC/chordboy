@@ -11,6 +11,7 @@ export function PianoKey({
   isActive,
   style,
   isMobile = false,
+  activeColor = null,
 }) {
   const className = `piano-key ${isBlack ? "black" : "white"} ${
     isActive ? "active" : ""
@@ -23,12 +24,20 @@ export function PianoKey({
       : { width: "22px", height: "100px" }
     : {};
 
+  // Apply custom color when active
+  const colorStyles =
+    isActive && activeColor
+      ? {
+          "--active-color": activeColor,
+        }
+      : {};
+
   return (
     <div
       className={className}
       data-midi={midiNumber}
       title={noteName}
-      style={{ ...style, ...mobileStyles }}
+      style={{ ...style, ...mobileStyles, ...colorStyles }}
     >
       {/* Optional: Show note name on white keys */}
       {!isBlack && (

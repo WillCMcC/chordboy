@@ -7,6 +7,7 @@ import {
   loadPresetsFromStorage,
   savePresetsToStorage,
 } from "../lib/presetStorage";
+import { solveChordVoicings } from "../lib/chordSolver";
 
 /**
  * useChordEngine Hook
@@ -467,6 +468,57 @@ export function useChordEngine(pressedKeys) {
     console.log("Cleared all presets");
   };
 
+  // Function to solve voicings for selected presets
+  const solvePresets = (selectedSlots) => {
+    if (!selectedSlots || selectedSlots.length < 2) {
+      console.log("Need at least 2 presets to solve");
+      return false;
+    }
+
+    // Get presets in the order of selection
+    const presetsToSolve = selectedSlots
+      .filter((slot) => savedPresets.has(slot))
+      .map((slot) => ({ slot, preset: savedPresets.get(slot) }));
+
+    if (presetsToSolve.length < 2) {
+      console.log("Not enough valid presets selected");
+      return false;
+    }
+
+    // Extract just the preset data for the solver
+    const presetData = presetsToSolve.map((p) => p.preset);
+
+    // Run the solver
+    const solvedVoicings = solveChordVoicings(presetData);
+
+    if (!solvedVoicings || solvedVoicings.length !== presetsToSolve.length) {
+      console.error("Solver returned invalid results");
+      return false;
+    }
+
+    // Update the presets with the solved voicings
+    setSavedPresets((prev) => {
+      const newPresets = new Map(prev);
+      presetsToSolve.forEach(({ slot, preset }, index) => {
+        const solvedVoicing = solvedVoicings[index];
+        newPresets.set(slot, {
+          ...preset,
+          octave: solvedVoicing.octave,
+          inversionIndex: solvedVoicing.inversionIndex,
+          droppedNotes: solvedVoicing.droppedNotes,
+          spreadAmount: solvedVoicing.spreadAmount,
+        });
+        console.log(
+          `Updated preset ${slot} with solved voicing:`,
+          solvedVoicing
+        );
+      });
+      return newPresets;
+    });
+
+    return true;
+  };
+
   return {
     currentChord,
     parsedKeys,
@@ -488,6 +540,7 @@ export function useChordEngine(pressedKeys) {
     recallPresetFromSlot,
     stopRecallingPreset,
     activePresetSlot,
+    solvePresets,
   };
 }
 
@@ -516,22 +569,26 @@ function generateRandomChord() {
   return chordKeys;
 }
 
-// Helper function to drop the highest note down an octave
+// Helper function to drop the highest notes down an octave (reverse inversion)
+// dropCount 1 = drop highest note down an octave
+// dropCount 2 = drop 2 highest notes down an octave
+// etc.
 function applyProgressiveDrop(notes, dropCount) {
   if (dropCount === 0 || notes.length === 0) return notes;
 
   const sorted = [...notes].sort((a, b) => a - b);
+  const result = [...sorted];
 
-  // Simply take the highest note and drop it down an octave
-  if (dropCount === 1) {
-    const result = [...sorted];
-    const highestIndex = result.length - 1;
-    result[highestIndex] = result[highestIndex] - 12;
-    return result.sort((a, b) => a - b);
+  // Drop the top N notes down an octave (reverse of inversion)
+  const actualDrops = Math.min(dropCount, notes.length - 1); // Don't drop all notes
+  for (let i = 0; i < actualDrops; i++) {
+    const dropIndex = result.length - 1 - i;
+    if (dropIndex >= 0) {
+      result[dropIndex] = result[dropIndex] - 12;
+    }
   }
 
-  // If dropCount > 1, cycle back to no drop
-  return sorted;
+  return result.sort((a, b) => a - b);
 }
 
 // Helper function to spread notes across octaves

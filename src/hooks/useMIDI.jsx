@@ -138,20 +138,32 @@ export function MIDIProvider({ children }) {
 
   /**
    * Play multiple notes (chord)
+   * Smart diff: only stops notes that are being removed, only starts notes that are new
+   * Notes that remain the same continue sustaining without re-triggering
    */
   const playChord = useCallback(
     (notes, vel = velocity) => {
       if (!selectedOutput || !notes || notes.length === 0) return;
 
-      // Stop all currently playing notes first
-      currentNotes.forEach((note) => {
+      const newNotesSet = new Set(notes);
+      const currentNotesSet = new Set(currentNotes);
+
+      // Find notes to stop (in current but not in new)
+      const notesToStop = currentNotes.filter((note) => !newNotesSet.has(note));
+
+      // Find notes to start (in new but not in current)
+      const notesToStart = notes.filter((note) => !currentNotesSet.has(note));
+
+      // Stop removed notes
+      notesToStop.forEach((note) => {
         sendNoteOff(selectedOutput, channel, note);
       });
 
-      // Play new chord
-      notes.forEach((note) => {
+      // Start new notes
+      notesToStart.forEach((note) => {
         sendNoteOn(selectedOutput, channel, note, vel);
       });
+
       setCurrentNotes(notes);
     },
     [selectedOutput, channel, velocity, currentNotes]

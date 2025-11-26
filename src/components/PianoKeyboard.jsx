@@ -13,6 +13,7 @@ export function PianoKeyboard({
   startOctave = 3,
   endOctave = 5,
   isMobile = false,
+  getNoteColor = null,
 }) {
   // Key dimensions based on mobile or desktop
   const whiteKeyWidth = isMobile ? 22 : 25;
@@ -40,6 +41,7 @@ export function PianoKeyboard({
               isBlack={false}
               isActive={activeNotes.includes(key.midi)}
               isMobile={isMobile}
+              activeColor={getNoteColor ? getNoteColor(key.midi) : null}
             />
           ))}
         </div>
@@ -62,6 +64,7 @@ export function PianoKeyboard({
                 isActive={activeNotes.includes(key.midi)}
                 style={{ left: `${leftPosition}px` }}
                 isMobile={isMobile}
+                activeColor={getNoteColor ? getNoteColor(key.midi) : null}
               />
             );
           })}
