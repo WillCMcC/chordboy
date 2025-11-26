@@ -237,65 +237,73 @@ function App() {
         className="main"
         style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}
       >
-        <div
-          className={`chord-display ${currentChord ? "active" : ""}`}
-          style={
-            currentChord
-              ? {
-                  "--aurora-gradient": buildNorthernLightsGradient(
-                    currentChord.notes
-                  ),
-                }
-              : {}
-          }
-        >
-          <p className="chord-name">
-            {displayChord ? displayChord.name : "Press keys to play chords"}
-          </p>
+        <div className="chord-display-wrapper">
+          {/* Aurora glow layer - separate element behind the panel */}
           <div
-            className="chord-info"
-            style={{ visibility: displayChord ? "visible" : "hidden" }}
-          >
-            <p>
-              <strong>Notes:</strong>{" "}
-              {displayChord ? displayChord.notes.map((n) => n).join(", ") : "—"}{" "}
-              <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
-              {octave}
+            className={`aurora-glow ${currentChord ? "active" : ""}`}
+            style={
+              currentChord
+                ? {
+                    "--aurora-gradient": buildNorthernLightsGradient(
+                      currentChord.notes
+                    ),
+                    background: buildNorthernLightsGradient(currentChord.notes),
+                  }
+                : {}
+            }
+          />
+          <div className="chord-display">
+            <p className="chord-name">
+              {displayChord ? displayChord.name : "Press keys to play chords"}
             </p>
-            <p>
-              <strong>Inversion:</strong> {inversionIndex}{" "}
-              <span style={{ opacity: 0.5 }}>|</span> <strong>Dropped:</strong>{" "}
-              {droppedNotes} <span style={{ opacity: 0.5 }}>|</span>{" "}
-              <strong>Spread:</strong> {spreadAmount}
-            </p>
-          </div>
-          {!isMobile && (
             <div
-              className="keyboard-hints"
+              className="chord-info"
               style={{ visibility: displayChord ? "visible" : "hidden" }}
             >
-              <span className="keyboard-hint">
-                <kbd>Shift</kbd> Inversions
-              </span>
-              <span className="keyboard-hint">
-                <kbd>Caps</kbd> Drop note
-              </span>
-              <span className="keyboard-hint">
-                <kbd>↑</kbd>
-                <kbd>↓</kbd> Spread
-              </span>
-              <span className="keyboard-hint">
-                <kbd>←</kbd>
-                <kbd>→</kbd> Octave
-              </span>
-              <span className="keyboard-hint">
-                <kbd>Space</kbd> Save preset
-              </span>
-              <span className="keyboard-hint">
-                <kbd>1-9</kbd> Recall preset
-              </span>
+              <p>
+                <strong>Notes:</strong>{" "}
+                {displayChord
+                  ? displayChord.notes.map((n) => n).join(", ")
+                  : "—"}{" "}
+                <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
+                {octave}
+              </p>
+              <p>
+                <strong>Inversion:</strong> {inversionIndex}{" "}
+                <span style={{ opacity: 0.5 }}>|</span>{" "}
+                <strong>Dropped:</strong> {droppedNotes}{" "}
+                <span style={{ opacity: 0.5 }}>|</span> <strong>Spread:</strong>{" "}
+                {spreadAmount}
+              </p>
             </div>
-          )}
+            {!isMobile && (
+              <div
+                className="keyboard-hints"
+                style={{ visibility: displayChord ? "visible" : "hidden" }}
+              >
+                <span className="keyboard-hint">
+                  <kbd>Shift</kbd> Inversions
+                </span>
+                <span className="keyboard-hint">
+                  <kbd>Caps</kbd> Drop note
+                </span>
+                <span className="keyboard-hint">
+                  <kbd>↑</kbd>
+                  <kbd>↓</kbd> Spread
+                </span>
+                <span className="keyboard-hint">
+                  <kbd>←</kbd>
+                  <kbd>→</kbd> Octave
+                </span>
+                <span className="keyboard-hint">
+                  <kbd>Space</kbd> Save preset
+                </span>
+                <span className="keyboard-hint">
+                  <kbd>1-9</kbd> Recall preset
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {!isMobile && (

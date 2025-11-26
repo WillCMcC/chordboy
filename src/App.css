@@ -71,41 +71,33 @@
   gap: 2rem;
 }
 
-/* Chord Display */
-.chord-display {
-  text-align: center;
-  padding: 3rem;
-  background: var(--primary-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  min-width: 500px;
+/* Chord Display Wrapper - contains the glow */
+.chord-display-wrapper {
   position: relative;
-  overflow: visible;
-  box-shadow: var(--shadow-xl);
-  z-index: 1;
+  display: inline-block;
 }
 
-/* Aurora/Northern Lights glow effect - shines from behind the panel */
-.chord-display::before {
-  content: "";
+/* Aurora glow layer - sits behind the panel */
+.aurora-glow {
   position: absolute;
-  top: -40px;
-  left: -40px;
-  right: -40px;
-  bottom: -40px;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
   background: var(--aurora-gradient, transparent);
-  border-radius: 48px;
-  z-index: -1;
+  border-radius: 24px;
+  filter: blur(60px);
   opacity: 0;
-  filter: blur(40px);
+  pointer-events: none;
   transition:
     opacity 0.8s ease-out,
     background 0.3s ease-out;
   animation: aurora-shimmer 4s ease-in-out infinite;
-  transform-origin: center;
+  z-index: 0;
 }
 
-.chord-display.active::before {
+.aurora-glow.active {
   opacity: 1;
   transition:
     opacity 0.4s ease-out,
@@ -115,21 +107,34 @@
 @keyframes aurora-shimmer {
   0%,
   100% {
-    transform: scale(1) translateY(0);
-    filter: blur(40px);
+    transform: translate(-50%, -50%) scale(1.3);
+    filter: blur(60px);
   }
   25% {
-    transform: scale(1.03) translateY(-3px);
-    filter: blur(45px);
+    transform: translate(-50%, -52%) scale(1.35);
+    filter: blur(65px);
   }
   50% {
-    transform: scale(0.97) translateY(3px);
-    filter: blur(35px);
+    transform: translate(-50%, -48%) scale(1.25);
+    filter: blur(55px);
   }
   75% {
-    transform: scale(1.02) translateY(-2px);
-    filter: blur(42px);
+    transform: translate(-50%, -51%) scale(1.32);
+    filter: blur(62px);
   }
+}
+
+/* Chord Display - solid panel on top */
+.chord-display {
+  text-align: center;
+  padding: 3rem;
+  background: #0a0a0f;
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  min-width: 500px;
+  position: relative;
+  box-shadow: var(--shadow-xl);
+  z-index: 1;
 }
 
 .chord-name {
@@ -610,21 +615,19 @@
 
 /* Mobile-specific adjustments for chord display and aurora glow */
 @media (max-width: 768px) {
-  .chord-display {
-    min-width: unset;
+  .chord-display-wrapper {
     width: calc(100% - 2rem);
     max-width: 400px;
-    padding: 2rem 1.5rem;
-    margin: 0 1rem;
   }
 
-  .chord-display::before {
-    top: -30px;
-    left: -30px;
-    right: -30px;
-    bottom: -30px;
-    border-radius: 40px;
-    filter: blur(30px);
+  .chord-display {
+    min-width: unset;
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+
+  .aurora-glow {
+    filter: blur(50px);
   }
 
   .chord-name {
@@ -638,5 +641,25 @@
 
   .chord-info p {
     font-size: 0.8rem;
+  }
+
+  @keyframes aurora-shimmer {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(1.35);
+      filter: blur(50px);
+    }
+    25% {
+      transform: translate(-50%, -52%) scale(1.4);
+      filter: blur(55px);
+    }
+    50% {
+      transform: translate(-50%, -48%) scale(1.3);
+      filter: blur(45px);
+    }
+    75% {
+      transform: translate(-50%, -51%) scale(1.37);
+      filter: blur(52px);
+    }
   }
 }
