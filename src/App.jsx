@@ -241,6 +241,12 @@ function App() {
         octave={octave}
         spreadAmount={spreadAmount}
         savedPresets={savedPresets}
+        isMobile={isMobile}
+        setMobileKeys={setMobileKeys}
+        onInversionChange={cycleInversion}
+        onOctaveChange={changeOctave}
+        onSpreadChange={cycleSpread}
+        onSavePreset={saveCurrentChordToSlot}
       />
 
       <main className="main" style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}>

@@ -5,6 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   TUTORIAL_STEPS,
+  MOBILE_TUTORIAL_STEPS,
   buildTutorialState,
   isStepConditionMet,
   getNextStep,
@@ -31,6 +32,41 @@ describe("tutorialLogic", () => {
         expect(TUTORIAL_STEPS[i].hasCondition).toBe(true);
         expect(typeof TUTORIAL_STEPS[i].check).toBe("function");
       }
+    });
+  });
+
+  describe("MOBILE_TUTORIAL_STEPS", () => {
+    it("should have 8 steps (includes hold step)", () => {
+      expect(MOBILE_TUTORIAL_STEPS).toHaveLength(8);
+    });
+
+    it("should have welcome as first step without condition", () => {
+      expect(MOBILE_TUTORIAL_STEPS[0].id).toBe("welcome");
+      expect(MOBILE_TUTORIAL_STEPS[0].hasCondition).toBe(false);
+    });
+
+    it("should have hold step as step 6 without condition", () => {
+      expect(MOBILE_TUTORIAL_STEPS[6].id).toBe("hold");
+      expect(MOBILE_TUTORIAL_STEPS[6].hasCondition).toBe(false);
+    });
+
+    it("should have ready as last step without condition", () => {
+      expect(MOBILE_TUTORIAL_STEPS[7].id).toBe("ready");
+      expect(MOBILE_TUTORIAL_STEPS[7].hasCondition).toBe(false);
+    });
+
+    it("should have conditions for steps 1-5", () => {
+      for (let i = 1; i <= 5; i++) {
+        expect(MOBILE_TUTORIAL_STEPS[i].hasCondition).toBe(true);
+        expect(typeof MOBILE_TUTORIAL_STEPS[i].check).toBe("function");
+      }
+    });
+
+    it("should use same condition checks as desktop", () => {
+      const state = { hasRoot: true, isMinor: true, hasExtension: true };
+      expect(MOBILE_TUTORIAL_STEPS[1].check(state)).toBe(true); // root
+      expect(MOBILE_TUTORIAL_STEPS[2].check(state)).toBe(true); // quality
+      expect(MOBILE_TUTORIAL_STEPS[3].check(state)).toBe(true); // extension
     });
   });
 
@@ -211,6 +247,24 @@ describe("tutorialLogic", () => {
     it("should return null for out of bounds", () => {
       expect(getNextStep(7)).toBe(null);
       expect(getNextStep(100)).toBe(null);
+    });
+
+    it("should work with mobile steps (8 steps)", () => {
+      expect(getNextStep(0, MOBILE_TUTORIAL_STEPS)).toBe(1);
+      expect(getNextStep(6, MOBILE_TUTORIAL_STEPS)).toBe(7);
+      expect(getNextStep(7, MOBILE_TUTORIAL_STEPS)).toBe(null);
+    });
+  });
+
+  describe("isStepConditionMet with custom steps", () => {
+    it("should work with mobile steps", () => {
+      const state = { hasRoot: true };
+      expect(isStepConditionMet(1, state, MOBILE_TUTORIAL_STEPS)).toBe(true);
+    });
+
+    it("should return false for mobile hold step (no condition)", () => {
+      const state = {};
+      expect(isStepConditionMet(6, state, MOBILE_TUTORIAL_STEPS)).toBe(false);
     });
   });
 

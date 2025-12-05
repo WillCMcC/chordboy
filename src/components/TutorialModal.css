@@ -204,6 +204,93 @@
   color: var(--text-secondary);
 }
 
+/* Mobile action buttons */
+.tutorial-actions {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tutorial-action-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tutorial-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorial-action-btn {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  min-width: 48px;
+}
+
+.tutorial-action-btn:active {
+  transform: scale(0.95);
+}
+
+.tutorial-action-root {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.tutorial-action-root:active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.4);
+}
+
+.tutorial-action-modifier {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.tutorial-action-modifier:active {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 1px 4px rgba(139, 92, 246, 0.4);
+}
+
+.tutorial-action-control {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.tutorial-action-control:active {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.4);
+}
+
+.tutorial-action-save {
+  padding: 0.75rem 1.5rem;
+}
+
+.tutorial-action-plus {
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
+  padding: 0 0.25rem;
+}
+
 /* Mobile adjustments */
 @media (max-width: 640px) {
   .tutorial-overlay {
@@ -235,5 +322,15 @@
 
   .tutorial-footer {
     padding: 0.875rem 1.5rem 1.25rem;
+  }
+
+  .tutorial-actions {
+    margin-top: 1rem;
+    padding: 0.875rem;
+  }
+
+  .tutorial-action-btn {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
   }
 }

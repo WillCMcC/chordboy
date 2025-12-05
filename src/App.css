@@ -6,24 +6,24 @@
 
 /* Header Buttons */
 .header-buttons {
-  position: fixed;
-  top: var(--space-4);
-  right: var(--space-4);
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
   display: flex;
   gap: var(--space-2);
-  z-index: 100;
+  z-index: 10;
 }
 
 .header-btn {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
   background: var(--glass-bg-solid);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   cursor: pointer;
-  font-size: 1.25rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,10 +619,16 @@
 
 /* Mobile-specific adjustments */
 @media (max-width: 768px) {
+  .header-buttons {
+    top: var(--space-2);
+    right: var(--space-2);
+  }
+
   .main {
     padding: var(--space-8) var(--space-4);
+    padding-top: calc(var(--space-8) + 36px); /* Make room for header buttons */
     gap: var(--space-6);
-    margin-top: var(--space-4);
+    margin-top: 0;
   }
 
   .chord-display-wrapper {

@@ -7,7 +7,7 @@
  */
 
 /**
- * Tutorial step definitions with conditions.
+ * Desktop tutorial step definitions with conditions.
  */
 export const TUTORIAL_STEPS = [
   {
@@ -44,6 +44,57 @@ export const TUTORIAL_STEPS = [
     title: "Save a Preset",
     hasCondition: true,
     check: (state) => state.hasPreset,
+  },
+  {
+    id: "ready",
+    title: "You're Ready!",
+    hasCondition: false,
+  },
+];
+
+/**
+ * Mobile tutorial step definitions with conditions.
+ */
+export const MOBILE_TUTORIAL_STEPS = [
+  {
+    id: "welcome",
+    title: "Welcome to ChordBoy",
+    hasCondition: false,
+  },
+  {
+    id: "root",
+    title: "Tap a Root Note",
+    hasCondition: true,
+    check: (state) => state.hasRoot,
+  },
+  {
+    id: "quality",
+    title: "Add a Chord Quality",
+    hasCondition: true,
+    check: (state) => state.isMinor,
+  },
+  {
+    id: "extension",
+    title: "Try an Extension",
+    hasCondition: true,
+    check: (state) => state.hasExtension,
+  },
+  {
+    id: "voicing",
+    title: "Change the Voicing",
+    hasCondition: true,
+    check: (state) => state.hasVoicingChange,
+  },
+  {
+    id: "preset",
+    title: "Save a Preset",
+    hasCondition: true,
+    check: (state) => state.hasPreset,
+  },
+  {
+    id: "hold",
+    title: "Hold a Chord",
+    hasCondition: false, // Manual advance - just explain the feature
   },
   {
     id: "ready",
@@ -101,10 +152,11 @@ export function buildTutorialState({
  *
  * @param {number} stepIndex - The step index to check
  * @param {Object} tutorialState - The current tutorial state
+ * @param {Array} steps - The steps array to use (defaults to TUTORIAL_STEPS)
  * @returns {boolean} Whether the condition is met
  */
-export function isStepConditionMet(stepIndex, tutorialState) {
-  const step = TUTORIAL_STEPS[stepIndex];
+export function isStepConditionMet(stepIndex, tutorialState, steps = TUTORIAL_STEPS) {
+  const step = steps[stepIndex];
   if (!step || !step.hasCondition) return false;
   return step.check(tutorialState);
 }
@@ -113,9 +165,10 @@ export function isStepConditionMet(stepIndex, tutorialState) {
  * Get the next step index.
  *
  * @param {number} currentStep - Current step index
+ * @param {Array} steps - The steps array to use (defaults to TUTORIAL_STEPS)
  * @returns {number|null} Next step index, or null if at end
  */
-export function getNextStep(currentStep) {
-  if (currentStep >= TUTORIAL_STEPS.length - 1) return null;
+export function getNextStep(currentStep, steps = TUTORIAL_STEPS) {
+  if (currentStep >= steps.length - 1) return null;
   return currentStep + 1;
 }
