@@ -50,7 +50,8 @@ export function MIDIProvider({ children }) {
   const onMidiStopRef = useRef(null);
 
   // Maximum delay in ms at 100% humanization
-  const MAX_HUMANIZE_DELAY = 50;
+  // At 100%, notes can be staggered up to 150ms apart for audible arpeggiation
+  const MAX_HUMANIZE_DELAY = 150;
   /**
    * Connect to MIDI and enumerate devices
    */
