@@ -119,9 +119,13 @@ function generateVoicingsWithOctaveShifts(preset, octaveRange = 1) {
 /**
  * Solve for optimal voicings using dynamic programming
  * @param {Array<Object>} presets - Array of preset objects in order
+ * @param {Object} options - Solver options
+ * @param {number} options.targetOctave - Preferred octave to center voicings around
  * @returns {Array<Object>} Optimal voicing settings for each chord
  */
-export function solveChordVoicings(presets) {
+export function solveChordVoicings(presets, options = {}) {
+  const { targetOctave } = options;
+
   if (!presets || presets.length === 0) return [];
   if (presets.length === 1) {
     // Single chord - return default voicing
@@ -130,15 +134,19 @@ export function solveChordVoicings(presets) {
         inversionIndex: presets[0].inversionIndex || 0,
         spreadAmount: presets[0].spreadAmount || 0,
         droppedNotes: presets[0].droppedNotes || 0,
-        octave: presets[0].octave,
+        octave: targetOctave || presets[0].octave,
       },
     ];
   }
 
   // Generate all possible voicings for each chord
-  const allVoicings = presets.map((preset) =>
-    generateVoicingsWithOctaveShifts(preset, 1)
-  );
+  // If targetOctave is specified, use it as the base for all presets
+  const allVoicings = presets.map((preset) => {
+    const presetWithTargetOctave = targetOctave
+      ? { ...preset, octave: targetOctave }
+      : preset;
+    return generateVoicingsWithOctaveShifts(presetWithTargetOctave, 1);
+  });
 
   // Check if any chord has no valid voicings
   if (allVoicings.some((v) => v.length === 0)) {

@@ -456,6 +456,7 @@ function App() {
             activePresetSlot={activePresetSlot}
             showKeyboard={showMobileKeyboard}
             onToggleKeyboard={() => setShowMobileKeyboard(!showMobileKeyboard)}
+            onSolvePresets={solvePresets}
           />
         )}
       </main>

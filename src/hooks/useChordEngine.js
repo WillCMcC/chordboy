@@ -568,8 +568,10 @@ export function useChordEngine(pressedKeys) {
     // Extract just the preset data for the solver
     const presetData = presetsToSolve.map((p) => p.preset);
 
-    // Run the solver
-    const solvedVoicings = solveChordVoicings(presetData);
+    // Run the solver with current octave as target
+    const solvedVoicings = solveChordVoicings(presetData, {
+      targetOctave: octave,
+    });
 
     if (!solvedVoicings || solvedVoicings.length !== presetsToSolve.length) {
       console.error("Solver returned invalid results");

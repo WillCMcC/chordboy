@@ -93,6 +93,14 @@
   position: relative;
 }
 
+/* Solve mode selection state */
+.mobile-btn.solve-selected {
+  box-shadow:
+    0 0 12px rgba(124, 77, 255, 0.6),
+    inset 0 0 4px rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+}
+
 .mobile-btn.saved::after {
   content: "";
   position: absolute;

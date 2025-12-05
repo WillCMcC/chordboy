@@ -26,6 +26,7 @@ const DRAG_DOWN_THRESHOLD = 40;
  * @param {string|null} props.activePresetSlot - Currently active preset slot
  * @param {boolean} props.showKeyboard - Whether piano keyboard is visible
  * @param {Function} props.onToggleKeyboard - Callback to toggle keyboard visibility
+ * @param {Function} props.onSolvePresets - Callback to solve voice leading for selected presets
  */
 export function MobileControls({
   mobileKeys,
@@ -43,8 +44,11 @@ export function MobileControls({
   activePresetSlot,
   showKeyboard,
   onToggleKeyboard,
+  onSolvePresets,
 }) {
   const [clearMode, setClearMode] = useState(false);
+  const [solveMode, setSolveMode] = useState(false);
+  const [selectedForSolve, setSelectedForSolve] = useState([]);
 
   // Track touch/pointer state for drag-down-to-hold gesture
   const presetTouchRef = useRef({
@@ -103,12 +107,49 @@ export function MobileControls({
     setMobileKeys(new Set());
   };
 
+  // Toggle a preset for solve selection
+  const toggleSolveSelection = (slot) => {
+    const slotStr = slot.toString();
+    setSelectedForSolve((prev) => {
+      if (prev.includes(slotStr)) {
+        return prev.filter((s) => s !== slotStr);
+      } else {
+        return [...prev, slotStr];
+      }
+    });
+  };
+
+  // Execute solve
+  const handleSolve = () => {
+    if (selectedForSolve.length >= 2 && onSolvePresets) {
+      const success = onSolvePresets(selectedForSolve);
+      if (success) {
+        setSelectedForSolve([]);
+        setSolveMode(false);
+      }
+    }
+  };
+
+  // Cancel solve mode
+  const cancelSolveMode = () => {
+    setSelectedForSolve([]);
+    setSolveMode(false);
+  };
+
   const handlePresetDown = (slot, clientY) => {
     const slotStr = slot.toString();
 
     if (clearMode) {
       onClearPreset(slotStr);
       setClearMode(false);
+      return;
+    }
+
+    // In solve mode, toggle selection instead of playing
+    if (solveMode) {
+      if (savedPresets.has(slotStr)) {
+        toggleSolveSelection(slot);
+      }
       return;
     }
 
@@ -223,13 +264,44 @@ export function MobileControls({
       <div className="mobile-controls-section presets-section">
         <div className="mobile-controls-header">
           <span className="mobile-controls-label">Presets</span>
-          <button
-            className={`control-btn ${clearMode ? "active" : ""}`}
-            style={{ flex: 0, backgroundColor: clearMode ? "#d32f2f" : "" }}
-            onClick={() => setClearMode(!clearMode)}
-          >
-            {clearMode ? "Cancel Clear" : "Clear..."}
-          </button>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
+            {solveMode ? (
+              <>
+                <button
+                  className="control-btn"
+                  style={{ flex: 0, backgroundColor: "#4a148c" }}
+                  disabled={selectedForSolve.length < 2}
+                  onClick={handleSolve}
+                >
+                  Solve ({selectedForSolve.length})
+                </button>
+                <button
+                  className="control-btn"
+                  style={{ flex: 0 }}
+                  onClick={cancelSolveMode}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="control-btn"
+                  style={{ flex: 0, backgroundColor: "#1a237e" }}
+                  onClick={() => setSolveMode(true)}
+                >
+                  Solve...
+                </button>
+                <button
+                  className={`control-btn ${clearMode ? "active" : ""}`}
+                  style={{ flex: 0, backgroundColor: clearMode ? "#d32f2f" : "" }}
+                  onClick={() => setClearMode(!clearMode)}
+                >
+                  {clearMode ? "Cancel" : "Clear..."}
+                </button>
+              </>
+            )}
+          </div>
         </div>
         <div
           ref={presetsGridRef}
@@ -240,22 +312,28 @@ export function MobileControls({
             const slotStr = num.toString();
             const isSaved = savedPresets.has(slotStr);
             const isActive = activePresetSlot === slotStr;
+            const isSelectedForSolve = selectedForSolve.includes(slotStr);
+            const solveIndex = selectedForSolve.indexOf(slotStr);
 
             return (
               <button
                 key={num}
-                className={`mobile-btn ${isActive ? "active" : ""} ${isSaved ? "saved" : ""} ${heldPreset === slotStr ? "held" : ""}`}
+                className={`mobile-btn ${isActive ? "active" : ""} ${isSaved ? "saved" : ""} ${heldPreset === slotStr ? "held" : ""} ${isSelectedForSolve ? "solve-selected" : ""}`}
                 style={{
-                  backgroundColor: isActive
-                    ? "var(--accent-color)"
-                    : isSaved
-                      ? "#4a148c"
-                      : "",
-                  borderColor: isActive
-                    ? "white"
-                    : isSaved
+                  backgroundColor: isSelectedForSolve
+                    ? "#1a237e"
+                    : isActive
                       ? "var(--accent-color)"
-                      : "",
+                      : isSaved
+                        ? "#4a148c"
+                        : "",
+                  borderColor: isSelectedForSolve
+                    ? "#7c4dff"
+                    : isActive
+                      ? "white"
+                      : isSaved
+                        ? "var(--accent-color)"
+                        : "",
                 }}
                 onPointerDown={(e) => {
                   e.preventDefault();
@@ -284,7 +362,7 @@ export function MobileControls({
                   handlePresetUp(num);
                 }}
               >
-                {num}
+                {isSelectedForSolve ? solveIndex + 1 : num}
                 {heldPreset === slotStr && (
                   <span className="held-indicator">⬇</span>
                 )}
