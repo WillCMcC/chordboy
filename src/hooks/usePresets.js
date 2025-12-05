@@ -72,9 +72,7 @@ export function usePresets({ defaultOctave = 4 } = {}) {
    */
   useEffect(() => {
     if (!isLoaded) return;
-    if (savedPresets.size > 0) {
-      savePresetsToStorage(savedPresets);
-    }
+    savePresetsToStorage(savedPresets);
   }, [savedPresets, isLoaded]);
 
   /**
