@@ -2,14 +2,14 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2rem 2.5rem;
-  background: linear-gradient(180deg, #15151d 0%, #0d0d12 100%);
-  border-radius: 20px;
+  padding: var(--space-8) var(--space-10);
+  background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+  border-radius: var(--radius-xl);
   box-shadow:
     var(--shadow-xl),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 60px rgba(0, 0, 0, 0.5);
-  margin: 1rem auto;
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 80px rgba(0, 0, 0, 0.4);
+  margin: var(--space-4) auto;
   max-width: fit-content;
   border: 1px solid var(--glass-border);
   position: relative;
@@ -25,21 +25,21 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.06),
     transparent
   );
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .piano-container {
   position: relative;
   display: inline-block;
-  padding: 8px;
-  background: linear-gradient(180deg, #0a0a0f 0%, #05050a 100%);
-  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, var(--primary-bg) 0%, #050507 100%);
+  border-radius: var(--radius-lg);
   box-shadow:
-    inset 0 2px 8px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.03);
+    inset 0 2px 8px rgba(0, 0, 0, 0.5),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.02);
 }
 
 .white-keys {
@@ -50,8 +50,8 @@
 
 .black-keys {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 10px;
+  left: 10px;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -62,11 +62,16 @@
   pointer-events: auto;
 }
 
-/* Responsive adjustments for smaller screens */
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .piano-keyboard {
-    padding: 1rem;
+    padding: var(--space-4);
     overflow-x: auto;
+    border-radius: var(--radius-lg);
+  }
+
+  .piano-container {
+    padding: 6px;
   }
 
   .piano-key.white {

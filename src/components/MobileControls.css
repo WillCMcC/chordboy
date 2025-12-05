@@ -1,12 +1,12 @@
 .mobile-controls {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  padding: 1.2rem;
-  background: rgba(30, 30, 30, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border);
   position: fixed;
   bottom: 0;
   left: 0;
@@ -17,9 +17,9 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   z-index: 100;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
-  padding-bottom: env(safe-area-inset-bottom, 25px);
-  transition: transform 0.3s ease;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+  transition: transform 0.3s var(--ease-out-expo);
   touch-action: pan-y;
   -webkit-touch-callout: none;
 }
@@ -28,76 +28,73 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.4rem;
+  margin-bottom: var(--space-2);
 }
 
 .mobile-controls-section {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 0.8rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: var(--space-2);
+  background: rgba(255, 255, 255, 0.02);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
 }
 
 .mobile-controls-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.7rem;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.1em;
   font-weight: 700;
-  opacity: 0.8;
 }
 
 .mobile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-2);
 }
 
 .mobile-btn {
   height: 44px;
   border: none;
-  border-radius: 8px;
-  background-color: rgba(40, 40, 40, 0.8);
+  border-radius: var(--radius-md);
+  background: var(--tertiary-bg);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s var(--ease-out-expo);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .mobile-btn:active {
-  transform: scale(0.95);
-  background-color: rgba(30, 30, 30, 0.9);
+  transform: scale(0.94);
+  background: var(--secondary-bg);
 }
 
 .mobile-btn.active {
-  background-color: var(--accent-color);
+  background: var(--accent-gradient);
   color: white;
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow:
-    0 0 12px rgba(74, 158, 255, 0.5),
-    inset 0 0 4px rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-color: transparent;
+  box-shadow: 0 0 16px var(--accent-glow);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .mobile-btn.saved {
-  /* Handled by inline style for color, but add base style here if needed */
   position: relative;
 }
 
 /* Solve mode selection state */
 .mobile-btn.solve-selected {
-  box-shadow:
-    0 0 12px rgba(124, 77, 255, 0.6),
-    inset 0 0 4px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.5);
   font-weight: 700;
 }
 
@@ -109,35 +106,31 @@
   transform: translateX(-50%);
   width: 4px;
   height: 4px;
-  background-color: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: var(--radius-full);
 }
 
 /* Held state - when user drags down to lock a preset */
 .mobile-btn.held {
-  background-color: var(--accent-color) !important;
+  background: var(--accent-gradient) !important;
   color: white;
   border-color: white !important;
   box-shadow:
-    0 0 16px rgba(74, 158, 255, 0.6),
-    0 0 24px rgba(74, 158, 255, 0.3),
-    inset 0 0 4px rgba(255, 255, 255, 0.3);
-  animation: held-pulse 1.5s ease-in-out infinite;
+    0 0 20px var(--accent-glow),
+    0 0 32px rgba(99, 102, 241, 0.25);
+  animation: held-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes held-pulse {
-  0%,
-  100% {
+  0%, 100% {
     box-shadow:
-      0 0 16px rgba(74, 158, 255, 0.6),
-      0 0 24px rgba(74, 158, 255, 0.3),
-      inset 0 0 4px rgba(255, 255, 255, 0.3);
+      0 0 20px var(--accent-glow),
+      0 0 32px rgba(99, 102, 241, 0.25);
   }
   50% {
     box-shadow:
-      0 0 20px rgba(74, 158, 255, 0.8),
-      0 0 32px rgba(74, 158, 255, 0.4),
-      inset 0 0 6px rgba(255, 255, 255, 0.4);
+      0 0 28px var(--accent-glow),
+      0 0 44px rgba(99, 102, 241, 0.35);
   }
 }
 
@@ -147,7 +140,7 @@
   right: 2px;
   font-size: 0.6rem;
   opacity: 0.9;
-  animation: bounce 0.5s ease-in-out;
+  animation: bounce 0.5s var(--ease-out-expo);
 }
 
 @keyframes bounce {
@@ -169,14 +162,13 @@
   position: relative;
 }
 
-/* Preset grid needs special handling to prevent pull-to-refresh during drag */
+/* Preset grid needs special handling */
 .presets-section .mobile-grid,
 .presets-grid {
   touch-action: none;
   overscroll-behavior: contain;
 }
 
-/* Preset buttons need touch-action: none to allow vertical drag without refresh */
 .presets-section .mobile-btn {
   touch-action: none;
   -webkit-touch-callout: none;
@@ -190,7 +182,8 @@
 
 .root-grid .mobile-btn {
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.02em;
+  font-size: 0.95rem;
 }
 
 .modifier-grid {
@@ -199,40 +192,41 @@
 
 .modifier-grid .mobile-btn {
   font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .control-buttons {
   display: flex;
-  gap: 0.6rem;
-  margin-bottom: 0.2rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .control-btn {
   flex: 1;
-  padding: 0.6rem;
-  background-color: rgba(60, 60, 60, 0.5);
-  color: #eee;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  padding: var(--space-2);
+  background: var(--tertiary-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s var(--ease-out-expo);
 }
 
 .control-btn:active {
   transform: scale(0.96);
-  background-color: rgba(50, 50, 50, 0.8);
+  background: var(--secondary-bg);
 }
 
 .control-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   border-color: transparent;
-  background-color: transparent;
+  background: transparent;
 }
 
 .control-btn.active {
-  background-color: var(--error-color);
+  background: var(--error-color);
   color: white;
   border-color: transparent;
   animation: pulse 2s infinite;
@@ -240,30 +234,33 @@
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4);
+    box-shadow: 0 0 0 0 var(--error-glow);
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(244, 67, 54, 0);
+    box-shadow: 0 0 0 8px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
 /* Keyboard toggle button */
 .keyboard-toggle {
   width: 100%;
-  padding: 0.8rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: var(--space-3);
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.35);
 }
 
 .keyboard-toggle.active {
-  background: linear-gradient(135deg, var(--accent-color) 0%, #1976d2 100%);
+  background: var(--accent-gradient);
   animation: none;
+  box-shadow: 0 0 16px var(--accent-glow);
 }
