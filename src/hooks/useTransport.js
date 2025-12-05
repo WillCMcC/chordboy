@@ -3,13 +3,15 @@ import {
   saveSequencerToStorage,
   loadSequencerFromStorage,
 } from "../lib/sequencerStorage";
+import { processStep } from "../lib/sequencerLogic";
+import ClockWorker from "../workers/clockWorker.js?worker";
 
 /**
  * useTransport - Manages transport state and sequencer, synced to external MIDI clock
  *
  * Features:
  * - Sync to external MIDI clock (from Ableton, etc.) when enabled
- * - Internal clock when sync is disabled
+ * - Internal clock via Web Worker (runs in background tabs)
  * - Visual beat grid (quarter notes)
  * - Sequencer grid with configurable steps and preset triggers
  * - BPM display (calculated from incoming clock when synced)
@@ -32,10 +34,9 @@ export function useTransport(
   const [retrigMode, setRetrigMode] = useState(true); // true = retrigger same notes, false = sustain
   const [isLoaded, setIsLoaded] = useState(false); // Track if we've loaded from storage
 
-  // Refs for internal clock timing
-  const clockIntervalRef = useRef(null);
+  // Web Worker for internal clock (runs in background)
+  const clockWorkerRef = useRef(null);
   const pulseCountRef = useRef(0);
-  const lastTickTimeRef = useRef(0);
   const stepPulseCountRef = useRef(0);
   const lastTriggeredPresetRef = useRef(null); // Track last triggered preset for sustain mode
 
@@ -157,32 +158,36 @@ export function useTransport(
         setCurrentStep((prev) => {
           const nextStep = (prev + 1) % sequencerStepsRef.current;
 
-          // Trigger preset for this step
-          const presetSlot = sequenceRef.current[nextStep];
-          const lastPreset = lastTriggeredPresetRef.current;
+          // Process this step using extracted logic
+          const currentPreset = sequenceRef.current[nextStep];
+          const result = processStep({
+            currentPreset,
+            lastTriggeredPreset: lastTriggeredPresetRef.current,
+            retrigMode: retrigModeRef.current,
+          });
 
-          if (presetSlot) {
-            const isSamePreset = presetSlot === lastPreset;
-
-            if (retrigModeRef.current) {
-              // Retrig mode: always retrigger
-              if (isSamePreset && onRetriggerPresetRef.current) {
-                onRetriggerPresetRef.current(presetSlot);
-              } else if (onTriggerPresetRef.current) {
-                onTriggerPresetRef.current(presetSlot);
+          // Execute the action
+          switch (result.action) {
+            case "trigger":
+              if (onTriggerPresetRef.current) {
+                onTriggerPresetRef.current(result.preset);
               }
-            } else {
-              // Sustain mode: skip if same preset as last step
-              if (!isSamePreset && onTriggerPresetRef.current) {
-                onTriggerPresetRef.current(presetSlot);
+              break;
+            case "retrigger":
+              if (onRetriggerPresetRef.current) {
+                onRetriggerPresetRef.current(result.preset);
               }
-            }
-            lastTriggeredPresetRef.current = presetSlot;
-          } else if (onStopNotesRef.current) {
-            // Empty step - stop notes
-            onStopNotesRef.current();
-            lastTriggeredPresetRef.current = null;
+              break;
+            case "stop":
+              if (onStopNotesRef.current) {
+                onStopNotesRef.current();
+              }
+              break;
+            // "sustain" - do nothing, notes continue playing
           }
+
+          // Update last triggered preset
+          lastTriggeredPresetRef.current = result.lastTriggeredPreset;
 
           return nextStep;
         });
@@ -239,10 +244,16 @@ export function useTransport(
     // Trigger first step if sequencer is enabled
     if (sequencerEnabledRef.current) {
       const firstPreset = sequenceRef.current[0];
-      if (firstPreset && onTriggerPresetRef.current) {
-        onTriggerPresetRef.current(firstPreset);
-        lastTriggeredPresetRef.current = firstPreset;
+      const result = processStep({
+        currentPreset: firstPreset,
+        lastTriggeredPreset: null,
+        retrigMode: retrigModeRef.current,
+      });
+
+      if (result.action === "trigger" && onTriggerPresetRef.current) {
+        onTriggerPresetRef.current(result.preset);
       }
+      lastTriggeredPresetRef.current = result.lastTriggeredPreset;
     }
   }, []);
 
@@ -283,25 +294,35 @@ export function useTransport(
     }
   }, [syncEnabled, setClockCallbacks, handleExternalClock, handleExternalStart, handleExternalStop]);
 
-  // Calculate interval for 24 PPQN (pulses per quarter note) for internal clock
-  const getPulseInterval = useCallback(() => {
-    return (60000 / bpm) / 24;
-  }, [bpm]);
+  // Keep processPulse in a ref to avoid recreating worker
+  const processPulseRef = useRef(processPulse);
+  useEffect(() => {
+    processPulseRef.current = processPulse;
+  }, [processPulse]);
 
-  // Internal clock loop using requestAnimationFrame
-  const clockLoop = useCallback(() => {
-    if (!isPlaying || syncEnabled) return;
+  // Initialize Web Worker for internal clock (once on mount)
+  useEffect(() => {
+    const worker = new ClockWorker();
+    clockWorkerRef.current = worker;
 
-    const now = performance.now();
-    const pulseInterval = getPulseInterval();
+    worker.onmessage = (event) => {
+      if (event.data.type === "pulse") {
+        processPulseRef.current();
+      }
+    };
 
-    if (now - lastTickTimeRef.current >= pulseInterval) {
-      processPulse();
-      lastTickTimeRef.current = now;
+    return () => {
+      worker.postMessage({ type: "stop" });
+      worker.terminate();
+    };
+  }, []);
+
+  // Update worker BPM when it changes
+  useEffect(() => {
+    if (clockWorkerRef.current) {
+      clockWorkerRef.current.postMessage({ type: "setBpm", payload: { bpm } });
     }
-
-    clockIntervalRef.current = requestAnimationFrame(clockLoop);
-  }, [isPlaying, syncEnabled, getPulseInterval, processPulse]);
+  }, [bpm]);
 
   // Start internal transport (only when sync is disabled)
   const start = useCallback(() => {
@@ -312,20 +333,28 @@ export function useTransport(
     setCurrentStep(0);
     pulseCountRef.current = 0;
     stepPulseCountRef.current = 0;
-    lastTickTimeRef.current = performance.now();
     lastTriggeredPresetRef.current = null;
 
     // Trigger first step if sequencer is enabled
     if (sequencerEnabledRef.current) {
       const firstPreset = sequenceRef.current[0];
-      if (firstPreset && onTriggerPresetRef.current) {
-        onTriggerPresetRef.current(firstPreset);
-        lastTriggeredPresetRef.current = firstPreset;
+      const result = processStep({
+        currentPreset: firstPreset,
+        lastTriggeredPreset: null,
+        retrigMode: retrigModeRef.current,
+      });
+
+      if (result.action === "trigger" && onTriggerPresetRef.current) {
+        onTriggerPresetRef.current(result.preset);
       }
+      lastTriggeredPresetRef.current = result.lastTriggeredPreset;
     }
 
-    clockIntervalRef.current = requestAnimationFrame(clockLoop);
-  }, [isPlaying, syncEnabled, clockLoop]);
+    // Start the clock worker
+    if (clockWorkerRef.current) {
+      clockWorkerRef.current.postMessage({ type: "start", payload: { bpm } });
+    }
+  }, [isPlaying, syncEnabled, bpm]);
 
   // Stop internal transport
   const stop = useCallback(() => {
@@ -338,9 +367,9 @@ export function useTransport(
     stepPulseCountRef.current = 0;
     lastTriggeredPresetRef.current = null;
 
-    if (clockIntervalRef.current) {
-      cancelAnimationFrame(clockIntervalRef.current);
-      clockIntervalRef.current = null;
+    // Stop the clock worker
+    if (clockWorkerRef.current) {
+      clockWorkerRef.current.postMessage({ type: "stop" });
     }
 
     // Stop any playing notes
@@ -389,30 +418,10 @@ export function useTransport(
     setSequence(new Array(sequencerSteps).fill(null));
   }, [sequencerSteps]);
 
-  // Cleanup on unmount
+  // Stop clock worker when sync is enabled
   useEffect(() => {
-    return () => {
-      if (clockIntervalRef.current) {
-        cancelAnimationFrame(clockIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Restart internal clock loop when dependencies change (while playing without sync)
-  useEffect(() => {
-    if (isPlaying && !syncEnabled) {
-      if (clockIntervalRef.current) {
-        cancelAnimationFrame(clockIntervalRef.current);
-      }
-      clockIntervalRef.current = requestAnimationFrame(clockLoop);
-    }
-  }, [isPlaying, syncEnabled, clockLoop]);
-
-  // Stop internal clock when sync is enabled
-  useEffect(() => {
-    if (syncEnabled && clockIntervalRef.current) {
-      cancelAnimationFrame(clockIntervalRef.current);
-      clockIntervalRef.current = null;
+    if (syncEnabled && clockWorkerRef.current) {
+      clockWorkerRef.current.postMessage({ type: "stop" });
     }
   }, [syncEnabled]);
 

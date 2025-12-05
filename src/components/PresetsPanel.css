@@ -1,0 +1,193 @@
+/**
+ * PresetsPanel Styles
+ * Styles for the desktop chord presets panel.
+ */
+
+.presets-panel {
+  background: var(--secondary-bg);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin: 0 auto 1.5rem auto;
+  max-width: 600px;
+  width: 100%;
+}
+
+.presets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.presets-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.presets-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.solve-mode-btn,
+.solve-btn,
+.cancel-btn {
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.solve-mode-btn {
+  background: transparent;
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.solve-mode-btn:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.solve-mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.solve-btn {
+  background: var(--accent-primary);
+  border: none;
+  color: white;
+}
+
+.solve-btn:hover:not(:disabled) {
+  background: var(--accent-hover, #2563eb);
+}
+
+.solve-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.cancel-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.preset-slots {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.preset-slot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.preset-slot.compact {
+  width: 36px;
+  height: 36px;
+}
+
+.preset-slot.filled {
+  background: var(--tertiary-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.preset-slot.empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.preset-slot.selectable {
+  cursor: pointer;
+}
+
+.preset-slot.selectable:hover {
+  border-color: var(--accent-primary);
+}
+
+.preset-slot.selected {
+  border-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.preset-number {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.preset-number.empty {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.selection-order-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-btn-mini {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 100, 100, 0.8);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 0.625rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preset-slot:hover .clear-btn-mini {
+  opacity: 1;
+}
+
+.clear-btn-mini:hover {
+  background: rgba(255, 80, 80, 1);
+}

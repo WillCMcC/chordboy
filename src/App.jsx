@@ -1,97 +1,67 @@
+/**
+ * App Component
+ * Main application component for ChordBoy MIDI chord controller.
+ * Orchestrates keyboard input, chord engine, MIDI output, and UI components.
+ *
+ * @module App
+ */
+
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { MIDIStatus } from "./components/MIDIStatus";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
 import { TransportControls } from "./components/TransportControls";
 import { SequencerModal } from "./components/SequencerModal";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { PresetsPanel } from "./components/PresetsPanel";
+import { ChordDisplay } from "./components/ChordDisplay";
 import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
 import { useMIDI } from "./hooks/useMIDI";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
+import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
 
-// ROYGBIV colors mapped to the 12 chromatic notes (C through B)
-// Spread across the rainbow with bright, vivid colors
-const NOTE_COLORS = {
-  0: "#ff3333", // C - Bright Red
-  1: "#ff6622", // C# - Red-Orange
-  2: "#ff9900", // D - Bright Orange
-  3: "#ffcc00", // D# - Gold
-  4: "#ffff33", // E - Bright Yellow
-  5: "#33ff33", // F - Bright Green
-  6: "#00ffcc", // F# - Cyan/Turquoise
-  7: "#3399ff", // G - Bright Blue
-  8: "#6633ff", // G# - Indigo
-  9: "#9933ff", // A - Bright Violet
-  10: "#ff33cc", // A# - Magenta
-  11: "#ff3399", // B - Hot Pink
-};
-
-// Get color for a MIDI note
-const getNoteColor = (midiNote) => {
-  const noteIndex = midiNote % 12;
-  return NOTE_COLORS[noteIndex];
-};
-
-// Build northern lights gradient from active notes
-const buildNorthernLightsGradient = (notes) => {
-  if (!notes || notes.length === 0) {
-    return null;
-  }
-
-  // Get unique note classes (0-11) from the chord, sorted
-  const noteClasses = [...new Set(notes.map((n) => n % 12))].sort(
-    (a, b) => a - b
-  );
-
-  // Build color stops for the gradient
-  const colors = noteClasses.map((nc) => NOTE_COLORS[nc]);
-
-  // Create a flowing gradient with multiple color stops
-  if (colors.length === 1) {
-    return `radial-gradient(ellipse at 50% 100%, ${colors[0]}40 0%, ${colors[0]}20 40%, transparent 70%)`;
-  }
-
-  // For multiple colors, create a flowing horizontal gradient
-  const colorStops = colors
-    .map((color, i) => {
-      const percent = (i / (colors.length - 1)) * 100;
-      return `${color}35 ${percent}%`;
-    })
-    .join(", ");
-
-  return `linear-gradient(90deg, ${colorStops})`;
-};
-
+/**
+ * Main application component.
+ * @returns {JSX.Element} The app component
+ */
 function App() {
   const isMobile = useIsMobile();
   const { isInstallable, install } = usePWAInstall();
+
+  // MIDI connection and playback
   const {
     playChord,
     retriggerChord,
     stopAllNotes,
     isConnected,
-    selectedOutput,
     humanize,
     setHumanize,
-    // MIDI sync inputs
     inputs: midiInputs,
     selectedInput,
     selectInput,
     setClockCallbacks,
   } = useMIDI();
+
+  // Keyboard input
   const { pressedKeys: keyboardKeys } = useKeyboard(stopAllNotes);
   const [mobileKeys, setMobileKeys] = useState(new Set());
+
+  // UI state
   const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSequencer, setShowSequencer] = useState(false);
+  const [lastChord, setLastChord] = useState(null);
   const mobileKeyboardRef = useRef(null);
 
+  // Combine keyboard and mobile keys
   const allPressedKeys = useMemo(() => {
     return new Set([...keyboardKeys, ...mobileKeys]);
   }, [keyboardKeys, mobileKeys]);
 
+  // Chord engine
   const {
     currentChord,
     inversionIndex,
@@ -112,21 +82,29 @@ function App() {
     getChordNotesFromPreset,
   } = useChordEngine(allPressedKeys);
 
-  // Sequencer modal state
-  const [showSequencer, setShowSequencer] = useState(false);
-
-  // Callback to retrigger a preset (for sequencer retrig mode)
+  /**
+   * Retrigger a preset's chord notes (for sequencer retrig mode).
+   */
   const handleRetriggerPreset = useCallback(
     (slotNumber) => {
       const notes = getChordNotesFromPreset(slotNumber);
-      if (notes && notes.length > 0) {
+      if (notes?.length > 0) {
         retriggerChord(notes);
       }
     },
     [getChordNotesFromPreset, retriggerChord]
   );
 
-  // Transport controls (BPM, clock, sequencer, etc.)
+  /**
+   * Stop notes and clear recalled preset (for sequencer empty steps).
+   * This ensures the next trigger will re-trigger even if it's the same preset.
+   */
+  const handleSequencerStop = useCallback(() => {
+    stopAllNotes();
+    stopRecallingPreset();
+  }, [stopAllNotes, stopRecallingPreset]);
+
+  // Transport and sequencer
   const {
     bpm,
     isPlaying,
@@ -135,7 +113,6 @@ function App() {
     toggle: toggleTransport,
     setBpm,
     setSyncEnabled,
-    // Sequencer
     sequencerEnabled,
     sequencerSteps,
     currentStep,
@@ -152,89 +129,44 @@ function App() {
   } = useTransport({
     onTriggerPreset: recallPresetFromSlot,
     onRetriggerPreset: handleRetriggerPreset,
-    onStopNotes: stopAllNotes,
+    onStopNotes: handleSequencerStop,
     setClockCallbacks,
   });
 
-  // Track the last chord played
-  const [lastChord, setLastChord] = useState(null);
-
-  // Multi-select state for chord solving
-  const [selectedPresets, setSelectedPresets] = useState([]);
-  const [isSelectMode, setIsSelectMode] = useState(false);
-
-  // Toggle preset selection
-  const togglePresetSelection = useCallback((slot) => {
-    setSelectedPresets((prev) => {
-      if (prev.includes(slot)) {
-        return prev.filter((s) => s !== slot);
-      } else {
-        return [...prev, slot];
-      }
-    });
-  }, []);
-
-  // Handle solve button click
-  const handleSolveChords = useCallback(() => {
-    if (selectedPresets.length >= 2) {
-      const success = solvePresets(selectedPresets);
-      if (success) {
-        // Clear selection after successful solve
-        setSelectedPresets([]);
-        setIsSelectMode(false);
-      }
-    }
-  }, [selectedPresets, solvePresets]);
-
-  // Cancel selection mode
-  const cancelSelectMode = useCallback(() => {
-    setSelectedPresets([]);
-    setIsSelectMode(false);
-  }, []);
-
-  // Play chord when it changes
+  /**
+   * Play chord when it changes.
+   */
   useEffect(() => {
-    if (currentChord && currentChord.notes && isConnected) {
+    if (currentChord?.notes && isConnected) {
       playChord(currentChord.notes);
-      setLastChord(currentChord); // Store the last chord
+      setLastChord(currentChord);
     } else if (isConnected) {
-      // No chord, stop all notes
       stopAllNotes();
     }
-  }, [currentChord, isConnected]);
+  }, [currentChord, isConnected, playChord, stopAllNotes]);
 
-  // Auto-scroll mobile keyboard to show active notes
+  /**
+   * Auto-scroll mobile keyboard to show active notes.
+   */
   useEffect(() => {
-    if (
-      !showMobileKeyboard ||
-      !mobileKeyboardRef.current ||
-      !currentChord?.notes?.length
-    ) {
+    if (!showMobileKeyboard || !mobileKeyboardRef.current || !currentChord?.notes?.length) {
       return;
     }
 
     const container = mobileKeyboardRef.current;
     const notes = currentChord.notes;
-
-    // Find the min and max MIDI note numbers
     const minNote = Math.min(...notes);
     const maxNote = Math.max(...notes);
-
-    // Calculate the center MIDI note
     const centerNote = Math.round((minNote + maxNote) / 2);
 
-    // The keyboard starts at octave 2, MIDI note 36 (C2)
-    // Each octave has 7 white keys, white key width is 22px
+    // Calculate scroll position based on white keys
     const startMidi = 36; // C2
     const whiteKeyWidth = 22;
 
-    // Calculate which white key index the center note corresponds to
-    // We need to count white keys from the start
     const getWhiteKeyIndex = (midiNote) => {
       let whiteKeyCount = 0;
       for (let m = startMidi; m < midiNote; m++) {
         const noteInOctave = m % 12;
-        // White keys: C, D, E, F, G, A, B (0, 2, 4, 5, 7, 9, 11)
         if ([0, 2, 4, 5, 7, 9, 11].includes(noteInOctave)) {
           whiteKeyCount++;
         }
@@ -244,9 +176,7 @@ function App() {
 
     const centerWhiteKeyIndex = getWhiteKeyIndex(centerNote);
     const targetScrollPosition =
-      centerWhiteKeyIndex * whiteKeyWidth -
-      container.clientWidth / 2 +
-      whiteKeyWidth;
+      centerWhiteKeyIndex * whiteKeyWidth - container.clientWidth / 2 + whiteKeyWidth;
 
     container.scrollTo({
       left: Math.max(0, targetScrollPosition),
@@ -254,8 +184,7 @@ function App() {
     });
   }, [currentChord?.notes, showMobileKeyboard]);
 
-
-  // Determine which chord to display
+  // Determine which chord to display (current or last)
   const displayChord = currentChord || lastChord;
 
   return (
@@ -270,123 +199,26 @@ function App() {
       </button>
 
       {/* Settings panel */}
-      {showSettings && (
-        <div
-          className="settings-overlay"
-          onClick={() => setShowSettings(false)}
-        >
-          <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="settings-header">
-              <h2>Settings</h2>
-              <button
-                className="settings-close"
-                onClick={() => setShowSettings(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="settings-content">
-              <div className="settings-section">
-                <h3>MIDI Interface</h3>
-                <MIDIStatus />
-              </div>
-              {isInstallable && (
-                <div className="settings-section">
-                  <h3>Install App</h3>
-                  <p className="settings-description">
-                    Install ChordBoy as a standalone app for the best
-                    experience.
-                  </p>
-                  <button onClick={install} className="install-btn">
-                    Install App
-                  </button>
-                </div>
-              )}
-              <div className="settings-section">
-                <h3>About</h3>
-                <p className="settings-description">
-                  ChordBoy - MIDI Chord Controller for Jazz Performance
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <SettingsPanel
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        isInstallable={isInstallable}
+        onInstall={install}
+      />
 
-      <main
-        className="main"
-        style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}
-      >
-        <div className="chord-display-wrapper">
-          {/* Aurora glow layer - separate element behind the panel */}
-          <div
-            className={`aurora-glow ${currentChord ? "active" : ""}`}
-            style={
-              currentChord
-                ? {
-                    "--aurora-gradient": buildNorthernLightsGradient(
-                      currentChord.notes
-                    ),
-                    background: buildNorthernLightsGradient(currentChord.notes),
-                  }
-                : {}
-            }
-          />
-          <div className="chord-display">
-            <p className="chord-name">
-              {displayChord ? displayChord.name : "Press keys to play chords"}
-            </p>
-            <div
-              className="chord-info"
-              style={{ visibility: displayChord ? "visible" : "hidden" }}
-            >
-              <p>
-                <strong>Notes:</strong>{" "}
-                {displayChord
-                  ? displayChord.notes.map((n) => n).join(", ")
-                  : "—"}{" "}
-                <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
-                {octave}
-              </p>
-              <p>
-                <strong>Inversion:</strong> {inversionIndex}{" "}
-                <span style={{ opacity: 0.5 }}>|</span>{" "}
-                <strong>Dropped:</strong> {droppedNotes}{" "}
-                <span style={{ opacity: 0.5 }}>|</span> <strong>Spread:</strong>{" "}
-                {spreadAmount}
-              </p>
-            </div>
-            {!isMobile && (
-              <div
-                className="keyboard-hints"
-                style={{ visibility: displayChord ? "visible" : "hidden" }}
-              >
-                <span className="keyboard-hint">
-                  <kbd>Shift</kbd> Inversions
-                </span>
-                <span className="keyboard-hint">
-                  <kbd>Caps</kbd> Drop note
-                </span>
-                <span className="keyboard-hint">
-                  <kbd>↑</kbd>
-                  <kbd>↓</kbd> Spread
-                </span>
-                <span className="keyboard-hint">
-                  <kbd>←</kbd>
-                  <kbd>→</kbd> Octave
-                </span>
-                <span className="keyboard-hint">
-                  <kbd>Space</kbd> Save preset
-                </span>
-                <span className="keyboard-hint">
-                  <kbd>1-9</kbd> Recall preset
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+      <main className="main" style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}>
+        {/* Chord display with aurora glow */}
+        <ChordDisplay
+          currentChord={currentChord}
+          displayChord={displayChord}
+          octave={octave}
+          inversionIndex={inversionIndex}
+          droppedNotes={droppedNotes}
+          spreadAmount={spreadAmount}
+          showHints={!isMobile}
+        />
 
-        {/* Transport Controls */}
+        {/* Transport controls */}
         <TransportControls
           bpm={bpm}
           isPlaying={isPlaying}
@@ -395,105 +227,25 @@ function App() {
           onBpmChange={setBpm}
           onTogglePlay={toggleTransport}
           onSyncEnabledChange={setSyncEnabled}
-          // MIDI inputs for sync
           midiInputs={midiInputs}
           selectedInputId={selectedInput?.id}
           onSelectInput={selectInput}
-          // Humanize
           humanize={humanize}
           onHumanizeChange={setHumanize}
-          // Sequencer
           sequencerEnabled={sequencerEnabled}
           onOpenSequencer={() => setShowSequencer(true)}
         />
 
+        {/* Desktop presets panel */}
         {!isMobile && (
-          <div className="presets-panel">
-            <div className="presets-header">
-              <h3>Saved Presets</h3>
-              <div className="presets-actions">
-                {!isSelectMode ? (
-                  <button
-                    onClick={() => setIsSelectMode(true)}
-                    className="solve-mode-btn"
-                    disabled={savedPresets.size < 2}
-                  >
-                    Select to Solve
-                  </button>
-                ) : (
-                  <>
-                    <span className="select-hint">
-                      Select{" "}
-                      {selectedPresets.length < 2
-                        ? `${2 - selectedPresets.length} more`
-                        : selectedPresets.length}{" "}
-                      chords
-                    </span>
-                    <button
-                      onClick={handleSolveChords}
-                      className="solve-btn"
-                      disabled={selectedPresets.length < 2}
-                    >
-                      Solve Voicings
-                    </button>
-                    <button onClick={cancelSelectMode} className="cancel-btn">
-                      Cancel
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="preset-slots">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(
-                (slot) => {
-                  const preset = savedPresets.get(slot);
-                  const hasPreset = !!preset;
-                  const isSelected = selectedPresets.includes(slot);
-
-                  return (
-                    <div
-                      key={slot}
-                      className={`preset-slot compact ${hasPreset ? "filled" : "empty"} ${isSelectMode && hasPreset ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
-                      onClick={
-                        isSelectMode && hasPreset
-                          ? () => togglePresetSelection(slot)
-                          : undefined
-                      }
-                      title={
-                        hasPreset
-                          ? `${Array.from(preset.keys).join(" + ")} | Oct: ${preset.octave} | Inv: ${preset.inversionIndex} | Spr: ${preset.spreadAmount} | Drp: ${preset.droppedNotes}`
-                          : `Slot ${slot} - Empty`
-                      }
-                    >
-                      {isSelectMode && isSelected && (
-                        <span className="selection-order-badge">
-                          {selectedPresets.indexOf(slot) + 1}
-                        </span>
-                      )}
-                      <span
-                        className={`preset-number ${hasPreset ? "" : "empty"}`}
-                      >
-                        {slot}
-                      </span>
-                      {!isSelectMode && hasPreset && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearPreset(slot);
-                          }}
-                          className="clear-btn-mini"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          </div>
+          <PresetsPanel
+            savedPresets={savedPresets}
+            onClearPreset={clearPreset}
+            onSolvePresets={solvePresets}
+          />
         )}
 
+        {/* Desktop piano keyboard */}
         {!isMobile && (
           <PianoKeyboard
             activeNotes={currentChord ? currentChord.notes : []}
@@ -503,6 +255,7 @@ function App() {
           />
         )}
 
+        {/* Mobile piano keyboard */}
         {isMobile && showMobileKeyboard && (
           <div className="mobile-keyboard-container" ref={mobileKeyboardRef}>
             <PianoKeyboard
@@ -515,6 +268,7 @@ function App() {
           </div>
         )}
 
+        {/* Mobile controls */}
         {isMobile && (
           <MobileControls
             mobileKeys={mobileKeys}
@@ -542,7 +296,7 @@ function App() {
         )}
       </main>
 
-      {/* Sequencer Modal */}
+      {/* Sequencer modal */}
       <SequencerModal
         isOpen={showSequencer}
         onClose={() => setShowSequencer(false)}

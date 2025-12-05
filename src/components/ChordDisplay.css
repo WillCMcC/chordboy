@@ -1,0 +1,101 @@
+/**
+ * ChordDisplay Styles
+ * Styles for the main chord display panel and aurora glow effect.
+ */
+
+.chord-display-wrapper {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.aurora-glow {
+  position: absolute;
+  inset: -20px;
+  border-radius: 24px;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+  pointer-events: none;
+  filter: blur(20px);
+  z-index: 0;
+}
+
+.aurora-glow.active {
+  opacity: 1;
+}
+
+.chord-display {
+  position: relative;
+  background: var(--secondary-bg);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  z-index: 1;
+}
+
+.chord-name {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  min-height: 1.2em; /* Prevent height jumping when chord name changes */
+}
+
+.chord-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.chord-info p {
+  margin: 0.25rem 0;
+}
+
+.chord-info strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.keyboard-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.keyboard-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.keyboard-hint kbd {
+  background: var(--tertiary-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 0.125rem 0.375rem;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .chord-display {
+    padding: 1.5rem 1rem;
+  }
+
+  .chord-name {
+    font-size: 2rem;
+  }
+
+  .keyboard-hints {
+    display: none;
+  }
+}
