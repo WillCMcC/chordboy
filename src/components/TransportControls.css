@@ -242,6 +242,12 @@
   min-width: 50px;
 }
 
+.sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .sync-toggle {
   padding: 0.375rem 0.625rem;
   background: var(--tertiary-bg);
@@ -264,6 +270,60 @@
   border-color: transparent;
   color: white;
   box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+}
+
+/* MIDI Input Select */
+.midi-input-select {
+  padding: 0.25rem 0.5rem;
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  max-width: 120px;
+  text-overflow: ellipsis;
+}
+
+.midi-input-select:focus {
+  outline: none;
+  border-color: var(--border-highlight);
+}
+
+.no-inputs {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Sync indicator dot */
+.sync-indicator {
+  color: #8b5cf6;
+  margin-left: 2px;
+  animation: pulse-sync 1s ease-in-out infinite;
+}
+
+@keyframes pulse-sync {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Synced BPM input */
+.bpm-input.synced {
+  background: var(--secondary-bg);
+  border-color: #8b5cf6;
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+/* Synced play button */
+.transport-btn.synced {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transport-btn.synced:hover {
+  box-shadow: none;
 }
 
 /* Sequencer Button */

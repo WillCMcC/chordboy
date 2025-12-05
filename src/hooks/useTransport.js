@@ -1,25 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
-  sendMIDIClock,
-  sendMIDIStart,
-  sendMIDIStop,
-} from "../lib/midi";
 
 /**
- * useTransport - Manages BPM, transport state, MIDI clock sync, and sequencer
+ * useTransport - Manages transport state and sequencer, synced to external MIDI clock
  *
  * Features:
- * - Adjustable BPM (20-300)
+ * - Sync to external MIDI clock (from Ableton, etc.) when enabled
+ * - Internal clock when sync is disabled
  * - Visual beat grid (quarter notes)
- * - MIDI clock output (24 PPQN)
- * - Start/Stop controls
  * - Sequencer grid with configurable steps and preset triggers
+ * - BPM display (calculated from incoming clock when synced)
  */
-export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, onStopNotes } = {}) {
+export function useTransport(
+  { onTriggerPreset, onRetriggerPreset, onStopNotes, setClockCallbacks } = {}
+) {
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState(0); // 0-3 for visual display
-  const [sendClock, setSendClock] = useState(false); // Whether to send MIDI clock
+  const [syncEnabled, setSyncEnabled] = useState(false); // Whether to sync to external MIDI clock
 
   // Sequencer state
   const [sequencerEnabled, setSequencerEnabled] = useState(false);
@@ -29,17 +26,26 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
   const [stepsPerBeat, setStepsPerBeat] = useState(1); // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth
   const [retrigMode, setRetrigMode] = useState(true); // true = retrigger same notes, false = sustain
 
-  // Refs for timing loop
+  // Refs for internal clock timing
   const clockIntervalRef = useRef(null);
   const pulseCountRef = useRef(0);
   const lastTickTimeRef = useRef(0);
   const stepPulseCountRef = useRef(0);
   const lastTriggeredPresetRef = useRef(null); // Track last triggered preset for sustain mode
 
+  // BPM calculation from external clock
+  const lastClockTimeRef = useRef(0);
+  const clockTimesRef = useRef([]); // Rolling window of clock intervals
+
   // Refs for callbacks to avoid effect re-runs
   const onTriggerPresetRef = useRef(onTriggerPreset);
   const onRetriggerPresetRef = useRef(onRetriggerPreset);
   const onStopNotesRef = useRef(onStopNotes);
+  const sequencerEnabledRef = useRef(sequencerEnabled);
+  const sequencerStepsRef = useRef(sequencerSteps);
+  const stepsPerBeatRef = useRef(stepsPerBeat);
+  const retrigModeRef = useRef(retrigMode);
+  const sequenceRef = useRef(sequence);
 
   // Keep refs updated
   useEffect(() => {
@@ -47,6 +53,26 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
     onRetriggerPresetRef.current = onRetriggerPreset;
     onStopNotesRef.current = onStopNotes;
   });
+
+  useEffect(() => {
+    sequencerEnabledRef.current = sequencerEnabled;
+  }, [sequencerEnabled]);
+
+  useEffect(() => {
+    sequencerStepsRef.current = sequencerSteps;
+  }, [sequencerSteps]);
+
+  useEffect(() => {
+    stepsPerBeatRef.current = stepsPerBeat;
+  }, [stepsPerBeat]);
+
+  useEffect(() => {
+    retrigModeRef.current = retrigMode;
+  }, [retrigMode]);
+
+  useEffect(() => {
+    sequenceRef.current = sequence;
+  }, [sequence]);
 
   // Initialize sequence when steps change
   useEffect(() => {
@@ -64,94 +90,183 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
 
   // Calculate pulses per step based on stepsPerBeat
   // 24 PPQN = 24 pulses per quarter note
-  // stepsPerBeat=1: 24 pulses/step (quarter notes)
-  // stepsPerBeat=2: 12 pulses/step (eighth notes)
-  // stepsPerBeat=4: 6 pulses/step (sixteenth notes)
   const getPulsesPerStep = useCallback(() => {
     return Math.floor(24 / stepsPerBeat);
   }, [stepsPerBeat]);
 
-  // Calculate interval for 24 PPQN (pulses per quarter note)
+  /**
+   * Process a single clock pulse (called for both internal and external clock)
+   */
+  const processPulse = useCallback(() => {
+    // Update beat counter (every 24 pulses = 1 quarter note)
+    pulseCountRef.current++;
+    if (pulseCountRef.current >= 24) {
+      pulseCountRef.current = 0;
+      setCurrentBeat((prev) => (prev + 1) % 4);
+    }
+
+    // Update sequencer step
+    if (sequencerEnabledRef.current) {
+      stepPulseCountRef.current++;
+      const pulsesPerStep = Math.floor(24 / stepsPerBeatRef.current);
+
+      if (stepPulseCountRef.current >= pulsesPerStep) {
+        stepPulseCountRef.current = 0;
+
+        setCurrentStep((prev) => {
+          const nextStep = (prev + 1) % sequencerStepsRef.current;
+
+          // Trigger preset for this step
+          const presetSlot = sequenceRef.current[nextStep];
+          const lastPreset = lastTriggeredPresetRef.current;
+
+          if (presetSlot) {
+            const isSamePreset = presetSlot === lastPreset;
+
+            if (retrigModeRef.current) {
+              // Retrig mode: always retrigger
+              if (isSamePreset && onRetriggerPresetRef.current) {
+                onRetriggerPresetRef.current(presetSlot);
+              } else if (onTriggerPresetRef.current) {
+                onTriggerPresetRef.current(presetSlot);
+              }
+            } else {
+              // Sustain mode: skip if same preset as last step
+              if (!isSamePreset && onTriggerPresetRef.current) {
+                onTriggerPresetRef.current(presetSlot);
+              }
+            }
+            lastTriggeredPresetRef.current = presetSlot;
+          } else if (onStopNotesRef.current) {
+            // Empty step - stop notes
+            onStopNotesRef.current();
+            lastTriggeredPresetRef.current = null;
+          }
+
+          return nextStep;
+        });
+      }
+    }
+  }, []);
+
+  /**
+   * Handle external MIDI clock pulse
+   */
+  const handleExternalClock = useCallback(() => {
+    // Calculate BPM from clock timing
+    const now = performance.now();
+    if (lastClockTimeRef.current > 0) {
+      const interval = now - lastClockTimeRef.current;
+      clockTimesRef.current.push(interval);
+
+      // Keep rolling window of last 24 intervals (1 beat)
+      if (clockTimesRef.current.length > 24) {
+        clockTimesRef.current.shift();
+      }
+
+      // Calculate average BPM from intervals
+      if (clockTimesRef.current.length >= 6) {
+        const avgInterval =
+          clockTimesRef.current.reduce((a, b) => a + b, 0) /
+          clockTimesRef.current.length;
+        // 24 PPQN, so BPM = 60000 / (avgInterval * 24)
+        const calculatedBpm = Math.round(60000 / (avgInterval * 24));
+        if (calculatedBpm >= 20 && calculatedBpm <= 300) {
+          setBpm(calculatedBpm);
+        }
+      }
+    }
+    lastClockTimeRef.current = now;
+
+    // Process the pulse
+    processPulse();
+  }, [processPulse]);
+
+  /**
+   * Handle external MIDI Start
+   */
+  const handleExternalStart = useCallback(() => {
+    console.log("Transport: External start received");
+    setIsPlaying(true);
+    setCurrentBeat(0);
+    setCurrentStep(0);
+    pulseCountRef.current = 0;
+    stepPulseCountRef.current = 0;
+    lastTriggeredPresetRef.current = null;
+    clockTimesRef.current = [];
+    lastClockTimeRef.current = 0;
+
+    // Trigger first step if sequencer is enabled
+    if (sequencerEnabledRef.current) {
+      const firstPreset = sequenceRef.current[0];
+      if (firstPreset && onTriggerPresetRef.current) {
+        onTriggerPresetRef.current(firstPreset);
+        lastTriggeredPresetRef.current = firstPreset;
+      }
+    }
+  }, []);
+
+  /**
+   * Handle external MIDI Stop
+   */
+  const handleExternalStop = useCallback(() => {
+    console.log("Transport: External stop received");
+    setIsPlaying(false);
+    setCurrentBeat(0);
+    setCurrentStep(0);
+    pulseCountRef.current = 0;
+    stepPulseCountRef.current = 0;
+    lastTriggeredPresetRef.current = null;
+
+    // Stop any playing notes
+    if (onStopNotesRef.current) {
+      onStopNotesRef.current();
+    }
+  }, []);
+
+  // Register clock callbacks when sync is enabled
+  useEffect(() => {
+    if (setClockCallbacks) {
+      if (syncEnabled) {
+        setClockCallbacks({
+          onClock: handleExternalClock,
+          onStart: handleExternalStart,
+          onStop: handleExternalStop,
+        });
+      } else {
+        // Clear callbacks when sync is disabled
+        setClockCallbacks({
+          onClock: null,
+          onStart: null,
+          onStop: null,
+        });
+      }
+    }
+  }, [syncEnabled, setClockCallbacks, handleExternalClock, handleExternalStart, handleExternalStop]);
+
+  // Calculate interval for 24 PPQN (pulses per quarter note) for internal clock
   const getPulseInterval = useCallback(() => {
-    // 24 pulses per beat, so interval = (60000 / bpm) / 24
     return (60000 / bpm) / 24;
   }, [bpm]);
 
-  // High-precision clock using requestAnimationFrame + performance.now
+  // Internal clock loop using requestAnimationFrame
   const clockLoop = useCallback(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || syncEnabled) return;
 
     const now = performance.now();
     const pulseInterval = getPulseInterval();
 
     if (now - lastTickTimeRef.current >= pulseInterval) {
-      // Send MIDI clock pulse if enabled
-      if (sendClock && midiOutput) {
-        sendMIDIClock(midiOutput);
-      }
-
-      // Update beat counter (every 24 pulses = 1 quarter note)
-      pulseCountRef.current++;
-      if (pulseCountRef.current >= 24) {
-        pulseCountRef.current = 0;
-        setCurrentBeat((prev) => (prev + 1) % 4);
-      }
-
-      // Update sequencer step
-      if (sequencerEnabled) {
-        stepPulseCountRef.current++;
-        const pulsesPerStep = getPulsesPerStep();
-
-        if (stepPulseCountRef.current >= pulsesPerStep) {
-          stepPulseCountRef.current = 0;
-          setCurrentStep((prev) => {
-            const nextStep = (prev + 1) % sequencerSteps;
-            return nextStep;
-          });
-        }
-      }
-
+      processPulse();
       lastTickTimeRef.current = now;
     }
 
     clockIntervalRef.current = requestAnimationFrame(clockLoop);
-  }, [isPlaying, getPulseInterval, sendClock, midiOutput, sequencerEnabled, sequencerSteps, getPulsesPerStep]);
+  }, [isPlaying, syncEnabled, getPulseInterval, processPulse]);
 
-  // Trigger preset when step changes (while sequencer is enabled and playing)
-  useEffect(() => {
-    if (!isPlaying || !sequencerEnabled) return;
-
-    const presetSlot = sequence[currentStep];
-    const lastPreset = lastTriggeredPresetRef.current;
-
-    if (presetSlot) {
-      const isSamePreset = presetSlot === lastPreset;
-
-      if (retrigMode) {
-        // Retrig mode: always retrigger, use retrigger callback if same preset
-        if (isSamePreset && onRetriggerPresetRef.current) {
-          onRetriggerPresetRef.current(presetSlot);
-        } else if (onTriggerPresetRef.current) {
-          onTriggerPresetRef.current(presetSlot);
-        }
-      } else {
-        // Sustain mode: skip if same preset as last step
-        if (!isSamePreset && onTriggerPresetRef.current) {
-          onTriggerPresetRef.current(presetSlot);
-        }
-        // Same preset in sustain mode - do nothing, let notes sustain
-      }
-      lastTriggeredPresetRef.current = presetSlot;
-    } else if (onStopNotesRef.current) {
-      // Empty step - stop notes
-      onStopNotesRef.current();
-      lastTriggeredPresetRef.current = null;
-    }
-  }, [currentStep, isPlaying, sequencerEnabled, sequence, retrigMode]);
-
-  // Start transport
+  // Start internal transport (only when sync is disabled)
   const start = useCallback(() => {
-    if (isPlaying) return;
+    if (isPlaying || syncEnabled) return;
 
     setIsPlaying(true);
     setCurrentBeat(0);
@@ -161,16 +276,21 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
     lastTickTimeRef.current = performance.now();
     lastTriggeredPresetRef.current = null;
 
-    if (sendClock && midiOutput) {
-      sendMIDIStart(midiOutput);
+    // Trigger first step if sequencer is enabled
+    if (sequencerEnabledRef.current) {
+      const firstPreset = sequenceRef.current[0];
+      if (firstPreset && onTriggerPresetRef.current) {
+        onTriggerPresetRef.current(firstPreset);
+        lastTriggeredPresetRef.current = firstPreset;
+      }
     }
 
     clockIntervalRef.current = requestAnimationFrame(clockLoop);
-  }, [isPlaying, sendClock, midiOutput, clockLoop]);
+  }, [isPlaying, syncEnabled, clockLoop]);
 
-  // Stop transport
+  // Stop internal transport
   const stop = useCallback(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || syncEnabled) return;
 
     setIsPlaying(false);
     setCurrentBeat(0);
@@ -184,26 +304,24 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
       clockIntervalRef.current = null;
     }
 
-    if (sendClock && midiOutput) {
-      sendMIDIStop(midiOutput);
-    }
-
     // Stop any playing notes
     if (onStopNotesRef.current) {
       onStopNotesRef.current();
     }
-  }, [isPlaying, sendClock, midiOutput]);
+  }, [isPlaying, syncEnabled]);
 
-  // Toggle play/stop
+  // Toggle play/stop (only for internal clock)
   const toggle = useCallback(() => {
+    if (syncEnabled) return; // Can't manually toggle when synced
+
     if (isPlaying) {
       stop();
     } else {
       start();
     }
-  }, [isPlaying, start, stop]);
+  }, [isPlaying, syncEnabled, start, stop]);
 
-  // Update BPM (clamp to valid range)
+  // Update BPM (only affects internal clock)
   const updateBpm = useCallback((newBpm) => {
     const clamped = Math.max(20, Math.min(300, newBpm));
     setBpm(clamped);
@@ -238,28 +356,33 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
       if (clockIntervalRef.current) {
         cancelAnimationFrame(clockIntervalRef.current);
       }
-      if (isPlaying && sendClock && midiOutput) {
-        sendMIDIStop(midiOutput);
-      }
     };
   }, []);
 
-  // Restart clock loop when dependencies change (while playing)
+  // Restart internal clock loop when dependencies change (while playing without sync)
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && !syncEnabled) {
       if (clockIntervalRef.current) {
         cancelAnimationFrame(clockIntervalRef.current);
       }
       clockIntervalRef.current = requestAnimationFrame(clockLoop);
     }
-  }, [isPlaying, clockLoop]);
+  }, [isPlaying, syncEnabled, clockLoop]);
+
+  // Stop internal clock when sync is enabled
+  useEffect(() => {
+    if (syncEnabled && clockIntervalRef.current) {
+      cancelAnimationFrame(clockIntervalRef.current);
+      clockIntervalRef.current = null;
+    }
+  }, [syncEnabled]);
 
   return {
     // State
     bpm,
     isPlaying,
     currentBeat,
-    sendClock,
+    syncEnabled,
 
     // Sequencer state
     sequencerEnabled,
@@ -274,7 +397,7 @@ export function useTransport(midiOutput, { onTriggerPreset, onRetriggerPreset, o
     stop,
     toggle,
     setBpm: updateBpm,
-    setSendClock,
+    setSyncEnabled,
 
     // Sequencer actions
     setSequencerEnabled,

@@ -49,6 +49,37 @@ export function getMIDIOutputs(midiAccess) {
 }
 
 /**
+ * Get all available MIDI input devices
+ * @param {MIDIAccess} midiAccess - The MIDI access object
+ * @returns {Array} Array of MIDI input devices
+ */
+export function getMIDIInputs(midiAccess) {
+  if (!midiAccess) return [];
+
+  const inputs = [];
+  midiAccess.inputs.forEach((input) => {
+    inputs.push({
+      id: input.id,
+      name: input.name,
+      manufacturer: input.manufacturer,
+      state: input.state,
+      connection: input.connection,
+      input: input, // Store the actual MIDIInput object
+    });
+  });
+
+  return inputs;
+}
+
+/**
+ * MIDI Clock message constants (for receiving)
+ */
+export const MIDI_CLOCK = 0xf8;
+export const MIDI_START = 0xfa;
+export const MIDI_STOP = 0xfc;
+export const MIDI_CONTINUE = 0xfb;
+
+/**
  * Send a MIDI Note On message
  * @param {MIDIOutput} output - The MIDI output device
  * @param {number} channel - MIDI channel (0-15, where 0 = channel 1)
@@ -150,20 +181,6 @@ export function sendPanic(output) {
 export function isMIDISupported() {
   return typeof navigator.requestMIDIAccess === "function";
 }
-
-/**
- * MIDI Clock/Sync messages
- * Standard MIDI timing: 24 PPQN (pulses per quarter note)
- */
-
-// MIDI Clock message (sent 24 times per quarter note)
-const MIDI_CLOCK = 0xf8;
-// Start message (start playback from beginning)
-const MIDI_START = 0xfa;
-// Stop message (stop playback)
-const MIDI_STOP = 0xfc;
-// Continue message (resume from current position)
-const MIDI_CONTINUE = 0xfb;
 
 /**
  * Send MIDI Clock pulse

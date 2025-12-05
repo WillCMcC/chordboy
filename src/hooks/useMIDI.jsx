@@ -9,6 +9,7 @@ import {
 import {
   requestMIDIAccess,
   getMIDIOutputs,
+  getMIDIInputs,
   sendNoteOn,
   sendNoteOff,
   sendPanic,
@@ -16,6 +17,10 @@ import {
   sendMIDIClock,
   sendMIDIStart,
   sendMIDIStop,
+  MIDI_CLOCK,
+  MIDI_START,
+  MIDI_STOP,
+  MIDI_CONTINUE,
 } from "../lib/midi";
 
 const MIDIContext = createContext(null);
@@ -26,7 +31,9 @@ const MIDIContext = createContext(null);
 export function MIDIProvider({ children }) {
   const [midiAccess, setMidiAccess] = useState(null);
   const [outputs, setOutputs] = useState([]);
+  const [inputs, setInputs] = useState([]);
   const [selectedOutput, setSelectedOutput] = useState(null);
+  const [selectedInput, setSelectedInput] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +43,11 @@ export function MIDIProvider({ children }) {
   const [humanize, setHumanize] = useState(0); // Humanization amount (0-100)
   const currentNoteRef = useRef(currentNotes);
   const humanizeTimeoutsRef = useRef([]); // Track pending humanize timeouts
+
+  // MIDI clock callbacks (set by useTransport when sync is enabled)
+  const onMidiClockRef = useRef(null);
+  const onMidiStartRef = useRef(null);
+  const onMidiStopRef = useRef(null);
 
   // Maximum delay in ms at 100% humanization
   const MAX_HUMANIZE_DELAY = 50;
@@ -58,7 +70,9 @@ export function MIDIProvider({ children }) {
       setMidiAccess(access);
 
       const availableOutputs = getMIDIOutputs(access);
+      const availableInputs = getMIDIInputs(access);
       setOutputs(availableOutputs);
+      setInputs(availableInputs);
 
       // Auto-select first available output
       if (availableOutputs.length > 0) {
@@ -71,6 +85,11 @@ export function MIDIProvider({ children }) {
         );
       }
 
+      // Auto-select first available input (for clock sync)
+      if (availableInputs.length > 0) {
+        console.log("Available MIDI inputs:", availableInputs.map(i => i.name).join(", "));
+      }
+
       // Listen for device changes
       access.onstatechange = (event) => {
         console.log(
@@ -79,9 +98,11 @@ export function MIDIProvider({ children }) {
           event.port.state
         );
         const updatedOutputs = getMIDIOutputs(access);
+        const updatedInputs = getMIDIInputs(access);
         setOutputs(updatedOutputs);
+        setInputs(updatedInputs);
 
-        // If current device was disconnected, try to reconnect to first available
+        // If current output device was disconnected, try to reconnect to first available
         if (
           event.port.state === "disconnected" &&
           selectedOutput?.id === event.port.id
@@ -94,6 +115,14 @@ export function MIDIProvider({ children }) {
             setIsConnected(false);
             setError("All MIDI devices disconnected");
           }
+        }
+
+        // If current input device was disconnected, clear it
+        if (
+          event.port.state === "disconnected" &&
+          selectedInput?.id === event.port.id
+        ) {
+          setSelectedInput(null);
         }
       };
     } catch (err) {
@@ -119,6 +148,88 @@ export function MIDIProvider({ children }) {
     },
     [outputs]
   );
+
+  /**
+   * Select a specific MIDI input device (for clock sync)
+   */
+  const selectInput = useCallback(
+    (inputId) => {
+      // If null/undefined, clear the selection
+      if (!inputId) {
+        if (selectedInput) {
+          selectedInput.onmidimessage = null;
+        }
+        setSelectedInput(null);
+        console.log("Cleared MIDI input selection");
+        return;
+      }
+
+      const input = inputs.find((i) => i.id === inputId);
+      if (input) {
+        // Clear old input listener
+        if (selectedInput) {
+          selectedInput.onmidimessage = null;
+        }
+        setSelectedInput(input.input);
+        console.log("Selected MIDI input:", input.name);
+      }
+    },
+    [inputs, selectedInput]
+  );
+
+  /**
+   * Set up MIDI clock callbacks (called by useTransport)
+   */
+  const setClockCallbacks = useCallback(({ onClock, onStart, onStop }) => {
+    onMidiClockRef.current = onClock;
+    onMidiStartRef.current = onStart;
+    onMidiStopRef.current = onStop;
+  }, []);
+
+  /**
+   * Handle incoming MIDI messages on selected input
+   */
+  useEffect(() => {
+    if (!selectedInput) return;
+
+    const handleMidiMessage = (event) => {
+      const [status] = event.data;
+
+      switch (status) {
+        case MIDI_CLOCK:
+          if (onMidiClockRef.current) {
+            onMidiClockRef.current();
+          }
+          break;
+        case MIDI_START:
+          console.log("MIDI Start received");
+          if (onMidiStartRef.current) {
+            onMidiStartRef.current();
+          }
+          break;
+        case MIDI_STOP:
+          console.log("MIDI Stop received");
+          if (onMidiStopRef.current) {
+            onMidiStopRef.current();
+          }
+          break;
+        case MIDI_CONTINUE:
+          console.log("MIDI Continue received");
+          // Treat continue like start for now
+          if (onMidiStartRef.current) {
+            onMidiStartRef.current();
+          }
+          break;
+      }
+    };
+
+    selectedInput.onmidimessage = handleMidiMessage;
+    console.log("Listening for MIDI clock on:", selectedInput.name);
+
+    return () => {
+      selectedInput.onmidimessage = null;
+    };
+  }, [selectedInput]);
 
   /**
    * Play a single note
@@ -332,7 +443,9 @@ export function MIDIProvider({ children }) {
     // State
     midiAccess,
     outputs,
+    inputs,
     selectedOutput,
+    selectedInput,
     isConnected,
     error,
     isLoading,
@@ -344,6 +457,8 @@ export function MIDIProvider({ children }) {
     // Actions
     connectMIDI,
     selectOutput,
+    selectInput,
+    setClockCallbacks,
     playNote,
     stopNote,
     playChord,
@@ -353,7 +468,7 @@ export function MIDIProvider({ children }) {
     setChannel,
     setVelocity,
     setHumanize,
-    // MIDI Clock functions (for external use)
+    // MIDI Clock functions (for external use - sending)
     sendMIDIClock: () => sendMIDIClock(selectedOutput),
     sendMIDIStart: () => sendMIDIStart(selectedOutput),
     sendMIDIStop: () => sendMIDIStop(selectedOutput),

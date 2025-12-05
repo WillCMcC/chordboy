@@ -9,10 +9,14 @@ export function TransportControls({
   bpm,
   isPlaying,
   currentBeat,
-  sendClock,
+  syncEnabled,
   onBpmChange,
   onTogglePlay,
-  onSendClockChange,
+  onSyncEnabledChange,
+  // MIDI inputs for sync
+  midiInputs,
+  selectedInputId,
+  onSelectInput,
   // Humanize
   humanize,
   onHumanizeChange,
@@ -47,6 +51,26 @@ export function TransportControls({
     [onHumanizeChange]
   );
 
+  // Handle MIDI input selection
+  const handleInputChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      onSelectInput(value || null);
+    },
+    [onSelectInput]
+  );
+
+  // Handle sync toggle - also select first input if none selected
+  const handleSyncToggle = useCallback(() => {
+    const newSyncEnabled = !syncEnabled;
+    onSyncEnabledChange(newSyncEnabled);
+
+    // If enabling sync and no input selected, auto-select first one
+    if (newSyncEnabled && !selectedInputId && midiInputs.length > 0) {
+      onSelectInput(midiInputs[0].id);
+    }
+  }, [syncEnabled, onSyncEnabledChange, selectedInputId, midiInputs, onSelectInput]);
+
   return (
     <div className="transport-controls">
       {/* Humanize Section */}
@@ -70,30 +94,37 @@ export function TransportControls({
 
       {/* BPM Section */}
       <div className="transport-section bpm-section">
-        <label className="transport-label">BPM</label>
+        <label className="transport-label">
+          BPM{syncEnabled && <span className="sync-indicator">•</span>}
+        </label>
         <div className="bpm-controls">
-          <button
-            className="bpm-adjust-btn"
-            onClick={() => adjustBpm(-1)}
-            aria-label="Decrease BPM"
-          >
-            -
-          </button>
+          {!syncEnabled && (
+            <button
+              className="bpm-adjust-btn"
+              onClick={() => adjustBpm(-1)}
+              aria-label="Decrease BPM"
+            >
+              -
+            </button>
+          )}
           <input
             type="number"
             min="20"
             max="300"
             value={bpm}
             onChange={handleBpmInput}
-            className="bpm-input"
+            className={`bpm-input ${syncEnabled ? "synced" : ""}`}
+            disabled={syncEnabled}
           />
-          <button
-            className="bpm-adjust-btn"
-            onClick={() => adjustBpm(1)}
-            aria-label="Increase BPM"
-          >
-            +
-          </button>
+          {!syncEnabled && (
+            <button
+              className="bpm-adjust-btn"
+              onClick={() => adjustBpm(1)}
+              aria-label="Increase BPM"
+            >
+              +
+            </button>
+          )}
         </div>
       </div>
 
@@ -111,12 +142,14 @@ export function TransportControls({
         </div>
       </div>
 
-      {/* Play/Stop */}
+      {/* Play/Stop - disabled when synced */}
       <div className="transport-section play-section">
         <button
-          className={`transport-btn play-btn ${isPlaying ? "playing" : ""}`}
+          className={`transport-btn play-btn ${isPlaying ? "playing" : ""} ${syncEnabled ? "synced" : ""}`}
           onClick={onTogglePlay}
+          disabled={syncEnabled}
           aria-label={isPlaying ? "Stop" : "Play"}
+          title={syncEnabled ? "Controlled by external MIDI" : (isPlaying ? "Stop" : "Play")}
         >
           {isPlaying ? (
             <span className="stop-icon" />
@@ -129,16 +162,36 @@ export function TransportControls({
       {/* Divider */}
       <div className="transport-divider" />
 
-      {/* MIDI Sync Toggle */}
+      {/* MIDI Sync Section */}
       <div className="transport-section sync-section">
         <label className="transport-label">Sync</label>
-        <button
-          className={`sync-toggle ${sendClock ? "active" : ""}`}
-          onClick={() => onSendClockChange(!sendClock)}
-          aria-label={sendClock ? "Disable MIDI sync" : "Enable MIDI sync"}
-        >
-          MIDI
-        </button>
+        <div className="sync-controls">
+          <button
+            className={`sync-toggle ${syncEnabled ? "active" : ""}`}
+            onClick={handleSyncToggle}
+            aria-label={syncEnabled ? "Disable MIDI sync" : "Enable MIDI sync"}
+            title={syncEnabled ? "Syncing to external MIDI clock" : "Click to sync to external MIDI clock"}
+          >
+            {syncEnabled ? "ON" : "OFF"}
+          </button>
+          {syncEnabled && midiInputs.length > 0 && (
+            <select
+              className="midi-input-select"
+              value={selectedInputId || ""}
+              onChange={handleInputChange}
+            >
+              <option value="">Select input...</option>
+              {midiInputs.map((input) => (
+                <option key={input.id} value={input.id}>
+                  {input.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {syncEnabled && midiInputs.length === 0 && (
+            <span className="no-inputs">No MIDI inputs</span>
+          )}
+        </div>
       </div>
 
       {/* Divider */}

@@ -68,7 +68,20 @@ const buildNorthernLightsGradient = (notes) => {
 function App() {
   const isMobile = useIsMobile();
   const { isInstallable, install } = usePWAInstall();
-  const { playChord, retriggerChord, stopAllNotes, isConnected, selectedOutput, humanize, setHumanize } = useMIDI();
+  const {
+    playChord,
+    retriggerChord,
+    stopAllNotes,
+    isConnected,
+    selectedOutput,
+    humanize,
+    setHumanize,
+    // MIDI sync inputs
+    inputs: midiInputs,
+    selectedInput,
+    selectInput,
+    setClockCallbacks,
+  } = useMIDI();
   const { pressedKeys: keyboardKeys } = useKeyboard(stopAllNotes);
   const [mobileKeys, setMobileKeys] = useState(new Set());
   const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
@@ -118,10 +131,10 @@ function App() {
     bpm,
     isPlaying,
     currentBeat,
-    sendClock,
+    syncEnabled,
     toggle: toggleTransport,
     setBpm,
-    setSendClock,
+    setSyncEnabled,
     // Sequencer
     sequencerEnabled,
     sequencerSteps,
@@ -136,10 +149,11 @@ function App() {
     setStep,
     clearStep,
     clearSequence,
-  } = useTransport(selectedOutput, {
+  } = useTransport({
     onTriggerPreset: recallPresetFromSlot,
     onRetriggerPreset: handleRetriggerPreset,
     onStopNotes: stopAllNotes,
+    setClockCallbacks,
   });
 
   // Track the last chord played
@@ -378,12 +392,18 @@ function App() {
           bpm={bpm}
           isPlaying={isPlaying}
           currentBeat={currentBeat}
-          sendClock={sendClock}
+          syncEnabled={syncEnabled}
           onBpmChange={setBpm}
           onTogglePlay={toggleTransport}
-          onSendClockChange={setSendClock}
+          onSyncEnabledChange={setSyncEnabled}
+          // MIDI inputs for sync
+          midiInputs={midiInputs}
+          selectedInputId={selectedInput?.id}
+          onSelectInput={selectInput}
+          // Humanize
           humanize={humanize}
           onHumanizeChange={setHumanize}
+          // Sequencer
           sequencerEnabled={sequencerEnabled}
           onOpenSequencer={() => setShowSequencer(true)}
         />
