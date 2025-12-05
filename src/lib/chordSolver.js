@@ -6,6 +6,7 @@
 
 import { buildChord, invertChord } from "./chordBuilder";
 import { parseKeys } from "./parseKeys";
+import { applyProgressiveDrop, applySpread } from "./voicingTransforms";
 
 /**
  * Calculate the total voice distance between two chord voicings.
@@ -34,47 +35,6 @@ function calculateVoiceDistance(chord1, chord2) {
   totalDistance += (maxLen - minLen) * 12; // One octave penalty per missing voice
 
   return totalDistance;
-}
-
-/**
- * Apply progressive note dropping (same as in useChordEngine)
- * @param {Array<number>} notes - Array of MIDI notes
- * @param {number} dropCount - Number of notes to drop
- * @returns {Array<number>} Modified notes
- */
-function applyProgressiveDrop(notes, dropCount) {
-  if (dropCount === 0 || notes.length === 0) return notes;
-
-  const sorted = [...notes].sort((a, b) => a - b);
-  const result = [...sorted];
-
-  const actualDrops = Math.min(dropCount, notes.length - 1);
-  for (let i = 0; i < actualDrops; i++) {
-    const dropIndex = result.length - 1 - i;
-    if (dropIndex >= 0) {
-      result[dropIndex] = result[dropIndex] - 12;
-    }
-  }
-
-  return result.sort((a, b) => a - b);
-}
-
-/**
- * Apply spread to notes (same as in useChordEngine)
- * @param {Array<number>} notes - Array of MIDI notes
- * @param {number} spreadAmount - Spread amount (0-3)
- * @returns {Array<number>} Modified notes
- */
-function applySpread(notes, spreadAmount) {
-  if (spreadAmount === 0 || notes.length < 2) return notes;
-
-  const result = [...notes].sort((a, b) => a - b);
-
-  for (let i = 1; i < result.length; i += 2) {
-    result[i] += 12 * spreadAmount;
-  }
-
-  return result.sort((a, b) => a - b);
 }
 
 /**

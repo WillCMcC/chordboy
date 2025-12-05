@@ -8,6 +8,10 @@ import {
   savePresetsToStorage,
 } from "../lib/presetStorage";
 import { solveChordVoicings } from "../lib/chordSolver";
+import {
+  applyProgressiveDrop,
+  applySpread,
+} from "../lib/voicingTransforms";
 
 /**
  * useChordEngine Hook
@@ -439,7 +443,83 @@ export function useChordEngine(pressedKeys) {
     }
   }, [parsedKeys.root, parsedKeys.modifiers.join(","), recalledKeys]);
 
-  // Functions to control octave
+  /**
+   * Helper to update a preset's voicing settings when one is active.
+   * @param {Object} updates - Voicing updates to apply
+   */
+  const updateActivePresetVoicing = (updates) => {
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      setSavedPresets((prev) => {
+        const newPresets = new Map(prev);
+        const existingPreset = newPresets.get(activePresetSlot);
+        if (existingPreset) {
+          newPresets.set(activePresetSlot, {
+            ...existingPreset,
+            ...updates,
+          });
+        }
+        return newPresets;
+      });
+    }
+  };
+
+  /**
+   * Cycle to the next inversion. Updates preset if one is active.
+   */
+  const cycleInversion = () => {
+    if (!currentChord?.notes) return;
+    const maxInversions = currentChord.notes.length;
+    setInversionIndex((prev) => {
+      const newInversion = (prev + 1) % maxInversions;
+      updateActivePresetVoicing({ inversionIndex: newInversion });
+      return newInversion;
+    });
+  };
+
+  /**
+   * Cycle to the next drop voicing. Updates preset if one is active.
+   */
+  const cycleDrop = () => {
+    if (!currentChord?.notes) return;
+    const maxDrops = currentChord.notes.length - 1;
+    setDroppedNotes((prev) => {
+      const newDropped = (prev + 1) % (maxDrops + 1);
+      updateActivePresetVoicing({ droppedNotes: newDropped });
+      return newDropped;
+    });
+  };
+
+  /**
+   * Cycle to the next spread amount. Updates preset if one is active.
+   */
+  const cycleSpread = () => {
+    setSpreadAmount((prev) => {
+      const newSpread = (prev + 1) % 4;
+      updateActivePresetVoicing({ spreadAmount: newSpread });
+      return newSpread;
+    });
+  };
+
+  /**
+   * Change octave by a given direction (+1 or -1). Updates preset if one is active.
+   * @param {number} direction - +1 to go up, -1 to go down
+   */
+  const changeOctave = (direction) => {
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      // Modify the preset's octave
+      setRecalledOctave((prev) => {
+        const currentOct = prev !== null ? prev : octave;
+        const newOctave = Math.max(0, Math.min(7, currentOct + direction));
+        updateActivePresetVoicing({ octave: newOctave });
+        return newOctave;
+      });
+    } else {
+      // Modify global octave
+      setOctave((prev) => Math.max(0, Math.min(7, prev + direction)));
+    }
+  };
+
+  // Functions to control octave (legacy, for direct control)
   const increaseOctave = () => {
     setOctave((prev) => Math.min(7, prev + 1));
   };
@@ -536,6 +616,11 @@ export function useChordEngine(pressedKeys) {
     setInversionIndex,
     setDroppedNotes,
     setSpreadAmount,
+    // New methods that properly update presets
+    cycleInversion,
+    cycleDrop,
+    cycleSpread,
+    changeOctave,
     saveCurrentChordToSlot,
     recallPresetFromSlot,
     stopRecallingPreset,
@@ -544,16 +629,18 @@ export function useChordEngine(pressedKeys) {
   };
 }
 
-// Helper function to generate a random chord combination
+/**
+ * Generate a random chord combination for quick experimentation.
+ * Picks a random root note and 0-4 random modifiers.
+ *
+ * @returns {Set<string>} Set of key characters representing the chord
+ */
 function generateRandomChord() {
   const rootKeys = Object.keys(LEFT_HAND_KEYS);
   const modifierKeys = Object.keys(RIGHT_HAND_MODIFIERS);
 
-  // Pick a random root note (1 key required)
   const randomRoot = rootKeys[Math.floor(Math.random() * rootKeys.length)];
-
-  // Pick 0-4 random modifiers
-  const numModifiers = Math.floor(Math.random() * 5); // 0, 1, 2, 3, or 4
+  const numModifiers = Math.floor(Math.random() * 5);
   const selectedModifiers = new Set();
 
   for (let i = 0; i < numModifiers; i++) {
@@ -562,45 +649,5 @@ function generateRandomChord() {
     selectedModifiers.add(randomModifier);
   }
 
-  // Combine into a Set of keys
-  const chordKeys = new Set([randomRoot, ...selectedModifiers]);
-
-  console.log("Generated random chord:", Array.from(chordKeys));
-  return chordKeys;
-}
-
-// Helper function to drop the highest notes down an octave (reverse inversion)
-// dropCount 1 = drop highest note down an octave
-// dropCount 2 = drop 2 highest notes down an octave
-// etc.
-function applyProgressiveDrop(notes, dropCount) {
-  if (dropCount === 0 || notes.length === 0) return notes;
-
-  const sorted = [...notes].sort((a, b) => a - b);
-  const result = [...sorted];
-
-  // Drop the top N notes down an octave (reverse of inversion)
-  const actualDrops = Math.min(dropCount, notes.length - 1); // Don't drop all notes
-  for (let i = 0; i < actualDrops; i++) {
-    const dropIndex = result.length - 1 - i;
-    if (dropIndex >= 0) {
-      result[dropIndex] = result[dropIndex] - 12;
-    }
-  }
-
-  return result.sort((a, b) => a - b);
-}
-
-// Helper function to spread notes across octaves
-function applySpread(notes, spreadAmount) {
-  if (spreadAmount === 0 || notes.length < 2) return notes;
-
-  const result = [...notes].sort((a, b) => a - b);
-
-  // Spread by moving alternating notes up by octaves
-  for (let i = 1; i < result.length; i += 2) {
-    result[i] += 12 * spreadAmount;
-  }
-
-  return result.sort((a, b) => a - b);
+  return new Set([randomRoot, ...selectedModifiers]);
 }

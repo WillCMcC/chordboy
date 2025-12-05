@@ -2,9 +2,31 @@ import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 import "./MobileControls.css";
 
-// Threshold in pixels for drag-down to "hold" a preset
+/** Threshold in pixels for drag-down gesture to "hold" a preset */
 const DRAG_DOWN_THRESHOLD = 40;
 
+/**
+ * MobileControls Component
+ * Touch-friendly interface for mobile chord input.
+ * Provides buttons for root notes, modifiers, voicing controls, and preset management.
+ *
+ * @param {Object} props
+ * @param {Set<string>} props.mobileKeys - Currently selected keys
+ * @param {Function} props.setMobileKeys - Setter for mobile keys
+ * @param {Function} props.onInversionChange - Callback to cycle inversions
+ * @param {Function} props.onDropChange - Callback to cycle drop voicings
+ * @param {Function} props.onSpreadChange - Callback to cycle spread amount
+ * @param {Function} props.onOctaveChange - Callback to shift octave (+1 or -1)
+ * @param {Object} props.currentSettings - Current voicing settings
+ * @param {Map} props.savedPresets - Map of saved presets by slot number
+ * @param {Function} props.onSavePreset - Callback to save current chord to slot
+ * @param {Function} props.onRecallPreset - Callback to recall preset from slot
+ * @param {Function} props.onClearPreset - Callback to clear a preset slot
+ * @param {Function} props.onStopRecall - Callback when preset recall ends
+ * @param {string|null} props.activePresetSlot - Currently active preset slot
+ * @param {boolean} props.showKeyboard - Whether piano keyboard is visible
+ * @param {Function} props.onToggleKeyboard - Callback to toggle keyboard visibility
+ */
 export function MobileControls({
   mobileKeys,
   setMobileKeys,
@@ -98,6 +120,8 @@ export function MobileControls({
     };
 
     if (savedPresets.has(slotStr)) {
+      // Clear mobile keys so preset plays alone
+      clearAll();
       onRecallPreset(slotStr);
     } else {
       // Try to save
@@ -270,6 +294,32 @@ export function MobileControls({
         </div>
       </div>
 
+      <div className="mobile-controls-section">
+        <span className="mobile-controls-label">Voicing</span>
+        <div className="control-buttons">
+          <button className="control-btn" onClick={onInversionChange}>
+            Inv: {currentSettings.inversionIndex}
+          </button>
+          <button className="control-btn" onClick={onDropChange}>
+            Drop: {currentSettings.droppedNotes}
+          </button>
+          <button className="control-btn" onClick={onSpreadChange}>
+            Spread: {currentSettings.spreadAmount}
+          </button>
+        </div>
+        <div className="control-buttons">
+          <button className="control-btn" onClick={() => onOctaveChange(-1)}>
+            - Oct
+          </button>
+          <button className="control-btn" disabled>
+            Oct: {currentSettings.octave}
+          </button>
+          <button className="control-btn" onClick={() => onOctaveChange(1)}>
+            + Oct
+          </button>
+        </div>
+      </div>
+
       <div className="mobile-controls-header">
         <span className="mobile-controls-label">Roots</span>
         <button onClick={clearAll} className="control-btn" style={{ flex: 0 }}>
@@ -307,32 +357,6 @@ export function MobileControls({
               {label}
             </button>
           ))}
-        </div>
-      </div>
-
-      <div className="mobile-controls-section">
-        <span className="mobile-controls-label">Voicing</span>
-        <div className="control-buttons">
-          <button className="control-btn" onClick={onInversionChange}>
-            Inv: {currentSettings.inversionIndex}
-          </button>
-          <button className="control-btn" onClick={onDropChange}>
-            Drop: {currentSettings.droppedNotes}
-          </button>
-          <button className="control-btn" onClick={onSpreadChange}>
-            Spread: {currentSettings.spreadAmount}
-          </button>
-        </div>
-        <div className="control-buttons">
-          <button className="control-btn" onClick={() => onOctaveChange(-1)}>
-            - Oct
-          </button>
-          <button className="control-btn" disabled>
-            Oct: {currentSettings.octave}
-          </button>
-          <button className="control-btn" onClick={() => onOctaveChange(1)}>
-            + Oct
-          </button>
         </div>
       </div>
 

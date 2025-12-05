@@ -1,14 +1,31 @@
 import { useState, useEffect } from "react";
 
+/**
+ * usePWAInstall Hook
+ * Manages the Progressive Web App install prompt.
+ * Captures the beforeinstallprompt event and provides a way to trigger installation.
+ *
+ * @returns {Object} PWA install state and methods
+ * @returns {boolean} returns.isInstallable - True if app can be installed
+ * @returns {Function} returns.install - Function to trigger the install prompt
+ *
+ * @example
+ * const { isInstallable, install } = usePWAInstall();
+ * if (isInstallable) {
+ *   return <button onClick={install}>Install App</button>;
+ * }
+ */
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
+    /**
+     * Handle the beforeinstallprompt event.
+     * Stashes the event for later use and marks app as installable.
+     */
     const handler = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
@@ -18,17 +35,17 @@ export function usePWAInstall() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  /**
+   * Trigger the PWA install prompt.
+   * Can only be called once per beforeinstallprompt event.
+   */
   const install = async () => {
     if (!deferredPrompt) return;
 
-    // Show the install prompt
     deferredPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
     console.log(`User response to the install prompt: ${outcome}`);
 
-    // We've used the prompt, so it can't be used again, discard it
     setDeferredPrompt(null);
     setIsInstallable(false);
   };

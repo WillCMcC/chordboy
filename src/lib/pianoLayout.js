@@ -19,7 +19,10 @@ const NOTE_NAMES = [
 ];
 
 /**
- * Check if a MIDI note number is a black key
+ * Check if a MIDI note number is a black key (sharp/flat).
+ *
+ * @param {number} midiNumber - MIDI note number (0-127)
+ * @returns {boolean} True if the note is a black key (C#, D#, F#, G#, A#)
  */
 export function isBlackKey(midiNumber) {
   const noteIndex = midiNumber % 12;
@@ -28,7 +31,10 @@ export function isBlackKey(midiNumber) {
 }
 
 /**
- * Get note name from MIDI number
+ * Get note name with octave from MIDI number.
+ *
+ * @param {number} midiNumber - MIDI note number (0-127)
+ * @returns {string} Note name with octave (e.g., "C4", "F#5")
  */
 export function getNoteName(midiNumber) {
   const noteIndex = midiNumber % 12;
@@ -75,8 +81,11 @@ export function generateKeyboard(startOctave = 3, endOctave = 5) {
 }
 
 /**
- * Get the position offset for a black key relative to white keys
- * Different black keys have different positions in the pattern
+ * Get the horizontal position offset for a black key relative to white keys.
+ * Black keys are not centered between white keys - they have traditional piano positioning.
+ *
+ * @param {number} midiNumber - MIDI note number for a black key
+ * @returns {number} Offset multiplier (0.5-0.7) for positioning the black key
  */
 export function getBlackKeyOffset(midiNumber) {
   const noteIndex = midiNumber % 12;

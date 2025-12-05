@@ -84,10 +84,10 @@ function App() {
     spreadAmount,
     savedPresets,
     clearPreset,
-    setInversionIndex,
-    setDroppedNotes,
-    setSpreadAmount,
-    setOctave,
+    cycleInversion,
+    cycleDrop,
+    cycleSpread,
+    changeOctave,
     saveCurrentChordToSlot,
     recallPresetFromSlot,
     stopRecallingPreset,
@@ -194,26 +194,6 @@ function App() {
     });
   }, [currentChord?.notes, showMobileKeyboard]);
 
-  // Mobile control handlers
-  const handleInversionChange = () => {
-    if (!currentChord?.notes) return;
-    const maxInversions = currentChord.notes.length;
-    setInversionIndex((prev) => (prev + 1) % maxInversions);
-  };
-
-  const handleDropChange = () => {
-    if (!currentChord?.notes) return;
-    const maxDrops = currentChord.notes.length - 1;
-    setDroppedNotes((prev) => (prev + 1) % (maxDrops + 1));
-  };
-
-  const handleSpreadChange = () => {
-    setSpreadAmount((prev) => (prev + 1) % 4); // 0-3
-  };
-
-  const handleOctaveChange = (direction) => {
-    setOctave((prev) => Math.max(0, Math.min(7, prev + direction)));
-  };
 
   // Determine which chord to display
   const displayChord = currentChord || lastChord;
@@ -458,10 +438,10 @@ function App() {
           <MobileControls
             mobileKeys={mobileKeys}
             setMobileKeys={setMobileKeys}
-            onInversionChange={handleInversionChange}
-            onDropChange={handleDropChange}
-            onSpreadChange={handleSpreadChange}
-            onOctaveChange={handleOctaveChange}
+            onInversionChange={cycleInversion}
+            onDropChange={cycleDrop}
+            onSpreadChange={cycleSpread}
+            onOctaveChange={changeOctave}
             currentSettings={{
               inversionIndex,
               droppedNotes,
