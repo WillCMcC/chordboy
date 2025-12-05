@@ -14,6 +14,7 @@ import { SequencerModal } from "./components/SequencerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
 import { ChordDisplay } from "./components/ChordDisplay";
+import { TutorialModal } from "./components/TutorialModal";
 import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
@@ -22,6 +23,8 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
 import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
+
+const TUTORIAL_SEEN_KEY = "chordboy-tutorial-seen";
 
 /**
  * Main application component.
@@ -53,8 +56,22 @@ function App() {
   const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSequencer, setShowSequencer] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [lastChord, setLastChord] = useState(null);
   const mobileKeyboardRef = useRef(null);
+
+  // Show tutorial on first visit
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem(TUTORIAL_SEEN_KEY);
+    if (!hasSeenTutorial) {
+      setShowTutorial(true);
+    }
+  }, []);
+
+  const handleCloseTutorial = useCallback(() => {
+    setShowTutorial(false);
+    localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
+  }, []);
 
   // Combine keyboard and mobile keys
   const allPressedKeys = useMemo(() => {
@@ -189,14 +206,23 @@ function App() {
 
   return (
     <div className="app">
-      {/* Settings button */}
-      <button
-        className="settings-btn"
-        onClick={() => setShowSettings(!showSettings)}
-        aria-label="Settings"
-      >
-        ⚙️
-      </button>
+      {/* Header buttons */}
+      <div className="header-buttons">
+        <button
+          className="header-btn"
+          onClick={() => setShowTutorial(true)}
+          aria-label="Help"
+        >
+          ?
+        </button>
+        <button
+          className="header-btn"
+          onClick={() => setShowSettings(!showSettings)}
+          aria-label="Settings"
+        >
+          ⚙️
+        </button>
+      </div>
 
       {/* Settings panel */}
       <SettingsPanel
@@ -204,6 +230,17 @@ function App() {
         onClose={() => setShowSettings(false)}
         isInstallable={isInstallable}
         onInstall={install}
+      />
+
+      {/* Tutorial modal */}
+      <TutorialModal
+        isOpen={showTutorial}
+        onClose={handleCloseTutorial}
+        currentChord={currentChord}
+        inversionIndex={inversionIndex}
+        octave={octave}
+        spreadAmount={spreadAmount}
+        savedPresets={savedPresets}
       />
 
       <main className="main" style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}>
