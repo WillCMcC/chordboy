@@ -2,6 +2,9 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { MIDIStatus } from "./components/MIDIStatus";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
+import { TransportControls } from "./components/TransportControls";
+import { SequencerModal } from "./components/SequencerModal";
+import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
 import { useMIDI } from "./hooks/useMIDI";
@@ -65,7 +68,7 @@ const buildNorthernLightsGradient = (notes) => {
 function App() {
   const isMobile = useIsMobile();
   const { isInstallable, install } = usePWAInstall();
-  const { playChord, stopAllNotes, isConnected } = useMIDI();
+  const { playChord, retriggerChord, stopAllNotes, isConnected, selectedOutput, humanize, setHumanize } = useMIDI();
   const { pressedKeys: keyboardKeys } = useKeyboard(stopAllNotes);
   const [mobileKeys, setMobileKeys] = useState(new Set());
   const [showMobileKeyboard, setShowMobileKeyboard] = useState(false);
@@ -93,7 +96,51 @@ function App() {
     stopRecallingPreset,
     activePresetSlot,
     solvePresets,
+    getChordNotesFromPreset,
   } = useChordEngine(allPressedKeys);
+
+  // Sequencer modal state
+  const [showSequencer, setShowSequencer] = useState(false);
+
+  // Callback to retrigger a preset (for sequencer retrig mode)
+  const handleRetriggerPreset = useCallback(
+    (slotNumber) => {
+      const notes = getChordNotesFromPreset(slotNumber);
+      if (notes && notes.length > 0) {
+        retriggerChord(notes);
+      }
+    },
+    [getChordNotesFromPreset, retriggerChord]
+  );
+
+  // Transport controls (BPM, clock, sequencer, etc.)
+  const {
+    bpm,
+    isPlaying,
+    currentBeat,
+    sendClock,
+    toggle: toggleTransport,
+    setBpm,
+    setSendClock,
+    // Sequencer
+    sequencerEnabled,
+    sequencerSteps,
+    currentStep,
+    sequence,
+    stepsPerBeat,
+    retrigMode,
+    setSequencerEnabled,
+    setSequencerSteps,
+    setStepsPerBeat,
+    setRetrigMode,
+    setStep,
+    clearStep,
+    clearSequence,
+  } = useTransport(selectedOutput, {
+    onTriggerPreset: recallPresetFromSlot,
+    onRetriggerPreset: handleRetriggerPreset,
+    onStopNotes: stopAllNotes,
+  });
 
   // Track the last chord played
   const [lastChord, setLastChord] = useState(null);
@@ -326,6 +373,21 @@ function App() {
           </div>
         </div>
 
+        {/* Transport Controls */}
+        <TransportControls
+          bpm={bpm}
+          isPlaying={isPlaying}
+          currentBeat={currentBeat}
+          sendClock={sendClock}
+          onBpmChange={setBpm}
+          onTogglePlay={toggleTransport}
+          onSendClockChange={setSendClock}
+          humanize={humanize}
+          onHumanizeChange={setHumanize}
+          sequencerEnabled={sequencerEnabled}
+          onOpenSequencer={() => setShowSequencer(true)}
+        />
+
         {!isMobile && (
           <div className="presets-panel">
             <div className="presets-header">
@@ -460,6 +522,27 @@ function App() {
           />
         )}
       </main>
+
+      {/* Sequencer Modal */}
+      <SequencerModal
+        isOpen={showSequencer}
+        onClose={() => setShowSequencer(false)}
+        sequence={sequence}
+        sequencerSteps={sequencerSteps}
+        currentStep={currentStep}
+        stepsPerBeat={stepsPerBeat}
+        sequencerEnabled={sequencerEnabled}
+        isPlaying={isPlaying}
+        retrigMode={retrigMode}
+        savedPresets={savedPresets}
+        onSetStep={setStep}
+        onClearStep={clearStep}
+        onClearSequence={clearSequence}
+        onSetSequencerSteps={setSequencerSteps}
+        onSetStepsPerBeat={setStepsPerBeat}
+        onSetSequencerEnabled={setSequencerEnabled}
+        onSetRetrigMode={setRetrigMode}
+      />
     </div>
   );
 }

@@ -726,6 +726,17 @@
     font-size: 0.8rem;
   }
 
+  /* Transport controls on mobile - positioned above MobileControls */
+  .transport-controls {
+    position: fixed;
+    bottom: calc(55vh + 0.5rem);
+    left: 0.5rem;
+    right: 0.5rem;
+    z-index: 101;
+    width: auto;
+    margin: 0;
+  }
+
   @keyframes aurora-shimmer {
     0%,
     100% {

@@ -13,6 +13,9 @@ import {
   sendNoteOff,
   sendPanic,
   isMIDISupported,
+  sendMIDIClock,
+  sendMIDIStart,
+  sendMIDIStop,
 } from "../lib/midi";
 
 const MIDIContext = createContext(null);
@@ -30,7 +33,12 @@ export function MIDIProvider({ children }) {
   const [channel, setChannel] = useState(0); // MIDI channel (0-15, where 0 = channel 1)
   const [velocity, setVelocity] = useState(80); // Default velocity
   const [currentNotes, setCurrentNotes] = useState([]); // Track currently playing notes
+  const [humanize, setHumanize] = useState(0); // Humanization amount (0-100)
   const currentNoteRef = useRef(currentNotes);
+  const humanizeTimeoutsRef = useRef([]); // Track pending humanize timeouts
+
+  // Maximum delay in ms at 100% humanization
+  const MAX_HUMANIZE_DELAY = 50;
   /**
    * Connect to MIDI and enumerate devices
    */
@@ -137,13 +145,48 @@ export function MIDIProvider({ children }) {
   );
 
   /**
+   * Generate humanization offsets for notes
+   * Uses triangular distribution for natural feel
+   */
+  const getHumanizeOffsets = useCallback(
+    (noteCount) => {
+      if (humanize === 0 || noteCount <= 1) {
+        return new Array(noteCount).fill(0);
+      }
+
+      const maxDelay = (humanize / 100) * MAX_HUMANIZE_DELAY;
+
+      // Generate random offsets with triangular distribution
+      return Array.from({ length: noteCount }, () => {
+        const r1 = Math.random();
+        const r2 = Math.random();
+        const triangular = (r1 + r2) / 2;
+        return triangular * maxDelay;
+      });
+    },
+    [humanize]
+  );
+
+  /**
+   * Clear any pending humanize timeouts
+   */
+  const clearHumanizeTimeouts = useCallback(() => {
+    humanizeTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    humanizeTimeoutsRef.current = [];
+  }, []);
+
+  /**
    * Play multiple notes (chord)
    * Smart diff: only stops notes that are being removed, only starts notes that are new
    * Notes that remain the same continue sustaining without re-triggering
+   * Supports humanization for staggered note timing
    */
   const playChord = useCallback(
     (notes, vel = velocity) => {
       if (!selectedOutput || !notes || notes.length === 0) return;
+
+      // Clear any pending humanize timeouts from previous chord
+      clearHumanizeTimeouts();
 
       const newNotesSet = new Set(notes);
       const currentNotesSet = new Set(currentNotes);
@@ -154,19 +197,80 @@ export function MIDIProvider({ children }) {
       // Find notes to start (in new but not in current)
       const notesToStart = notes.filter((note) => !currentNotesSet.has(note));
 
-      // Stop removed notes
+      // Stop removed notes immediately
       notesToStop.forEach((note) => {
         sendNoteOff(selectedOutput, channel, note);
       });
 
-      // Start new notes
-      notesToStart.forEach((note) => {
-        sendNoteOn(selectedOutput, channel, note, vel);
-      });
+      // Start new notes with optional humanization
+      if (humanize > 0 && notesToStart.length > 1) {
+        const offsets = getHumanizeOffsets(notesToStart.length);
+        notesToStart.forEach((note, index) => {
+          const delay = offsets[index];
+          if (delay === 0) {
+            sendNoteOn(selectedOutput, channel, note, vel);
+          } else {
+            const timeout = setTimeout(() => {
+              sendNoteOn(selectedOutput, channel, note, vel);
+            }, delay);
+            humanizeTimeoutsRef.current.push(timeout);
+          }
+        });
+      } else {
+        // No humanization, play all notes immediately
+        notesToStart.forEach((note) => {
+          sendNoteOn(selectedOutput, channel, note, vel);
+        });
+      }
 
       setCurrentNotes(notes);
     },
-    [selectedOutput, channel, velocity, currentNotes]
+    [selectedOutput, channel, velocity, currentNotes, humanize, getHumanizeOffsets, clearHumanizeTimeouts]
+  );
+
+  /**
+   * Retrigger a chord - forces all notes to stop and restart
+   * Used by sequencer in retrig mode to ensure notes are re-articulated
+   */
+  const retriggerChord = useCallback(
+    (notes, vel = velocity) => {
+      if (!selectedOutput || !notes || notes.length === 0) return;
+
+      // Clear any pending humanize timeouts
+      clearHumanizeTimeouts();
+
+      // Stop ALL current notes first
+      currentNotes.forEach((note) => {
+        sendNoteOff(selectedOutput, channel, note);
+      });
+
+      // Small delay to ensure note-off is processed before note-on
+      // This creates a clear re-articulation
+      setTimeout(() => {
+        // Start all notes with optional humanization
+        if (humanize > 0 && notes.length > 1) {
+          const offsets = getHumanizeOffsets(notes.length);
+          notes.forEach((note, index) => {
+            const delay = offsets[index];
+            if (delay === 0) {
+              sendNoteOn(selectedOutput, channel, note, vel);
+            } else {
+              const timeout = setTimeout(() => {
+                sendNoteOn(selectedOutput, channel, note, vel);
+              }, delay);
+              humanizeTimeoutsRef.current.push(timeout);
+            }
+          });
+        } else {
+          notes.forEach((note) => {
+            sendNoteOn(selectedOutput, channel, note, vel);
+          });
+        }
+
+        setCurrentNotes(notes);
+      }, 5); // 5ms gap for clear re-articulation
+    },
+    [selectedOutput, channel, velocity, currentNotes, humanize, getHumanizeOffsets, clearHumanizeTimeouts]
   );
 
   /**
@@ -175,12 +279,15 @@ export function MIDIProvider({ children }) {
   const stopAllNotes = useCallback(() => {
     if (!selectedOutput) return;
 
+    // Clear any pending humanize timeouts
+    clearHumanizeTimeouts();
+
     currentNotes.forEach((note) => {
       sendNoteOff(selectedOutput, channel, note);
     });
 
     setCurrentNotes([]);
-  }, [selectedOutput, channel, currentNotes]);
+  }, [selectedOutput, channel, currentNotes, clearHumanizeTimeouts]);
 
   /**
    * MIDI panic - stop all notes on all channels
@@ -232,6 +339,7 @@ export function MIDIProvider({ children }) {
     channel,
     velocity,
     currentNotes,
+    humanize,
 
     // Actions
     connectMIDI,
@@ -239,10 +347,16 @@ export function MIDIProvider({ children }) {
     playNote,
     stopNote,
     playChord,
+    retriggerChord,
     stopAllNotes,
     panic,
     setChannel,
     setVelocity,
+    setHumanize,
+    // MIDI Clock functions (for external use)
+    sendMIDIClock: () => sendMIDIClock(selectedOutput),
+    sendMIDIStart: () => sendMIDIStart(selectedOutput),
+    sendMIDIStop: () => sendMIDIStop(selectedOutput),
   };
 
   return <MIDIContext.Provider value={value}>{children}</MIDIContext.Provider>;

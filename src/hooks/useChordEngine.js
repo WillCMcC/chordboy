@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
@@ -601,6 +601,45 @@ export function useChordEngine(pressedKeys) {
     return true;
   };
 
+  /**
+   * Build chord notes from a preset slot without changing state
+   * Used by sequencer for retrigger functionality
+   */
+  const getChordNotesFromPreset = useCallback(
+    (slotNumber) => {
+      if (!savedPresets.has(slotNumber)) return null;
+
+      const preset = savedPresets.get(slotNumber);
+      const parsed = parseKeys(preset.keys);
+
+      if (!parsed.root) return null;
+
+      const chord = buildChord(parsed.root, parsed.modifiers, {
+        octave: preset.octave,
+      });
+
+      if (!chord) return null;
+
+      let notes = [...chord.notes];
+
+      // Apply progressive drop
+      if (preset.droppedNotes > 0) {
+        notes = applyProgressiveDrop(notes, preset.droppedNotes);
+      }
+
+      // Apply spread
+      if (preset.spreadAmount > 0) {
+        notes = applySpread(notes, preset.spreadAmount);
+      }
+
+      // Apply inversion
+      notes = invertChord(notes, preset.inversionIndex);
+
+      return notes;
+    },
+    [savedPresets]
+  );
+
   return {
     currentChord,
     parsedKeys,
@@ -628,6 +667,7 @@ export function useChordEngine(pressedKeys) {
     stopRecallingPreset,
     activePresetSlot,
     solvePresets,
+    getChordNotesFromPreset,
   };
 }
 

@@ -150,3 +150,72 @@ export function sendPanic(output) {
 export function isMIDISupported() {
   return typeof navigator.requestMIDIAccess === "function";
 }
+
+/**
+ * MIDI Clock/Sync messages
+ * Standard MIDI timing: 24 PPQN (pulses per quarter note)
+ */
+
+// MIDI Clock message (sent 24 times per quarter note)
+const MIDI_CLOCK = 0xf8;
+// Start message (start playback from beginning)
+const MIDI_START = 0xfa;
+// Stop message (stop playback)
+const MIDI_STOP = 0xfc;
+// Continue message (resume from current position)
+const MIDI_CONTINUE = 0xfb;
+
+/**
+ * Send MIDI Clock pulse
+ * @param {MIDIOutput} output - The MIDI output device
+ */
+export function sendMIDIClock(output) {
+  if (!output) return;
+  try {
+    output.send([MIDI_CLOCK]);
+  } catch (error) {
+    console.error("Failed to send MIDI Clock:", error);
+  }
+}
+
+/**
+ * Send MIDI Start message
+ * @param {MIDIOutput} output - The MIDI output device
+ */
+export function sendMIDIStart(output) {
+  if (!output) return;
+  try {
+    output.send([MIDI_START]);
+    console.log("MIDI Start");
+  } catch (error) {
+    console.error("Failed to send MIDI Start:", error);
+  }
+}
+
+/**
+ * Send MIDI Stop message
+ * @param {MIDIOutput} output - The MIDI output device
+ */
+export function sendMIDIStop(output) {
+  if (!output) return;
+  try {
+    output.send([MIDI_STOP]);
+    console.log("MIDI Stop");
+  } catch (error) {
+    console.error("Failed to send MIDI Stop:", error);
+  }
+}
+
+/**
+ * Send MIDI Continue message
+ * @param {MIDIOutput} output - The MIDI output device
+ */
+export function sendMIDIContinue(output) {
+  if (!output) return;
+  try {
+    output.send([MIDI_CONTINUE]);
+    console.log("MIDI Continue");
+  } catch (error) {
+    console.error("Failed to send MIDI Continue:", error);
+  }
+}
