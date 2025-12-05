@@ -98,9 +98,6 @@ export function sendNoteOn(output, channel = 0, note, velocity = 80) {
 
   try {
     output.send(message);
-    console.log(
-      `MIDI Note On: Ch${channel + 1}, Note ${note}, Vel ${velocity}`
-    );
   } catch (error) {
     console.error("Failed to send Note On:", error);
   }
@@ -125,7 +122,6 @@ export function sendNoteOff(output, channel = 0, note, velocity = 0) {
 
   try {
     output.send(message);
-    console.log(`MIDI Note Off: Ch${channel + 1}, Note ${note}`);
   } catch (error) {
     console.error("Failed to send Note Off:", error);
   }
@@ -150,7 +146,6 @@ export function sendAllNotesOff(output, channel = 0) {
 
   try {
     output.send(message);
-    console.log(`MIDI All Notes Off: Ch${channel + 1}`);
   } catch (error) {
     console.error("Failed to send All Notes Off:", error);
   }
@@ -170,8 +165,6 @@ export function sendPanic(output) {
   for (let channel = 0; channel < 16; channel++) {
     sendAllNotesOff(output, channel);
   }
-
-  console.log("MIDI Panic: All notes off on all channels");
 }
 
 /**
@@ -203,7 +196,6 @@ export function sendMIDIStart(output) {
   if (!output) return;
   try {
     output.send([MIDI_START]);
-    console.log("MIDI Start");
   } catch (error) {
     console.error("Failed to send MIDI Start:", error);
   }
@@ -217,7 +209,6 @@ export function sendMIDIStop(output) {
   if (!output) return;
   try {
     output.send([MIDI_STOP]);
-    console.log("MIDI Stop");
   } catch (error) {
     console.error("Failed to send MIDI Stop:", error);
   }
@@ -231,7 +222,6 @@ export function sendMIDIContinue(output) {
   if (!output) return;
   try {
     output.send([MIDI_CONTINUE]);
-    console.log("MIDI Continue");
   } catch (error) {
     console.error("Failed to send MIDI Continue:", error);
   }

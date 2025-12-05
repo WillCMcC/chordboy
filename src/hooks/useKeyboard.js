@@ -14,7 +14,6 @@ export function useKeyboard(onAllKeysUp) {
    */
   useEffect(() => {
     if (allKeysReleased && onAllKeysUp) {
-      console.log("All keys released - stopping MIDI output");
       onAllKeysUp();
       setAllKeysReleased(false);
     }
@@ -71,8 +70,6 @@ export function useKeyboard(onAllKeysUp) {
       newSet.add(key);
       return newSet;
     });
-
-    console.log("Key down:", key, "Pressed keys:", pressedKeys.size + 1);
   }, []);
 
   /**
@@ -112,8 +109,6 @@ export function useKeyboard(onAllKeysUp) {
 
         return newSet;
       });
-
-      console.log("Key up:", key, "Pressed keys:", pressedKeys.size - 1);
     },
     [onAllKeysUp]
   );

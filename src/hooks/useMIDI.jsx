@@ -79,25 +79,14 @@ export function MIDIProvider({ children }) {
       if (availableOutputs.length > 0) {
         setSelectedOutput(availableOutputs[0].output);
         setIsConnected(true);
-        console.log("Auto-selected MIDI output:", availableOutputs[0].name);
       } else {
         setError(
           "No MIDI output devices found. Please connect a MIDI device or virtual MIDI port."
         );
       }
 
-      // Auto-select first available input (for clock sync)
-      if (availableInputs.length > 0) {
-        console.log("Available MIDI inputs:", availableInputs.map(i => i.name).join(", "));
-      }
-
       // Listen for device changes
       access.onstatechange = (event) => {
-        console.log(
-          "MIDI device state changed:",
-          event.port.name,
-          event.port.state
-        );
         const updatedOutputs = getMIDIOutputs(access);
         const updatedInputs = getMIDIInputs(access);
         setOutputs(updatedOutputs);
@@ -110,7 +99,6 @@ export function MIDIProvider({ children }) {
         ) {
           if (updatedOutputs.length > 0) {
             setSelectedOutput(updatedOutputs[0].output);
-            console.log("Switched to:", updatedOutputs[0].name);
           } else {
             setSelectedOutput(null);
             setIsConnected(false);
@@ -144,7 +132,6 @@ export function MIDIProvider({ children }) {
       if (output) {
         setSelectedOutput(output.output);
         setIsConnected(true);
-        console.log("Selected MIDI output:", output.name);
       }
     },
     [outputs]
@@ -161,7 +148,6 @@ export function MIDIProvider({ children }) {
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(null);
-        console.log("Cleared MIDI input selection");
         return;
       }
 
@@ -172,7 +158,6 @@ export function MIDIProvider({ children }) {
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(input.input);
-        console.log("Selected MIDI input:", input.name);
       }
     },
     [inputs, selectedInput]
@@ -203,19 +188,16 @@ export function MIDIProvider({ children }) {
           }
           break;
         case MIDI_START:
-          console.log("MIDI Start received");
           if (onMidiStartRef.current) {
             onMidiStartRef.current();
           }
           break;
         case MIDI_STOP:
-          console.log("MIDI Stop received");
           if (onMidiStopRef.current) {
             onMidiStopRef.current();
           }
           break;
         case MIDI_CONTINUE:
-          console.log("MIDI Continue received");
           // Treat continue like start for now
           if (onMidiStartRef.current) {
             onMidiStartRef.current();
@@ -225,7 +207,6 @@ export function MIDIProvider({ children }) {
     };
 
     selectedInput.onmidimessage = handleMidiMessage;
-    console.log("Listening for MIDI clock on:", selectedInput.name);
 
     return () => {
       selectedInput.onmidimessage = null;

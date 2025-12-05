@@ -195,7 +195,6 @@ function App() {
   // Play chord when it changes
   useEffect(() => {
     if (currentChord && currentChord.notes && isConnected) {
-      console.log("Playing chord:", currentChord.name, currentChord.notes);
       playChord(currentChord.notes);
       setLastChord(currentChord); // Store the last chord
     } else if (isConnected) {

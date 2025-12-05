@@ -222,9 +222,6 @@ export function solveChordVoicings(presets, options = {}) {
     currentVoicing = parent[i][currentVoicing];
   }
 
-  console.log("Solved voicings:", result);
-  console.log("Total voice movement:", minFinalDist);
-
   return result;
 }
 

@@ -41,11 +41,6 @@ export function useChordEngine(pressedKeys) {
           droppedNotes: droppedNotes,
           spreadAmount: spreadAmount,
         });
-        console.log(
-          `Saved chord to slot ${slotNumber}:`,
-          Array.from(pressedKeys),
-          `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
-        );
         return newPresets;
       });
       return true;
@@ -63,11 +58,6 @@ export function useChordEngine(pressedKeys) {
       setDroppedNotes(savedPreset.droppedNotes);
       setSpreadAmount(savedPreset.spreadAmount);
       setActivePresetSlot(slotNumber);
-      console.log(
-        `Recalled chord from slot ${slotNumber}:`,
-        Array.from(savedPreset.keys),
-        `at octave ${savedPreset.octave}, inversion ${savedPreset.inversionIndex}, dropped ${savedPreset.droppedNotes}, spread ${savedPreset.spreadAmount}`
-      );
       return true;
     }
     return false;
@@ -242,11 +232,6 @@ export function useChordEngine(pressedKeys) {
                 droppedNotes: droppedNotes,
                 spreadAmount: spreadAmount,
               });
-              console.log(
-                `Space: Saved chord to next available slot ${nextSlot}:`,
-                Array.from(pressedKeys),
-                `at octave ${octave}, inversion ${inversionIndex}, dropped ${droppedNotes}, spread ${spreadAmount}`
-              );
               return newPresets;
             });
           }
@@ -262,16 +247,9 @@ export function useChordEngine(pressedKeys) {
                 droppedNotes: 0,
                 spreadAmount: 0,
               });
-              console.log(
-                `Space: Saved RANDOM chord to slot ${nextSlot}:`,
-                Array.from(randomChordKeys),
-                `at octave ${octave}`
-              );
               return newPresets;
             });
           }
-        } else {
-          console.log("No available slots - all presets (0-9) are full");
         }
         return;
       }
@@ -363,9 +341,6 @@ export function useChordEngine(pressedKeys) {
         // Only clear if this is the currently active preset
         if (recalledKeys && activePresetSlot === releasedKey) {
           stopRecallingPreset();
-          console.log(
-            `Number key ${releasedKey} released - clearing recalled preset`
-          );
         }
       }
     };
@@ -380,7 +355,6 @@ export function useChordEngine(pressedKeys) {
             ...existingPreset,
             ...updates,
           });
-          console.log(`Updated preset ${slotNumber} voicing:`, updates);
         }
         return newPresets;
       });
@@ -537,7 +511,6 @@ export function useChordEngine(pressedKeys) {
     setSavedPresets((prev) => {
       const newPresets = new Map(prev);
       newPresets.delete(slotNumber);
-      console.log(`Cleared preset slot ${slotNumber}`);
       return newPresets;
     });
   };
@@ -545,13 +518,11 @@ export function useChordEngine(pressedKeys) {
   // Function to clear all presets
   const clearAllPresets = () => {
     setSavedPresets(new Map());
-    console.log("Cleared all presets");
   };
 
   // Function to solve voicings for selected presets
   const solvePresets = (selectedSlots) => {
     if (!selectedSlots || selectedSlots.length < 2) {
-      console.log("Need at least 2 presets to solve");
       return false;
     }
 
@@ -561,7 +532,6 @@ export function useChordEngine(pressedKeys) {
       .map((slot) => ({ slot, preset: savedPresets.get(slot) }));
 
     if (presetsToSolve.length < 2) {
-      console.log("Not enough valid presets selected");
       return false;
     }
 
@@ -590,10 +560,6 @@ export function useChordEngine(pressedKeys) {
           droppedNotes: solvedVoicing.droppedNotes,
           spreadAmount: solvedVoicing.spreadAmount,
         });
-        console.log(
-          `Updated preset ${slot} with solved voicing:`,
-          solvedVoicing
-        );
       });
       return newPresets;
     });

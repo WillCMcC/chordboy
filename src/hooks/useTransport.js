@@ -1,4 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import {
+  saveSequencerToStorage,
+  loadSequencerFromStorage,
+} from "../lib/sequencerStorage";
 
 /**
  * useTransport - Manages transport state and sequencer, synced to external MIDI clock
@@ -9,6 +13,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
  * - Visual beat grid (quarter notes)
  * - Sequencer grid with configurable steps and preset triggers
  * - BPM display (calculated from incoming clock when synced)
+ * - Persistent storage of sequence and settings
  */
 export function useTransport(
   { onTriggerPreset, onRetriggerPreset, onStopNotes, setClockCallbacks } = {}
@@ -25,6 +30,7 @@ export function useTransport(
   const [sequence, setSequence] = useState([]); // Array of preset slots (or null for empty)
   const [stepsPerBeat, setStepsPerBeat] = useState(1); // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth
   const [retrigMode, setRetrigMode] = useState(true); // true = retrigger same notes, false = sustain
+  const [isLoaded, setIsLoaded] = useState(false); // Track if we've loaded from storage
 
   // Refs for internal clock timing
   const clockIntervalRef = useRef(null);
@@ -74,9 +80,44 @@ export function useTransport(
     sequenceRef.current = sequence;
   }, [sequence]);
 
-  // Initialize sequence when steps change
+  // Load sequencer state from storage on mount
   useEffect(() => {
+    loadSequencerFromStorage().then((savedState) => {
+      if (savedState) {
+        if (savedState.sequence) setSequence(savedState.sequence);
+        if (savedState.sequencerSteps) setSequencerSteps(savedState.sequencerSteps);
+        if (savedState.stepsPerBeat) setStepsPerBeat(savedState.stepsPerBeat);
+        if (savedState.retrigMode !== undefined) setRetrigMode(savedState.retrigMode);
+        if (savedState.sequencerEnabled !== undefined) setSequencerEnabled(savedState.sequencerEnabled);
+        if (savedState.bpm) setBpm(savedState.bpm);
+      }
+      setIsLoaded(true);
+    });
+  }, []);
+
+  // Save sequencer state to storage when it changes (after initial load)
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const state = {
+      sequence,
+      sequencerSteps,
+      stepsPerBeat,
+      retrigMode,
+      sequencerEnabled,
+      bpm,
+    };
+    saveSequencerToStorage(state);
+  }, [isLoaded, sequence, sequencerSteps, stepsPerBeat, retrigMode, sequencerEnabled, bpm]);
+
+  // Initialize sequence when steps change (only if not loaded yet or explicitly changed)
+  useEffect(() => {
+    if (!isLoaded) return; // Don't initialize until we've loaded from storage
+
     setSequence((prev) => {
+      // If sequence is already the right length, don't change it
+      if (prev.length === sequencerSteps) return prev;
+
       const newSeq = new Array(sequencerSteps).fill(null);
       // Preserve existing steps
       prev.forEach((val, i) => {
@@ -86,7 +127,7 @@ export function useTransport(
       });
       return newSeq;
     });
-  }, [sequencerSteps]);
+  }, [sequencerSteps, isLoaded]);
 
   // Calculate pulses per step based on stepsPerBeat
   // 24 PPQN = 24 pulses per quarter note
@@ -186,7 +227,6 @@ export function useTransport(
    * Handle external MIDI Start
    */
   const handleExternalStart = useCallback(() => {
-    console.log("Transport: External start received");
     setIsPlaying(true);
     setCurrentBeat(0);
     setCurrentStep(0);
@@ -210,7 +250,6 @@ export function useTransport(
    * Handle external MIDI Stop
    */
   const handleExternalStop = useCallback(() => {
-    console.log("Transport: External stop received");
     setIsPlaying(false);
     setCurrentBeat(0);
     setCurrentStep(0);

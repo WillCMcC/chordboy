@@ -4,8 +4,9 @@
  */
 
 const DB_NAME = "ChordBoyDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2 adds sequencer store
 const STORE_NAME = "presets";
+const SEQUENCER_STORE = "sequencer";
 
 /**
  * Initialize the IndexedDB database
@@ -27,6 +28,10 @@ function initDB() {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      // Add sequencer store in v2
+      if (!db.objectStoreNames.contains(SEQUENCER_STORE)) {
+        db.createObjectStore(SEQUENCER_STORE);
       }
     };
   });
@@ -61,7 +66,6 @@ export async function savePresetsToStorage(presetsMap) {
 
     return new Promise((resolve, reject) => {
       transaction.oncomplete = () => {
-        console.log("Presets saved to IndexedDB");
         resolve();
       };
       transaction.onerror = () => {
@@ -99,10 +103,8 @@ export async function loadPresetsFromStorage() {
               },
             ])
           );
-          console.log("Presets loaded from IndexedDB:", presetsMap.size);
           resolve(presetsMap);
         } else {
-          console.log("No saved presets found");
           resolve(new Map());
         }
       };
@@ -130,7 +132,6 @@ export async function clearPresetsFromStorage() {
 
     return new Promise((resolve, reject) => {
       transaction.oncomplete = () => {
-        console.log("Presets cleared from IndexedDB");
         resolve();
       };
       transaction.onerror = () => {
