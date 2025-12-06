@@ -106,7 +106,7 @@ function App() {
     return new Set([...keyboardKeys, ...mobileKeys]);
   }, [keyboardKeys, mobileKeys]);
 
-  // Chord engine
+  // Chord engine - pass isMobile for retrigger behavior
   const {
     currentChord,
     inversionIndex,
@@ -125,7 +125,7 @@ function App() {
     activePresetSlot,
     solvePresets,
     getChordNotesFromPreset,
-  } = useChordEngine(allPressedKeys);
+  } = useChordEngine(allPressedKeys, { isMobile });
 
   /**
    * Retrigger a preset's chord notes (for sequencer retrig mode).

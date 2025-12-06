@@ -242,30 +242,24 @@ export function TutorialModal({
     setCompletedSteps(new Set([0]));
   }, [onClose]);
 
-  // Mobile action button handlers
-  const handleRootPress = useCallback((key) => {
-    if (setMobileKeys) {
-      setMobileKeys((prev) => new Set([...prev, key]));
-    }
-  }, [setMobileKeys]);
-
-  const handleRootRelease = useCallback((key) => {
+  // Mobile action button handlers - hold to sustain, release to stop
+  // For tutorial, we use a simplified model: press adds, release removes
+  const handleKeyDown = useCallback((key, isRoot = false) => {
     if (setMobileKeys) {
       setMobileKeys((prev) => {
         const next = new Set(prev);
-        next.delete(key);
+        if (isRoot) {
+          // Remove any existing root keys (radio behavior for roots)
+          const rootKeys = ["q", "w", "e", "r", "a", "s", "d", "f", "z", "x", "c", "v"];
+          rootKeys.forEach((k) => next.delete(k));
+        }
+        next.add(key);
         return next;
       });
     }
   }, [setMobileKeys]);
 
-  const handleModifierPress = useCallback((key) => {
-    if (setMobileKeys) {
-      setMobileKeys((prev) => new Set([...prev, key]));
-    }
-  }, [setMobileKeys]);
-
-  const handleModifierRelease = useCallback((key) => {
+  const handleKeyUp = useCallback((key) => {
     if (setMobileKeys) {
       setMobileKeys((prev) => {
         const next = new Set(prev);
@@ -283,20 +277,35 @@ export function TutorialModal({
 
     switch (stepId) {
       case "root":
-        // Show a few root note buttons
+        // Show a few root note buttons - hold to sustain
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Try it:</div>
+            <div className="tutorial-action-label">Hold to play:</div>
             <div className="tutorial-action-buttons">
               {[["q", "C"], ["e", "D"], ["s", "F"], ["f", "G"], ["x", "A"]].map(([key, note]) => (
                 <button
                   key={key}
                   className="tutorial-action-btn tutorial-action-root"
-                  onTouchStart={() => handleRootPress(key)}
-                  onTouchEnd={() => handleRootRelease(key)}
-                  onMouseDown={() => handleRootPress(key)}
-                  onMouseUp={() => handleRootRelease(key)}
-                  onMouseLeave={() => handleRootRelease(key)}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    handleKeyDown(key, true);
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleKeyDown(key, true);
+                  }}
+                  onMouseUp={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
                 >
                   {note}
                 </button>
@@ -306,29 +315,59 @@ export function TutorialModal({
         );
 
       case "quality":
-        // Show minor button (need to hold root + press minor)
+        // Show minor button - hold root, add modifier
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Hold a root, then tap:</div>
+            <div className="tutorial-action-label">Hold root + modifier together:</div>
             <div className="tutorial-action-buttons">
               <button
                 className="tutorial-action-btn tutorial-action-root"
-                onTouchStart={() => handleRootPress("q")}
-                onTouchEnd={() => handleRootRelease("q")}
-                onMouseDown={() => handleRootPress("q")}
-                onMouseUp={() => handleRootRelease("q")}
-                onMouseLeave={() => handleRootRelease("q")}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("q", true);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("q", true);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
+                onMouseLeave={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
               >
                 C
               </button>
               <span className="tutorial-action-plus">+</span>
               <button
                 className="tutorial-action-btn tutorial-action-modifier"
-                onTouchStart={() => handleModifierPress("u")}
-                onTouchEnd={() => handleModifierRelease("u")}
-                onMouseDown={() => handleModifierPress("u")}
-                onMouseUp={() => handleModifierRelease("u")}
-                onMouseLeave={() => handleModifierRelease("u")}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("u", false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("u");
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("u", false);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("u");
+                }}
+                onMouseLeave={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("u");
+                }}
               >
                 min
               </button>
@@ -337,18 +376,33 @@ export function TutorialModal({
         );
 
       case "extension":
-        // Show extension buttons
+        // Show extension buttons - hold to play
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Hold a chord, then add:</div>
+            <div className="tutorial-action-label">Hold root + extensions:</div>
             <div className="tutorial-action-buttons">
               <button
                 className="tutorial-action-btn tutorial-action-root"
-                onTouchStart={() => handleRootPress("q")}
-                onTouchEnd={() => handleRootRelease("q")}
-                onMouseDown={() => handleRootPress("q")}
-                onMouseUp={() => handleRootRelease("q")}
-                onMouseLeave={() => handleRootRelease("q")}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("q", true);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleKeyDown("q", true);
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
+                onMouseLeave={(e) => {
+                  e.preventDefault();
+                  handleKeyUp("q");
+                }}
               >
                 C
               </button>
@@ -357,11 +411,26 @@ export function TutorialModal({
                 <button
                   key={key}
                   className="tutorial-action-btn tutorial-action-modifier"
-                  onTouchStart={() => handleModifierPress(key)}
-                  onTouchEnd={() => handleModifierRelease(key)}
-                  onMouseDown={() => handleModifierPress(key)}
-                  onMouseUp={() => handleModifierRelease(key)}
-                  onMouseLeave={() => handleModifierRelease(key)}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    handleKeyDown(key, false);
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleKeyDown(key, false);
+                  }}
+                  onMouseUp={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.preventDefault();
+                    handleKeyUp(key);
+                  }}
                 >
                   {label}
                 </button>

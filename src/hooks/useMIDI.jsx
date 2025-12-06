@@ -609,7 +609,13 @@ export function MIDIProvider({ children }) {
   // Note: useEventSubscription uses a ref pattern, so no useCallback needed
   useEventSubscription(appEvents, "chord:changed", (event) => {
     if (isConnected || bleConnected) {
-      playChord(event.notes);
+      // On mobile (retrigger=true), use retriggerChord for clear re-articulation
+      // On desktop, use playChord for smooth transitions
+      if (event.retrigger) {
+        retriggerChord(event.notes);
+      } else {
+        playChord(event.notes);
+      }
     }
   });
 

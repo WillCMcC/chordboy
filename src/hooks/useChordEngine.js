@@ -24,6 +24,8 @@ import { appEvents } from "../lib/eventBus";
  * Hook that orchestrates chord building from keyboard input.
  *
  * @param {Set<string>} pressedKeys - Currently pressed keyboard keys
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.isMobile - Whether the device is mobile (affects chord triggering)
  * @returns {Object} Chord state and control functions
  *
  * @example
@@ -33,9 +35,9 @@ import { appEvents } from "../lib/eventBus";
  *   savedPresets,
  *   cycleInversion,
  *   cycleDrop,
- * } = useChordEngine(pressedKeys);
+ * } = useChordEngine(pressedKeys, { isMobile: false });
  */
-export function useChordEngine(pressedKeys) {
+export function useChordEngine(pressedKeys, { isMobile = false } = {}) {
   /** @type {[number, Function]} Current inversion index */
   const [inversionIndex, setInversionIndex] = useState(0);
 
@@ -158,6 +160,8 @@ export function useChordEngine(pressedKeys) {
           notes: currentNotes,
           name: currentChord.name,
           source: recalledKeys ? "preset" : "keyboard",
+          // On mobile, we want full chord retrigger instead of smart diffing
+          retrigger: isMobile,
         });
       } else if (prevNotes?.length) {
         appEvents.emit("chord:cleared", {
@@ -167,7 +171,7 @@ export function useChordEngine(pressedKeys) {
     }
 
     prevChordRef.current = currentChord;
-  }, [currentChord, recalledKeys]);
+  }, [currentChord, recalledKeys, isMobile]);
 
   // Set up keyboard shortcuts for voicing control
   useVoicingKeyboard({

@@ -5,6 +5,9 @@ import "./MobileControls.css";
 /** Threshold in pixels for drag-down gesture to "hold" a preset */
 const DRAG_DOWN_THRESHOLD = 40;
 
+/** Threshold in pixels for swipe gesture to "lock" a key */
+const SWIPE_LOCK_THRESHOLD = 30;
+
 /**
  * MobileControls Component
  * Touch-friendly interface for mobile chord input.
@@ -50,14 +53,26 @@ export function MobileControls({
   const [solveMode, setSolveMode] = useState(false);
   const [selectedForSolve, setSelectedForSolve] = useState([]);
 
-  // Track touch/pointer state for drag-down-to-hold gesture
+  // Track which keys are "locked" (sustain after release via swipe gesture)
+  const [lockedKeys, setLockedKeys] = useState(new Set());
+
+  // Track touch/pointer state for preset swipe-to-lock gesture
   const presetTouchRef = useRef({
     activeSlot: null,
+    startX: 0,
     startY: 0,
     isHeld: false,
   });
   const [heldPreset, setHeldPreset] = useState(null); // Which preset is "held" via drag
   const presetsGridRef = useRef(null);
+
+  // Track touch state for root/modifier keys (for swipe-to-lock gesture)
+  const keyTouchRef = useRef({
+    activeKey: null,
+    startX: 0,
+    startY: 0,
+    isLocked: false,
+  });
 
   // Sort root notes chromatically
   const sortedRoots = useMemo(() => {
@@ -79,33 +94,137 @@ export function MobileControls({
     return orderedNotes.map((note) => entries.find(([, n]) => n === note));
   }, []);
 
-  const handleRootClick = (key) => {
+  // Ref to track current locked keys for use in callbacks (avoids stale closure)
+  const lockedKeysRef = useRef(lockedKeys);
+  lockedKeysRef.current = lockedKeys;
+
+  // Handle root key press down - adds key, starts tracking for swipe
+  const handleRootDown = useCallback((key, clientX, clientY) => {
+    // If already locked, tap to release instead
+    if (lockedKeysRef.current.has(key)) {
+      setLockedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      setMobileKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      return;
+    }
+
+    // Remove any existing root keys (radio behavior)
+    const rootKeys = Object.keys(LEFT_HAND_KEYS);
     setMobileKeys((prev) => {
       const next = new Set(prev);
-      // Remove any existing root keys
-      Object.keys(LEFT_HAND_KEYS).forEach((k) => next.delete(k));
-      // Toggle behavior: if regular click, just set. If already active, maybe keep it?
-      // Let's implement standard radio behavior: always set
+      rootKeys.forEach((k) => next.delete(k));
       next.add(key);
       return next;
     });
-  };
-
-  const handleModifierClick = (key) => {
-    setMobileKeys((prev) => {
+    // Also remove any locked root keys
+    setLockedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      rootKeys.forEach((k) => next.delete(k));
       return next;
     });
-  };
+    // Start tracking for swipe gesture
+    keyTouchRef.current = {
+      activeKey: key,
+      startX: clientX,
+      startY: clientY,
+      isLocked: false,
+    };
+  }, [setMobileKeys]);
 
-  const clearAll = () => {
+  // Handle modifier key press down - adds key, starts tracking for swipe
+  const handleModifierDown = useCallback((key, clientX, clientY) => {
+    // If already locked, tap to release instead
+    if (lockedKeysRef.current.has(key)) {
+      setLockedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      setMobileKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      return;
+    }
+
+    setMobileKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+    // Start tracking for swipe gesture
+    keyTouchRef.current = {
+      activeKey: key,
+      startX: clientX,
+      startY: clientY,
+      isLocked: false,
+    };
+  }, [setMobileKeys]);
+
+  // Handle pointer/touch move for swipe-to-lock detection
+  const handleKeyMove = useCallback((clientX, clientY) => {
+    const touch = keyTouchRef.current;
+    if (!touch.activeKey || touch.isLocked) return;
+
+    const deltaX = Math.abs(clientX - touch.startX);
+    const deltaY = Math.abs(clientY - touch.startY);
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    // If swiped past threshold, lock the key
+    if (distance > SWIPE_LOCK_THRESHOLD) {
+      touch.isLocked = true;
+      setLockedKeys((prev) => new Set([...prev, touch.activeKey]));
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }
+  }, []);
+
+  // Handle key release - removes key unless locked
+  const handleKeyUp = useCallback(() => {
+    const touch = keyTouchRef.current;
+    const key = touch.activeKey;
+
+    if (!key) return;
+
+    // Only remove if it wasn't locked (by swipe or previously)
+    if (!touch.isLocked && !lockedKeysRef.current.has(key)) {
+      setMobileKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+
+    // Reset touch tracking
+    keyTouchRef.current = {
+      activeKey: null,
+      startX: 0,
+      startY: 0,
+      isLocked: false,
+    };
+  }, [setMobileKeys]);
+
+  // Clear all keys and locked state
+  const clearAll = useCallback(() => {
     setMobileKeys(new Set());
-  };
+    setLockedKeys(new Set());
+    keyTouchRef.current = {
+      activeKey: null,
+      startX: 0,
+      startY: 0,
+      isLocked: false,
+    };
+  }, [setMobileKeys]);
 
   // Toggle a preset for solve selection
   const toggleSolveSelection = (slot) => {
@@ -136,7 +255,7 @@ export function MobileControls({
     setSolveMode(false);
   };
 
-  const handlePresetDown = (slot, clientY) => {
+  const handlePresetDown = useCallback((slot, clientX, clientY) => {
     const slotStr = slot.toString();
 
     if (clearMode) {
@@ -153,9 +272,28 @@ export function MobileControls({
       return;
     }
 
+    // If this preset is already held (locked), tap to release
+    if (heldPreset === slotStr) {
+      setHeldPreset(null);
+      onStopRecall();
+      presetTouchRef.current = {
+        activeSlot: null,
+        startX: 0,
+        startY: 0,
+        isHeld: false,
+      };
+      return;
+    }
+
+    // If another preset is held, release it first
+    if (heldPreset !== null) {
+      setHeldPreset(null);
+    }
+
     // Initialize touch tracking
     presetTouchRef.current = {
       activeSlot: slotStr,
+      startX: clientX,
       startY: clientY,
       isHeld: false,
     };
@@ -165,95 +303,60 @@ export function MobileControls({
       clearAll();
       onRecallPreset(slotStr);
     } else {
-      // Try to save
+      // Try to save (no hold behavior for saving)
       const success = onSavePreset(slotStr);
       if (success) {
-        // Clear notes after saving a preset on mobile
         clearAll();
       }
+      // Reset tracking since save doesn't need hold behavior
+      presetTouchRef.current = {
+        activeSlot: null,
+        startX: 0,
+        startY: 0,
+        isHeld: false,
+      };
     }
-  };
+  }, [clearMode, solveMode, savedPresets, heldPreset, onClearPreset, onRecallPreset, onSavePreset, onStopRecall, clearAll]);
 
-  const handlePresetMove = useCallback((e) => {
+  const handlePresetMove = useCallback((clientX, clientY) => {
     const touch = presetTouchRef.current;
-    if (touch.activeSlot === null) return;
+    if (touch.activeSlot === null || touch.isHeld) return;
 
-    // Get clientY from either pointer event or touch event
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? touch.startY;
+    const deltaX = Math.abs(clientX - touch.startX);
+    const deltaY = Math.abs(clientY - touch.startY);
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // Check if user has dragged down enough to "hold"
-    const deltaY = clientY - touch.startY;
-
-    // If dragging down significantly, prevent default to stop pull-to-refresh
-    if (deltaY > 10) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    if (deltaY > DRAG_DOWN_THRESHOLD && !touch.isHeld) {
+    // If swiped past threshold, lock the preset
+    if (distance > SWIPE_LOCK_THRESHOLD) {
       touch.isHeld = true;
       setHeldPreset(touch.activeSlot);
-      // Provide haptic feedback if available
+      // Haptic feedback
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
     }
   }, []);
 
-  const handlePresetUp = (slot) => {
+  const handlePresetUp = useCallback(() => {
     const touch = presetTouchRef.current;
+    const slotStr = touch.activeSlot;
 
-    // On mobile, keep presets active after tap - don't auto-release
-    // User can tap another preset or use "Clear Notes" to release
-    // The drag-down "hold" gesture now just provides haptic feedback
+    if (!slotStr) return;
+
+    // If not held/locked, stop the recall
+    if (!touch.isHeld && heldPreset !== slotStr) {
+      onStopRecall();
+    }
 
     // Reset touch tracking
     presetTouchRef.current = {
       activeSlot: null,
+      startX: 0,
       startY: 0,
       isHeld: false,
     };
-  };
+  }, [heldPreset, onStopRecall]);
 
-  // Attach non-passive touch event listener to prevent pull-to-refresh
-  useEffect(() => {
-    const presetsGrid = presetsGridRef.current;
-    if (!presetsGrid) return;
-
-    const handleTouchMoveNonPassive = (e) => {
-      const touch = presetTouchRef.current;
-      if (touch.activeSlot === null) return;
-
-      // Get touch position
-      const clientY = e.touches?.[0]?.clientY ?? touch.startY;
-      const deltaY = clientY - touch.startY;
-
-      // If dragging down while touching a preset, prevent default (pull-to-refresh)
-      if (deltaY > 5) {
-        e.preventDefault();
-      }
-    };
-
-    // Add non-passive event listener to allow preventDefault
-    presetsGrid.addEventListener("touchmove", handleTouchMoveNonPassive, {
-      passive: false,
-    });
-
-    return () => {
-      presetsGrid.removeEventListener("touchmove", handleTouchMoveNonPassive);
-    };
-  }, []);
-
-  // Release a held preset when tapping it again
-  const handleHeldPresetTap = (slot) => {
-    const slotStr = slot.toString();
-    if (heldPreset === slotStr) {
-      setHeldPreset(null);
-      onStopRecall();
-      return true;
-    }
-    return false;
-  };
 
   return (
     <div className="mobile-controls">
@@ -331,36 +434,44 @@ export function MobileControls({
                         ? "var(--accent-color)"
                         : "",
                 }}
-                onPointerDown={(e) => {
+                onTouchStart={(e) => {
                   e.preventDefault();
-                  // If this preset is already held, tapping releases it
-                  if (handleHeldPresetTap(num)) {
-                    return;
-                  }
-                  // If another preset is held, release it first
-                  if (heldPreset !== null && heldPreset !== slotStr) {
-                    setHeldPreset(null);
-                  }
-                  handlePresetDown(num, e.clientY);
-                }}
-                onPointerMove={(e) => {
-                  handlePresetMove(e);
+                  const touch = e.touches[0];
+                  handlePresetDown(num, touch.clientX, touch.clientY);
                 }}
                 onTouchMove={(e) => {
-                  handlePresetMove(e);
+                  const touch = e.touches[0];
+                  handlePresetMove(touch.clientX, touch.clientY);
                 }}
-                onPointerUp={(e) => {
+                onTouchEnd={(e) => {
                   e.preventDefault();
-                  handlePresetUp(num);
+                  handlePresetUp();
                 }}
-                onPointerLeave={(e) => {
+                onTouchCancel={(e) => {
                   e.preventDefault();
-                  handlePresetUp(num);
+                  handlePresetUp();
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handlePresetDown(num, e.clientX, e.clientY);
+                }}
+                onMouseMove={(e) => {
+                  if (e.buttons === 1) {
+                    handlePresetMove(e.clientX, e.clientY);
+                  }
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  handlePresetUp();
+                }}
+                onMouseLeave={(e) => {
+                  e.preventDefault();
+                  handlePresetUp();
                 }}
               >
                 {isSelectedForSolve ? solveIndex + 1 : num}
                 {heldPreset === slotStr && (
-                  <span className="held-indicator">⬇</span>
+                  <span className="held-indicator">🔒</span>
                 )}
               </button>
             );
@@ -405,13 +516,44 @@ export function MobileControls({
         {sortedRoots.map(([key, note]) => (
           <button
             key={key}
-            className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""}`}
-            onPointerDown={(e) => {
-              e.preventDefault(); // Prevent scrolling/selection
-              handleRootClick(key);
+            className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""} ${lockedKeys.has(key) ? "locked" : ""}`}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              const touch = e.touches[0];
+              handleRootDown(key, touch.clientX, touch.clientY);
+            }}
+            onTouchMove={(e) => {
+              const touch = e.touches[0];
+              handleKeyMove(touch.clientX, touch.clientY);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleKeyUp();
+            }}
+            onTouchCancel={(e) => {
+              e.preventDefault();
+              handleKeyUp();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleRootDown(key, e.clientX, e.clientY);
+            }}
+            onMouseMove={(e) => {
+              if (e.buttons === 1) {
+                handleKeyMove(e.clientX, e.clientY);
+              }
+            }}
+            onMouseUp={(e) => {
+              e.preventDefault();
+              handleKeyUp();
+            }}
+            onMouseLeave={(e) => {
+              e.preventDefault();
+              handleKeyUp();
             }}
           >
             {note}
+            {lockedKeys.has(key) && <span className="lock-indicator">🔒</span>}
           </button>
         ))}
       </div>
@@ -422,13 +564,44 @@ export function MobileControls({
           {Object.entries(RIGHT_HAND_MODIFIERS).map(([key, label]) => (
             <button
               key={key}
-              className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""}`}
-              onPointerDown={(e) => {
+              className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""} ${lockedKeys.has(key) ? "locked" : ""}`}
+              onTouchStart={(e) => {
                 e.preventDefault();
-                handleModifierClick(key);
+                const touch = e.touches[0];
+                handleModifierDown(key, touch.clientX, touch.clientY);
+              }}
+              onTouchMove={(e) => {
+                const touch = e.touches[0];
+                handleKeyMove(touch.clientX, touch.clientY);
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                handleKeyUp();
+              }}
+              onTouchCancel={(e) => {
+                e.preventDefault();
+                handleKeyUp();
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleModifierDown(key, e.clientX, e.clientY);
+              }}
+              onMouseMove={(e) => {
+                if (e.buttons === 1) {
+                  handleKeyMove(e.clientX, e.clientY);
+                }
+              }}
+              onMouseUp={(e) => {
+                e.preventDefault();
+                handleKeyUp();
+              }}
+              onMouseLeave={(e) => {
+                e.preventDefault();
+                handleKeyUp();
               }}
             >
               {label}
+              {lockedKeys.has(key) && <span className="lock-indicator">🔒</span>}
             </button>
           ))}
         </div>
