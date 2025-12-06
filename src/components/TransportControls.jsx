@@ -51,6 +51,15 @@ export function TransportControls({
     [onHumanizeChange]
   );
 
+  // Handle humanize increment/decrement (for mobile)
+  const adjustHumanize = useCallback(
+    (delta) => {
+      const newValue = Math.max(0, Math.min(100, humanize + delta));
+      onHumanizeChange(newValue);
+    },
+    [humanize, onHumanizeChange]
+  );
+
   // Handle MIDI input selection
   const handleInputChange = useCallback(
     (e) => {
@@ -77,6 +86,13 @@ export function TransportControls({
       <div className="transport-section humanize-section">
         <label className="transport-label">Human</label>
         <div className="humanize-dial">
+          <button
+            className="humanize-adjust-btn"
+            onClick={() => adjustHumanize(-10)}
+            aria-label="Decrease humanization"
+          >
+            -
+          </button>
           <input
             type="range"
             min="0"
@@ -86,6 +102,13 @@ export function TransportControls({
             className="humanize-slider"
           />
           <span className="humanize-value">{humanize}%</span>
+          <button
+            className="humanize-adjust-btn"
+            onClick={() => adjustHumanize(10)}
+            aria-label="Increase humanization"
+          >
+            +
+          </button>
         </div>
       </div>
 

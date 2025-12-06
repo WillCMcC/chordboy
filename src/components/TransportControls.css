@@ -91,6 +91,33 @@
   font-family: "JetBrains Mono", monospace;
 }
 
+.humanize-adjust-btn {
+  display: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s var(--ease-out-expo);
+}
+
+.humanize-adjust-btn:hover {
+  background: var(--elevated-bg);
+  border-color: var(--border-highlight);
+  color: var(--text-primary);
+}
+
+.humanize-adjust-btn:active {
+  transform: scale(0.92);
+}
+
 /* BPM Controls */
 .bpm-section {
   min-width: 85px;
@@ -425,17 +452,22 @@
   }
 
   .humanize-section {
-    min-width: 65px;
+    min-width: auto;
     order: 1;
   }
 
   .humanize-slider {
-    width: 38px;
+    display: none;
+  }
+
+  .humanize-adjust-btn {
+    display: flex;
   }
 
   .humanize-value {
-    font-size: 0.6rem;
-    min-width: 24px;
+    font-size: 0.7rem;
+    min-width: 32px;
+    text-align: center;
   }
 
   .bpm-section {
