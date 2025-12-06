@@ -4,6 +4,10 @@
  * Combines keyboard input with chord building logic and manages
  * inversions, voicings, octave settings, and preset interactions.
  *
+ * Architecture Note:
+ * Emits events via appEvents when chord changes, allowing decoupled
+ * subscribers (like useMIDI) to react without prop drilling or effects.
+ *
  * @module hooks/useChordEngine
  */
 
@@ -14,6 +18,7 @@ import { getChordName } from "../lib/chordNamer";
 import { applyProgressiveDrop, applySpread } from "../lib/voicingTransforms";
 import { usePresets } from "./usePresets";
 import { useVoicingKeyboard } from "./useVoicingKeyboard";
+import { appEvents } from "../lib/eventBus";
 
 /**
  * Hook that orchestrates chord building from keyboard input.
@@ -48,6 +53,9 @@ export function useChordEngine(pressedKeys) {
     savedPresets,
     recalledKeys,
     recalledOctave,
+    recalledInversion,
+    recalledDrop,
+    recalledSpread,
     activePresetSlot,
     savePreset,
     recallPreset,
@@ -59,6 +67,9 @@ export function useChordEngine(pressedKeys) {
     solvePresetVoicings,
     setRecalledKeys,
     setRecalledOctave,
+    setRecalledInversion,
+    setRecalledDrop,
+    setRecalledSpread,
     setActivePresetSlot,
   } = usePresets({ defaultOctave: octave });
 
@@ -86,25 +97,31 @@ export function useChordEngine(pressedKeys) {
 
   /**
    * Apply voicing transforms to the base chord.
+   * Uses recalled values when a preset is active, otherwise uses global values.
    * @returns {Object|null} Final chord with voicing applied
    */
   const currentChord = useMemo(() => {
     if (!baseChord) return null;
 
+    // Use recalled values if preset is active, otherwise use global values
+    const activeInversion = recalledInversion !== null ? recalledInversion : inversionIndex;
+    const activeDrop = recalledDrop !== null ? recalledDrop : droppedNotes;
+    const activeSpread = recalledSpread !== null ? recalledSpread : spreadAmount;
+
     let notes = [...baseChord.notes];
 
     // Apply progressive note dropping
-    if (droppedNotes > 0) {
-      notes = applyProgressiveDrop(notes, droppedNotes);
+    if (activeDrop > 0) {
+      notes = applyProgressiveDrop(notes, activeDrop);
     }
 
     // Apply spread
-    if (spreadAmount > 0) {
-      notes = applySpread(notes, spreadAmount);
+    if (activeSpread > 0) {
+      notes = applySpread(notes, activeSpread);
     }
 
     // Apply inversion last
-    notes = invertChord(notes, inversionIndex);
+    notes = invertChord(notes, activeInversion);
 
     const chordName = getChordName(baseChord.root, baseChord.modifiers);
 
@@ -112,11 +129,45 @@ export function useChordEngine(pressedKeys) {
       ...baseChord,
       notes,
       name: chordName,
-      inversion: inversionIndex,
-      droppedNotes,
-      spreadAmount,
+      inversion: activeInversion,
+      droppedNotes: activeDrop,
+      spreadAmount: activeSpread,
     };
-  }, [baseChord, inversionIndex, droppedNotes, spreadAmount]);
+  }, [baseChord, inversionIndex, droppedNotes, spreadAmount, recalledInversion, recalledDrop, recalledSpread]);
+
+  // Track previous chord to detect changes and emit events
+  const prevChordRef = useRef(null);
+
+  // Emit chord events when chord changes
+  // This replaces the useEffect in App.jsx that watched currentChord
+  useEffect(() => {
+    const prevNotes = prevChordRef.current?.notes;
+    const currentNotes = currentChord?.notes;
+
+    // Compare note arrays to detect actual change
+    const notesChanged =
+      !prevNotes !== !currentNotes ||
+      (prevNotes &&
+        currentNotes &&
+        (prevNotes.length !== currentNotes.length ||
+          prevNotes.some((n, i) => n !== currentNotes[i])));
+
+    if (notesChanged) {
+      if (currentNotes?.length) {
+        appEvents.emit("chord:changed", {
+          notes: currentNotes,
+          name: currentChord.name,
+          source: recalledKeys ? "preset" : "keyboard",
+        });
+      } else if (prevNotes?.length) {
+        appEvents.emit("chord:cleared", {
+          source: recalledKeys ? "preset" : "keyboard",
+        });
+      }
+    }
+
+    prevChordRef.current = currentChord;
+  }, [currentChord, recalledKeys]);
 
   // Set up keyboard shortcuts for voicing control
   useVoicingKeyboard({
@@ -129,11 +180,17 @@ export function useChordEngine(pressedKeys) {
     inversionIndex,
     droppedNotes,
     spreadAmount,
+    recalledInversion,
+    recalledDrop,
+    recalledSpread,
     setInversionIndex,
     setDroppedNotes,
     setSpreadAmount,
     setOctave,
     setRecalledOctave,
+    setRecalledInversion,
+    setRecalledDrop,
+    setRecalledSpread,
     savePreset,
     recallPreset,
     stopRecalling,
@@ -142,53 +199,85 @@ export function useChordEngine(pressedKeys) {
   });
 
   /**
-   * Track if recalledKeys was just set by the sequencer.
-   * This prevents the "clear on keypress" effect from immediately clearing
-   * a preset that was just triggered by the sequencer.
+   * Track if recalledKeys was just set (by sequencer or preset recall).
+   * This prevents clearing a preset that was just triggered.
+   * Set synchronously in recallPresetFromSlot, cleared via microtask.
    */
   const recalledKeysJustSetRef = useRef(false);
 
-  // Set the flag whenever recalledKeys changes to a truthy value
-  useEffect(() => {
-    if (recalledKeys) {
-      recalledKeysJustSetRef.current = true;
-    }
-  }, [recalledKeys]);
+  /**
+   * Track previous parsedKeys.root to detect chord changes.
+   * Used for action-based voicing reset instead of effect.
+   */
+  const prevParsedRootRef = useRef(null);
+  const prevParsedModifiersRef = useRef("");
 
   /**
-   * Clear recalled keys when user starts pressing chord keys manually.
-   * Skip if recalledKeys was just set (by sequencer) to avoid race condition.
+   * Clear recalled state - action function used when user presses chord keys.
+   */
+  const clearRecalledState = useCallback(() => {
+    setRecalledKeys(null);
+    setRecalledOctave(null);
+    setActivePresetSlot(null);
+  }, [setRecalledKeys, setRecalledOctave, setActivePresetSlot]);
+
+  /**
+   * Reset voicing to defaults - action function for chord changes.
+   */
+  const resetVoicing = useCallback(() => {
+    setInversionIndex(0);
+    setDroppedNotes(0);
+    setSpreadAmount(0);
+  }, []);
+
+  /**
+   * Handle chord and preset state coordination.
+   * Replaces three separate useEffect hooks with a single consolidated effect:
+   * 1. Clear recalled keys on manual keypress (if not just set)
+   * 2. Reset voicing when chord changes (not from preset)
+   *
+   * Architecture note: This effect remains because we need to detect
+   * changes to derived state (parsedKeys) and coordinate multiple
+   * concerns. The logic is action-based (calling clearRecalledState
+   * and resetVoicing) rather than directly manipulating state.
    */
   useEffect(() => {
+    const currentRoot = parsedKeys.root;
+    const currentModifiers = parsedKeys.modifiers.join(",");
+    const prevRoot = prevParsedRootRef.current;
+    const prevModifiers = prevParsedModifiersRef.current;
+
+    // Check if chord changed (root or modifiers)
+    const chordChanged =
+      currentRoot !== prevRoot || currentModifiers !== prevModifiers;
+
+    // Clear recalled state when user presses chord keys manually
     if (recalledKeys && pressedKeys.size > 0) {
-      // If recalledKeys was just set this render, skip clearing and reset the flag
       if (recalledKeysJustSetRef.current) {
+        // Just set by sequencer - clear flag but don't clear state
         recalledKeysJustSetRef.current = false;
-        return;
+      } else {
+        // User pressed keys manually - clear recalled state
+        clearRecalledState();
       }
-      setRecalledKeys(null);
-      setRecalledOctave(null);
-      setActivePresetSlot(null);
     }
+
+    // Reset voicing when chord changes (not from preset recall)
+    if (chordChanged && currentRoot && !recalledKeys) {
+      resetVoicing();
+    }
+
+    // Update refs for next comparison
+    prevParsedRootRef.current = currentRoot;
+    prevParsedModifiersRef.current = currentModifiers;
   }, [
+    parsedKeys.root,
+    parsedKeys.modifiers,
     pressedKeys.size,
     recalledKeys,
-    setRecalledKeys,
-    setRecalledOctave,
-    setActivePresetSlot,
+    clearRecalledState,
+    resetVoicing,
   ]);
-
-  /**
-   * Reset voicing to defaults when chord changes (not from a preset).
-   */
-  useEffect(() => {
-    if (!recalledKeys && parsedKeys.root) {
-      setInversionIndex(0);
-      setDroppedNotes(0);
-      setSpreadAmount(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsedKeys.root, parsedKeys.modifiers.join(","), recalledKeys]);
 
   /**
    * Helper to update voicing on the active preset.
@@ -204,41 +293,58 @@ export function useChordEngine(pressedKeys) {
   );
 
   /**
-   * Cycle to the next inversion. Updates preset if one is active.
+   * Cycle to the next inversion. Updates recalled value if preset active, else global.
    */
   const cycleInversion = useCallback(() => {
     if (!currentChord?.notes) return;
     const maxInversions = currentChord.notes.length;
-    setInversionIndex((prev) => {
-      const newInversion = (prev + 1) % maxInversions;
-      updateActivePresetVoicing({ inversionIndex: newInversion });
-      return newInversion;
-    });
-  }, [currentChord, updateActivePresetVoicing]);
+
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      setRecalledInversion((prev) => {
+        const current = prev !== null ? prev : inversionIndex;
+        const newInversion = (current + 1) % maxInversions;
+        updateActivePresetVoicing({ inversionIndex: newInversion });
+        return newInversion;
+      });
+    } else {
+      setInversionIndex((prev) => (prev + 1) % maxInversions);
+    }
+  }, [currentChord, activePresetSlot, savedPresets, inversionIndex, updateActivePresetVoicing]);
 
   /**
-   * Cycle to the next drop voicing. Updates preset if one is active.
+   * Cycle to the next drop voicing. Updates recalled value if preset active, else global.
    */
   const cycleDrop = useCallback(() => {
     if (!currentChord?.notes) return;
     const maxDrops = currentChord.notes.length - 1;
-    setDroppedNotes((prev) => {
-      const newDropped = (prev + 1) % (maxDrops + 1);
-      updateActivePresetVoicing({ droppedNotes: newDropped });
-      return newDropped;
-    });
-  }, [currentChord, updateActivePresetVoicing]);
+
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      setRecalledDrop((prev) => {
+        const current = prev !== null ? prev : droppedNotes;
+        const newDropped = (current + 1) % (maxDrops + 1);
+        updateActivePresetVoicing({ droppedNotes: newDropped });
+        return newDropped;
+      });
+    } else {
+      setDroppedNotes((prev) => (prev + 1) % (maxDrops + 1));
+    }
+  }, [currentChord, activePresetSlot, savedPresets, droppedNotes, updateActivePresetVoicing]);
 
   /**
-   * Cycle to the next spread amount. Updates preset if one is active.
+   * Cycle to the next spread amount. Updates recalled value if preset active, else global.
    */
   const cycleSpread = useCallback(() => {
-    setSpreadAmount((prev) => {
-      const newSpread = (prev + 1) % 4;
-      updateActivePresetVoicing({ spreadAmount: newSpread });
-      return newSpread;
-    });
-  }, [updateActivePresetVoicing]);
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      setRecalledSpread((prev) => {
+        const current = prev !== null ? prev : spreadAmount;
+        const newSpread = (current + 1) % 4;
+        updateActivePresetVoicing({ spreadAmount: newSpread });
+        return newSpread;
+      });
+    } else {
+      setSpreadAmount((prev) => (prev + 1) % 4);
+    }
+  }, [activePresetSlot, savedPresets, spreadAmount, updateActivePresetVoicing]);
 
   /**
    * Change octave by a given direction. Updates preset if one is active.
@@ -318,6 +424,10 @@ export function useChordEngine(pressedKeys) {
 
   /**
    * Recall a preset from a slot.
+   * Sets recalledKeysJustSetRef to prevent immediate clearing by the
+   * coordination effect when called from sequencer.
+   * Voicing (octave, inversion, drop, spread) is now set via recalled states in recallPreset.
+   *
    * @param {string} slotNumber - Slot identifier ("0"-"9")
    * @returns {boolean} True if recalled successfully
    */
@@ -325,9 +435,8 @@ export function useChordEngine(pressedKeys) {
     (slotNumber) => {
       const preset = recallPreset(slotNumber);
       if (preset) {
-        setInversionIndex(preset.inversionIndex || 0);
-        setDroppedNotes(preset.droppedNotes || 0);
-        setSpreadAmount(preset.spreadAmount || 0);
+        // Set flag to prevent coordination effect from clearing
+        recalledKeysJustSetRef.current = true;
         return true;
       }
       return false;

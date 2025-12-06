@@ -4,7 +4,11 @@ import {
   loadSequencerFromStorage,
 } from "../lib/sequencerStorage";
 import { processStep } from "../lib/sequencerLogic";
+import { useCallbackRef } from "./useStateContainer";
 import ClockWorker from "../workers/clockWorker.js?worker";
+
+/** MIDI clock pulses per quarter note (standard 24 PPQN) */
+const MIDI_CLOCKS_PER_BEAT = 24;
 
 /**
  * useTransport - Manages transport state and sequencer, synced to external MIDI clock
@@ -16,6 +20,11 @@ import ClockWorker from "../workers/clockWorker.js?worker";
  * - Sequencer grid with configurable steps and preset triggers
  * - BPM display (calculated from incoming clock when synced)
  * - Persistent storage of sequence and settings
+ *
+ * Architecture Note:
+ * Uses a state container pattern instead of ref-sync effects.
+ * The stateRef contains all values that callbacks need access to,
+ * eliminating the need for multiple useEffect hooks to sync refs.
  */
 export function useTransport(
   { onTriggerPreset, onRetriggerPreset, onStopNotes, setClockCallbacks } = {}
@@ -26,12 +35,12 @@ export function useTransport(
   const [syncEnabled, setSyncEnabled] = useState(false); // Whether to sync to external MIDI clock
 
   // Sequencer state
-  const [sequencerEnabled, setSequencerEnabled] = useState(false);
-  const [sequencerSteps, setSequencerSteps] = useState(8); // Number of steps (4, 8, 16)
+  const [sequencerEnabled, setSequencerEnabledState] = useState(false);
+  const [sequencerSteps, setSequencerStepsState] = useState(8); // Number of steps (4, 8, 16)
   const [currentStep, setCurrentStep] = useState(0);
-  const [sequence, setSequence] = useState([]); // Array of preset slots (or null for empty)
-  const [stepsPerBeat, setStepsPerBeat] = useState(1); // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth
-  const [retrigMode, setRetrigMode] = useState(true); // true = retrigger same notes, false = sustain
+  const [sequence, setSequenceState] = useState([]); // Array of preset slots (or null for empty)
+  const [stepsPerBeat, setStepsPerBeatState] = useState(1); // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth
+  const [retrigMode, setRetrigModeState] = useState(true); // true = retrigger same notes, false = sustain
   const [isLoaded, setIsLoaded] = useState(false); // Track if we've loaded from storage
 
   // Web Worker for internal clock (runs in background)
@@ -44,52 +53,88 @@ export function useTransport(
   const lastClockTimeRef = useRef(0);
   const clockTimesRef = useRef([]); // Rolling window of clock intervals
 
-  // Refs for callbacks to avoid effect re-runs
-  const onTriggerPresetRef = useRef(onTriggerPreset);
-  const onRetriggerPresetRef = useRef(onRetriggerPreset);
-  const onStopNotesRef = useRef(onStopNotes);
-  const sequencerEnabledRef = useRef(sequencerEnabled);
-  const sequencerStepsRef = useRef(sequencerSteps);
-  const stepsPerBeatRef = useRef(stepsPerBeat);
-  const retrigModeRef = useRef(retrigMode);
-  const sequenceRef = useRef(sequence);
-
-  // Keep refs updated
-  useEffect(() => {
-    onTriggerPresetRef.current = onTriggerPreset;
-    onRetriggerPresetRef.current = onRetriggerPreset;
-    onStopNotesRef.current = onStopNotes;
+  // State container - single ref that holds all values callbacks need
+  // This replaces 6+ individual ref-sync useEffect hooks
+  const stateRef = useRef({
+    sequencerEnabled: false,
+    sequencerSteps: 8,
+    stepsPerBeat: 1,
+    retrigMode: true,
+    sequence: [],
   });
 
-  useEffect(() => {
-    sequencerEnabledRef.current = sequencerEnabled;
-  }, [sequencerEnabled]);
+  // Callback refs - keeps callbacks current without re-subscribing
+  const callbacksRef = useCallbackRef({
+    onTriggerPreset,
+    onRetriggerPreset,
+    onStopNotes,
+  });
 
-  useEffect(() => {
-    sequencerStepsRef.current = sequencerSteps;
-  }, [sequencerSteps]);
+  // Wrapped setters that update both state and container
+  const setSequencerEnabled = useCallback((value) => {
+    const newValue = typeof value === "function"
+      ? value(stateRef.current.sequencerEnabled)
+      : value;
+    stateRef.current.sequencerEnabled = newValue;
+    setSequencerEnabledState(newValue);
+  }, []);
 
-  useEffect(() => {
-    stepsPerBeatRef.current = stepsPerBeat;
-  }, [stepsPerBeat]);
+  const setSequencerSteps = useCallback((value) => {
+    const newValue = typeof value === "function"
+      ? value(stateRef.current.sequencerSteps)
+      : value;
+    stateRef.current.sequencerSteps = newValue;
+    setSequencerStepsState(newValue);
+  }, []);
 
-  useEffect(() => {
-    retrigModeRef.current = retrigMode;
-  }, [retrigMode]);
+  const setStepsPerBeat = useCallback((value) => {
+    const newValue = typeof value === "function"
+      ? value(stateRef.current.stepsPerBeat)
+      : value;
+    stateRef.current.stepsPerBeat = newValue;
+    setStepsPerBeatState(newValue);
+  }, []);
 
-  useEffect(() => {
-    sequenceRef.current = sequence;
-  }, [sequence]);
+  const setRetrigMode = useCallback((value) => {
+    const newValue = typeof value === "function"
+      ? value(stateRef.current.retrigMode)
+      : value;
+    stateRef.current.retrigMode = newValue;
+    setRetrigModeState(newValue);
+  }, []);
+
+  const setSequence = useCallback((value) => {
+    const newValue = typeof value === "function"
+      ? value(stateRef.current.sequence)
+      : value;
+    stateRef.current.sequence = newValue;
+    setSequenceState(newValue);
+  }, []);
 
   // Load sequencer state from storage on mount
   useEffect(() => {
     loadSequencerFromStorage().then((savedState) => {
       if (savedState) {
-        if (savedState.sequence) setSequence(savedState.sequence);
-        if (savedState.sequencerSteps) setSequencerSteps(savedState.sequencerSteps);
-        if (savedState.stepsPerBeat) setStepsPerBeat(savedState.stepsPerBeat);
-        if (savedState.retrigMode !== undefined) setRetrigMode(savedState.retrigMode);
-        if (savedState.sequencerEnabled !== undefined) setSequencerEnabled(savedState.sequencerEnabled);
+        if (savedState.sequence) {
+          stateRef.current.sequence = savedState.sequence;
+          setSequenceState(savedState.sequence);
+        }
+        if (savedState.sequencerSteps) {
+          stateRef.current.sequencerSteps = savedState.sequencerSteps;
+          setSequencerStepsState(savedState.sequencerSteps);
+        }
+        if (savedState.stepsPerBeat) {
+          stateRef.current.stepsPerBeat = savedState.stepsPerBeat;
+          setStepsPerBeatState(savedState.stepsPerBeat);
+        }
+        if (savedState.retrigMode !== undefined) {
+          stateRef.current.retrigMode = savedState.retrigMode;
+          setRetrigModeState(savedState.retrigMode);
+        }
+        if (savedState.sequencerEnabled !== undefined) {
+          stateRef.current.sequencerEnabled = savedState.sequencerEnabled;
+          setSequencerEnabledState(savedState.sequencerEnabled);
+        }
         if (savedState.bpm) setBpm(savedState.bpm);
       }
       setIsLoaded(true);
@@ -101,87 +146,74 @@ export function useTransport(
     if (!isLoaded) return;
 
     const state = {
-      sequence,
-      sequencerSteps,
-      stepsPerBeat,
-      retrigMode,
-      sequencerEnabled,
+      sequence: stateRef.current.sequence,
+      sequencerSteps: stateRef.current.sequencerSteps,
+      stepsPerBeat: stateRef.current.stepsPerBeat,
+      retrigMode: stateRef.current.retrigMode,
+      sequencerEnabled: stateRef.current.sequencerEnabled,
       bpm,
     };
     saveSequencerToStorage(state);
-  }, [isLoaded, sequence, sequencerSteps, stepsPerBeat, retrigMode, sequencerEnabled, bpm]);
+  }, [isLoaded, sequencerEnabled, sequencerSteps, stepsPerBeat, retrigMode, sequence, bpm]);
 
-  // Initialize sequence when steps change (only if not loaded yet or explicitly changed)
+  // Initialize sequence when steps change (only if loaded)
   useEffect(() => {
-    if (!isLoaded) return; // Don't initialize until we've loaded from storage
+    if (!isLoaded) return;
 
     setSequence((prev) => {
-      // If sequence is already the right length, don't change it
-      if (prev.length === sequencerSteps) return prev;
+      if (prev.length === stateRef.current.sequencerSteps) return prev;
 
-      const newSeq = new Array(sequencerSteps).fill(null);
-      // Preserve existing steps
+      const newSeq = new Array(stateRef.current.sequencerSteps).fill(null);
       prev.forEach((val, i) => {
-        if (i < sequencerSteps) {
+        if (i < stateRef.current.sequencerSteps) {
           newSeq[i] = val;
         }
       });
       return newSeq;
     });
-  }, [sequencerSteps, isLoaded]);
-
-  // Calculate pulses per step based on stepsPerBeat
-  // 24 PPQN = 24 pulses per quarter note
-  const getPulsesPerStep = useCallback(() => {
-    return Math.floor(24 / stepsPerBeat);
-  }, [stepsPerBeat]);
+  }, [sequencerSteps, isLoaded, setSequence]);
 
   /**
    * Process a single clock pulse (called for both internal and external clock)
+   * Uses stateRef for all values to avoid stale closures
    */
   const processPulse = useCallback(() => {
-    // Update beat counter (every 24 pulses = 1 quarter note)
+    // Update beat counter (every MIDI_CLOCKS_PER_BEAT pulses = 1 quarter note)
     pulseCountRef.current++;
-    if (pulseCountRef.current >= 24) {
+    if (pulseCountRef.current >= MIDI_CLOCKS_PER_BEAT) {
       pulseCountRef.current = 0;
       setCurrentBeat((prev) => (prev + 1) % 4);
     }
 
     // Update sequencer step
-    if (sequencerEnabledRef.current) {
+    if (stateRef.current.sequencerEnabled) {
       stepPulseCountRef.current++;
-      const pulsesPerStep = Math.floor(24 / stepsPerBeatRef.current);
+      const pulsesPerStep = Math.floor(MIDI_CLOCKS_PER_BEAT / stateRef.current.stepsPerBeat);
 
       if (stepPulseCountRef.current >= pulsesPerStep) {
         stepPulseCountRef.current = 0;
 
         setCurrentStep((prev) => {
-          const nextStep = (prev + 1) % sequencerStepsRef.current;
+          const nextStep = (prev + 1) % stateRef.current.sequencerSteps;
 
           // Process this step using extracted logic
-          const currentPreset = sequenceRef.current[nextStep];
+          const currentPreset = stateRef.current.sequence[nextStep];
           const result = processStep({
             currentPreset,
             lastTriggeredPreset: lastTriggeredPresetRef.current,
-            retrigMode: retrigModeRef.current,
+            retrigMode: stateRef.current.retrigMode,
           });
 
           // Execute the action
           switch (result.action) {
             case "trigger":
-              if (onTriggerPresetRef.current) {
-                onTriggerPresetRef.current(result.preset);
-              }
+              callbacksRef.current.onTriggerPreset?.(result.preset);
               break;
             case "retrigger":
-              if (onRetriggerPresetRef.current) {
-                onRetriggerPresetRef.current(result.preset);
-              }
+              callbacksRef.current.onRetriggerPreset?.(result.preset);
               break;
             case "stop":
-              if (onStopNotesRef.current) {
-                onStopNotesRef.current();
-              }
+              callbacksRef.current.onStopNotes?.();
               break;
             // "sustain" - do nothing, notes continue playing
           }
@@ -193,7 +225,7 @@ export function useTransport(
         });
       }
     }
-  }, []);
+  }, [callbacksRef]);
 
   /**
    * Handle external MIDI clock pulse
@@ -205,8 +237,8 @@ export function useTransport(
       const interval = now - lastClockTimeRef.current;
       clockTimesRef.current.push(interval);
 
-      // Keep rolling window of last 24 intervals (1 beat)
-      if (clockTimesRef.current.length > 24) {
+      // Keep rolling window of last MIDI_CLOCKS_PER_BEAT intervals (1 beat)
+      if (clockTimesRef.current.length > MIDI_CLOCKS_PER_BEAT) {
         clockTimesRef.current.shift();
       }
 
@@ -215,8 +247,8 @@ export function useTransport(
         const avgInterval =
           clockTimesRef.current.reduce((a, b) => a + b, 0) /
           clockTimesRef.current.length;
-        // 24 PPQN, so BPM = 60000 / (avgInterval * 24)
-        const calculatedBpm = Math.round(60000 / (avgInterval * 24));
+        // MIDI_CLOCKS_PER_BEAT PPQN, so BPM = 60000 / (avgInterval * MIDI_CLOCKS_PER_BEAT)
+        const calculatedBpm = Math.round(60000 / (avgInterval * MIDI_CLOCKS_PER_BEAT));
         if (calculatedBpm >= 20 && calculatedBpm <= 300) {
           setBpm(calculatedBpm);
         }
@@ -242,20 +274,20 @@ export function useTransport(
     lastClockTimeRef.current = 0;
 
     // Trigger first step if sequencer is enabled
-    if (sequencerEnabledRef.current) {
-      const firstPreset = sequenceRef.current[0];
+    if (stateRef.current.sequencerEnabled) {
+      const firstPreset = stateRef.current.sequence[0];
       const result = processStep({
         currentPreset: firstPreset,
         lastTriggeredPreset: null,
-        retrigMode: retrigModeRef.current,
+        retrigMode: stateRef.current.retrigMode,
       });
 
-      if (result.action === "trigger" && onTriggerPresetRef.current) {
-        onTriggerPresetRef.current(result.preset);
+      if (result.action === "trigger") {
+        callbacksRef.current.onTriggerPreset?.(result.preset);
       }
       lastTriggeredPresetRef.current = result.lastTriggeredPreset;
     }
-  }, []);
+  }, [callbacksRef]);
 
   /**
    * Handle external MIDI Stop
@@ -269,10 +301,8 @@ export function useTransport(
     lastTriggeredPresetRef.current = null;
 
     // Stop any playing notes
-    if (onStopNotesRef.current) {
-      onStopNotesRef.current();
-    }
-  }, []);
+    callbacksRef.current.onStopNotes?.();
+  }, [callbacksRef]);
 
   // Register clock callbacks when sync is enabled
   useEffect(() => {
@@ -296,9 +326,7 @@ export function useTransport(
 
   // Keep processPulse in a ref to avoid recreating worker
   const processPulseRef = useRef(processPulse);
-  useEffect(() => {
-    processPulseRef.current = processPulse;
-  }, [processPulse]);
+  processPulseRef.current = processPulse;
 
   // Initialize Web Worker for internal clock (once on mount)
   useEffect(() => {
@@ -336,16 +364,16 @@ export function useTransport(
     lastTriggeredPresetRef.current = null;
 
     // Trigger first step if sequencer is enabled
-    if (sequencerEnabledRef.current) {
-      const firstPreset = sequenceRef.current[0];
+    if (stateRef.current.sequencerEnabled) {
+      const firstPreset = stateRef.current.sequence[0];
       const result = processStep({
         currentPreset: firstPreset,
         lastTriggeredPreset: null,
-        retrigMode: retrigModeRef.current,
+        retrigMode: stateRef.current.retrigMode,
       });
 
-      if (result.action === "trigger" && onTriggerPresetRef.current) {
-        onTriggerPresetRef.current(result.preset);
+      if (result.action === "trigger") {
+        callbacksRef.current.onTriggerPreset?.(result.preset);
       }
       lastTriggeredPresetRef.current = result.lastTriggeredPreset;
     }
@@ -354,7 +382,7 @@ export function useTransport(
     if (clockWorkerRef.current) {
       clockWorkerRef.current.postMessage({ type: "start", payload: { bpm } });
     }
-  }, [isPlaying, syncEnabled, bpm]);
+  }, [isPlaying, syncEnabled, bpm, callbacksRef]);
 
   // Stop internal transport
   const stop = useCallback(() => {
@@ -373,10 +401,8 @@ export function useTransport(
     }
 
     // Stop any playing notes
-    if (onStopNotesRef.current) {
-      onStopNotesRef.current();
-    }
-  }, [isPlaying, syncEnabled]);
+    callbacksRef.current.onStopNotes?.();
+  }, [isPlaying, syncEnabled, callbacksRef]);
 
   // Toggle play/stop (only for internal clock)
   const toggle = useCallback(() => {
@@ -402,7 +428,7 @@ export function useTransport(
       newSeq[stepIndex] = presetSlot;
       return newSeq;
     });
-  }, []);
+  }, [setSequence]);
 
   // Clear a step
   const clearStep = useCallback((stepIndex) => {
@@ -411,12 +437,12 @@ export function useTransport(
       newSeq[stepIndex] = null;
       return newSeq;
     });
-  }, []);
+  }, [setSequence]);
 
   // Clear all steps
   const clearSequence = useCallback(() => {
-    setSequence(new Array(sequencerSteps).fill(null));
-  }, [sequencerSteps]);
+    setSequence(new Array(stateRef.current.sequencerSteps).fill(null));
+  }, [setSequence]);
 
   // Stop clock worker when sync is enabled
   useEffect(() => {

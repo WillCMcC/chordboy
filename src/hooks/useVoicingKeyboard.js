@@ -45,11 +45,17 @@ export function generateRandomChord() {
  * @param {number} options.inversionIndex - Current inversion
  * @param {number} options.droppedNotes - Current drop amount
  * @param {number} options.spreadAmount - Current spread amount
+ * @param {number|null} options.recalledInversion - Inversion from recalled preset
+ * @param {number|null} options.recalledDrop - Drop from recalled preset
+ * @param {number|null} options.recalledSpread - Spread from recalled preset
  * @param {Function} options.setInversionIndex - Setter for inversion
  * @param {Function} options.setDroppedNotes - Setter for dropped notes
  * @param {Function} options.setSpreadAmount - Setter for spread
  * @param {Function} options.setOctave - Setter for octave
  * @param {Function} options.setRecalledOctave - Setter for recalled octave
+ * @param {Function} options.setRecalledInversion - Setter for recalled inversion
+ * @param {Function} options.setRecalledDrop - Setter for recalled drop
+ * @param {Function} options.setRecalledSpread - Setter for recalled spread
  * @param {Function} options.savePreset - Function to save a preset
  * @param {Function} options.recallPreset - Function to recall a preset
  * @param {Function} options.stopRecalling - Function to stop recalling
@@ -66,11 +72,17 @@ export function useVoicingKeyboard({
   inversionIndex,
   droppedNotes,
   spreadAmount,
+  recalledInversion,
+  recalledDrop,
+  recalledSpread,
   setInversionIndex,
   setDroppedNotes,
   setSpreadAmount,
   setOctave,
   setRecalledOctave,
+  setRecalledInversion,
+  setRecalledDrop,
+  setRecalledSpread,
   savePreset,
   recallPreset,
   stopRecalling,
@@ -128,6 +140,7 @@ export function useVoicingKeyboard({
 
   /**
    * Handle left shift key for cycling inversions.
+   * Updates recalled value if preset active, else global.
    * @param {KeyboardEvent} event - The keyboard event
    * @returns {boolean} True if event was handled
    */
@@ -138,18 +151,18 @@ export function useVoicingKeyboard({
       event.preventDefault();
 
       if (currentChord?.notes) {
-        setInversionIndex((prev) => {
-          const maxInversions = currentChord.notes.length;
-          const newInversion = (prev + 1) % maxInversions;
+        const maxInversions = currentChord.notes.length;
 
-          if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-            updatePresetVoicing(activePresetSlot, {
-              inversionIndex: newInversion,
-            });
-          }
-
-          return newInversion;
-        });
+        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+          setRecalledInversion((prev) => {
+            const current = prev !== null ? prev : inversionIndex;
+            const newInversion = (current + 1) % maxInversions;
+            updatePresetVoicing(activePresetSlot, { inversionIndex: newInversion });
+            return newInversion;
+          });
+        } else {
+          setInversionIndex((prev) => (prev + 1) % maxInversions);
+        }
       }
 
       return true;
@@ -158,13 +171,16 @@ export function useVoicingKeyboard({
       currentChord,
       activePresetSlot,
       savedPresets,
+      inversionIndex,
       setInversionIndex,
+      setRecalledInversion,
       updatePresetVoicing,
     ]
   );
 
   /**
    * Handle caps lock key for cycling dropped notes.
+   * Updates recalled value if preset active, else global.
    * @param {KeyboardEvent} event - The keyboard event
    * @returns {boolean} True if event was handled
    */
@@ -175,16 +191,18 @@ export function useVoicingKeyboard({
       event.preventDefault();
 
       if (currentChord?.notes) {
-        setDroppedNotes((prev) => {
-          const maxDrops = currentChord.notes.length - 1;
-          const newDropped = (prev + 1) % (maxDrops + 1);
+        const maxDrops = currentChord.notes.length - 1;
 
-          if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+          setRecalledDrop((prev) => {
+            const current = prev !== null ? prev : droppedNotes;
+            const newDropped = (current + 1) % (maxDrops + 1);
             updatePresetVoicing(activePresetSlot, { droppedNotes: newDropped });
-          }
-
-          return newDropped;
-        });
+            return newDropped;
+          });
+        } else {
+          setDroppedNotes((prev) => (prev + 1) % (maxDrops + 1));
+        }
       }
 
       return true;
@@ -193,7 +211,9 @@ export function useVoicingKeyboard({
       currentChord,
       activePresetSlot,
       savedPresets,
+      droppedNotes,
       setDroppedNotes,
+      setRecalledDrop,
       updatePresetVoicing,
     ]
   );
@@ -265,23 +285,25 @@ export function useVoicingKeyboard({
 
       event.preventDefault();
 
-      setSpreadAmount((prev) => {
-        const newSpread = Math.min(3, prev + 1);
-
-        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+        setRecalledSpread((prev) => {
+          const current = prev !== null ? prev : spreadAmount;
+          const newSpread = Math.min(3, current + 1);
           updatePresetVoicing(activePresetSlot, { spreadAmount: newSpread });
-        }
-
-        return newSpread;
-      });
+          return newSpread;
+        });
+      } else {
+        setSpreadAmount((prev) => Math.min(3, prev + 1));
+      }
 
       return true;
     },
-    [activePresetSlot, savedPresets, setSpreadAmount, updatePresetVoicing]
+    [activePresetSlot, savedPresets, spreadAmount, setSpreadAmount, setRecalledSpread, updatePresetVoicing]
   );
 
   /**
    * Handle arrow down key for decreasing spread.
+   * Updates recalled value if preset active, else global.
    * @param {KeyboardEvent} event - The keyboard event
    * @returns {boolean} True if event was handled
    */
@@ -291,19 +313,20 @@ export function useVoicingKeyboard({
 
       event.preventDefault();
 
-      setSpreadAmount((prev) => {
-        const newSpread = Math.max(0, prev - 1);
-
-        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+        setRecalledSpread((prev) => {
+          const current = prev !== null ? prev : spreadAmount;
+          const newSpread = Math.max(0, current - 1);
           updatePresetVoicing(activePresetSlot, { spreadAmount: newSpread });
-        }
-
-        return newSpread;
-      });
+          return newSpread;
+        });
+      } else {
+        setSpreadAmount((prev) => Math.max(0, prev - 1));
+      }
 
       return true;
     },
-    [activePresetSlot, savedPresets, setSpreadAmount, updatePresetVoicing]
+    [activePresetSlot, savedPresets, spreadAmount, setSpreadAmount, setRecalledSpread, updatePresetVoicing]
   );
 
   /**

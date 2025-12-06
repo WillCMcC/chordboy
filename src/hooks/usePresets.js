@@ -3,15 +3,20 @@
  * Manages chord preset storage, recall, and persistence to IndexedDB.
  * Provides save/recall/clear operations for chord presets.
  *
+ * Architecture Note:
+ * Uses useAsyncStorage for persistence, which handles load-on-mount
+ * and save-on-change in a single consolidated pattern.
+ *
  * @module hooks/usePresets
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import {
   loadPresetsFromStorage,
   savePresetsToStorage,
 } from "../lib/presetStorage";
 import { solveChordVoicings } from "../lib/chordSolver";
+import { useAsyncStorage } from "./usePersistence";
 
 /**
  * @typedef {Object} PresetData
@@ -38,8 +43,24 @@ import { solveChordVoicings } from "../lib/chordSolver";
  * } = usePresets({ defaultOctave: 4 });
  */
 export function usePresets({ defaultOctave = 4 } = {}) {
-  /** @type {[Map<string, PresetData>, Function]} */
-  const [savedPresets, setSavedPresets] = useState(new Map());
+  // Memoize storage functions to prevent re-subscriptions
+  const storageConfig = useMemo(
+    () => ({
+      load: loadPresetsFromStorage,
+      save: savePresetsToStorage,
+      initialValue: new Map(),
+      debounceMs: 100, // Debounce saves to avoid excessive writes
+    }),
+    []
+  );
+
+  // Use async storage for preset persistence
+  // This replaces the two separate useEffect hooks for load/save
+  const {
+    value: savedPresets,
+    setValue: setSavedPresets,
+    isLoaded,
+  } = useAsyncStorage(storageConfig);
 
   /** @type {[Set<string>|null, Function]} Currently recalled keys */
   const [recalledKeys, setRecalledKeys] = useState(null);
@@ -47,33 +68,21 @@ export function usePresets({ defaultOctave = 4 } = {}) {
   /** @type {[number|null, Function]} Octave from recalled preset */
   const [recalledOctave, setRecalledOctave] = useState(null);
 
+  /** @type {[number|null, Function]} Inversion from recalled preset */
+  const [recalledInversion, setRecalledInversion] = useState(null);
+
+  /** @type {[number|null, Function]} Dropped notes from recalled preset */
+  const [recalledDrop, setRecalledDrop] = useState(null);
+
+  /** @type {[number|null, Function]} Spread amount from recalled preset */
+  const [recalledSpread, setRecalledSpread] = useState(null);
+
   /** @type {[string|null, Function]} Currently active preset slot */
   const [activePresetSlot, setActivePresetSlot] = useState(null);
 
-  /** @type {[boolean, Function]} Whether presets have been loaded from storage */
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  /**
-   * Load presets from IndexedDB on mount
-   */
-  useEffect(() => {
-    const loadPresets = async () => {
-      const loadedPresets = await loadPresetsFromStorage();
-      if (loadedPresets.size > 0) {
-        setSavedPresets(loadedPresets);
-      }
-      setIsLoaded(true);
-    };
-    loadPresets();
-  }, []);
-
-  /**
-   * Save presets to IndexedDB whenever they change (after initial load)
-   */
-  useEffect(() => {
-    if (!isLoaded) return;
-    savePresetsToStorage(savedPresets);
-  }, [savedPresets, isLoaded]);
+  // Ref to always have current savedPresets (avoids stale closure issues)
+  const savedPresetsRef = useRef(savedPresets);
+  savedPresetsRef.current = savedPresets;
 
   /**
    * Save a chord to a specific slot.
@@ -100,28 +109,35 @@ export function usePresets({ defaultOctave = 4 } = {}) {
     });
 
     return true;
-  }, []);
+  }, [setSavedPresets]);
 
   /**
    * Recall a preset from a slot, making it the active chord.
+   * Uses savedPresetsRef to ensure we always read the current Map.
+   * Sets all recalled voicing state from the preset.
    *
    * @param {string} slotNumber - Slot identifier ("0"-"9")
    * @returns {PresetData|null} The recalled preset data, or null if not found
    */
   const recallPreset = useCallback(
     (slotNumber) => {
-      if (!savedPresets.has(slotNumber)) {
+      // Use ref to always get the current savedPresets
+      const currentPresets = savedPresetsRef.current;
+      if (!currentPresets.has(slotNumber)) {
         return null;
       }
 
-      const preset = savedPresets.get(slotNumber);
+      const preset = currentPresets.get(slotNumber);
       setRecalledKeys(preset.keys);
       setRecalledOctave(preset.octave);
+      setRecalledInversion(preset.inversionIndex ?? 0);
+      setRecalledDrop(preset.droppedNotes ?? 0);
+      setRecalledSpread(preset.spreadAmount ?? 0);
       setActivePresetSlot(slotNumber);
 
       return preset;
     },
-    [savedPresets]
+    [] // No dependencies - uses ref which is always current
   );
 
   /**
@@ -130,6 +146,9 @@ export function usePresets({ defaultOctave = 4 } = {}) {
   const stopRecalling = useCallback(() => {
     setRecalledKeys(null);
     setRecalledOctave(null);
+    setRecalledInversion(null);
+    setRecalledDrop(null);
+    setRecalledSpread(null);
     setActivePresetSlot(null);
   }, []);
 
@@ -144,14 +163,14 @@ export function usePresets({ defaultOctave = 4 } = {}) {
       newPresets.delete(slotNumber);
       return newPresets;
     });
-  }, []);
+  }, [setSavedPresets]);
 
   /**
    * Clear all saved presets.
    */
   const clearAllPresets = useCallback(() => {
     setSavedPresets(new Map());
-  }, []);
+  }, [setSavedPresets]);
 
   /**
    * Update voicing settings for a specific preset.
@@ -173,30 +192,33 @@ export function usePresets({ defaultOctave = 4 } = {}) {
 
       return newPresets;
     });
-  }, []);
+  }, [setSavedPresets]);
 
   /**
    * Find the next available preset slot.
+   * Uses savedPresetsRef to always get current state.
    *
    * @returns {string|null} Next available slot ("1"-"9", then "0"), or null if all full
    */
   const findNextAvailableSlot = useCallback(() => {
+    const currentPresets = savedPresetsRef.current;
     // Check slots 1-9 first
     for (let i = 1; i <= 9; i++) {
       const slotKey = i.toString();
-      if (!savedPresets.has(slotKey)) {
+      if (!currentPresets.has(slotKey)) {
         return slotKey;
       }
     }
     // Then check slot 0
-    if (!savedPresets.has("0")) {
+    if (!currentPresets.has("0")) {
       return "0";
     }
     return null;
-  }, [savedPresets]);
+  }, []);
 
   /**
    * Solve voice leading for a set of presets to minimize voice movement.
+   * Uses savedPresetsRef to always get current state.
    *
    * @param {string[]} selectedSlots - Array of slot identifiers in playback order
    * @param {number} targetOctave - Target octave for the solved voicings
@@ -208,10 +230,12 @@ export function usePresets({ defaultOctave = 4 } = {}) {
         return false;
       }
 
+      const currentPresets = savedPresetsRef.current;
+
       // Get presets in the order of selection
       const presetsToSolve = selectedSlots
-        .filter((slot) => savedPresets.has(slot))
-        .map((slot) => ({ slot, preset: savedPresets.get(slot) }));
+        .filter((slot) => currentPresets.has(slot))
+        .map((slot) => ({ slot, preset: currentPresets.get(slot) }));
 
       if (presetsToSolve.length < 2) {
         return false;
@@ -226,7 +250,6 @@ export function usePresets({ defaultOctave = 4 } = {}) {
       });
 
       if (!solvedVoicings || solvedVoicings.length !== presetsToSolve.length) {
-        console.error("Solver returned invalid results");
         return false;
       }
 
@@ -248,7 +271,7 @@ export function usePresets({ defaultOctave = 4 } = {}) {
 
       return true;
     },
-    [savedPresets]
+    [setSavedPresets]
   );
 
   return {
@@ -256,6 +279,9 @@ export function usePresets({ defaultOctave = 4 } = {}) {
     savedPresets,
     recalledKeys,
     recalledOctave,
+    recalledInversion,
+    recalledDrop,
+    recalledSpread,
     activePresetSlot,
     isLoaded,
 
@@ -272,6 +298,9 @@ export function usePresets({ defaultOctave = 4 } = {}) {
     // State setters for direct manipulation
     setRecalledKeys,
     setRecalledOctave,
+    setRecalledInversion,
+    setRecalledDrop,
+    setRecalledSpread,
     setActivePresetSlot,
   };
 }

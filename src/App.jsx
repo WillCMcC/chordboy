@@ -53,8 +53,8 @@ function App() {
   }, []);
 
   // MIDI connection and playback
+  // Note: chord playback is now handled via event subscription in useMIDI
   const {
-    playChord,
     retriggerChord,
     stopAllNotes,
     isConnected,
@@ -178,17 +178,14 @@ function App() {
     setClockCallbacks,
   });
 
-  /**
-   * Play chord when it changes.
-   */
+  // Chord playback is now handled via event subscription in useMIDI
+  // useChordEngine emits 'chord:changed' and 'chord:cleared' events
+  // Update lastChord for display purposes
   useEffect(() => {
-    if (currentChord?.notes && isConnected) {
-      playChord(currentChord.notes);
+    if (currentChord) {
       setLastChord(currentChord);
-    } else if (isConnected) {
-      stopAllNotes();
     }
-  }, [currentChord, isConnected, playChord, stopAllNotes]);
+  }, [currentChord]);
 
   /**
    * Auto-scroll mobile keyboard to show active notes.

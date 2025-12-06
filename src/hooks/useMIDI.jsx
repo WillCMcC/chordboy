@@ -14,6 +14,8 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { appEvents } from "../lib/eventBus";
+import { useEventSubscription } from "./useEventSubscription";
 import {
   requestMIDIAccess,
   getMIDIOutputs,
@@ -111,6 +113,14 @@ export function MIDIProvider({ children }) {
   const onMidiStartRef = useRef(null);
   const onMidiStopRef = useRef(null);
 
+  // Refs for onstatechange handler to avoid stale closures
+  const selectedOutputIdRef = useRef(null);
+  const selectedInputIdRef = useRef(null);
+
+  // Keep refs in sync with state
+  selectedOutputIdRef.current = selectedOutput?.id;
+  selectedInputIdRef.current = selectedInput?.id;
+
   /**
    * Connect to MIDI and enumerate devices.
    */
@@ -151,10 +161,10 @@ export function MIDIProvider({ children }) {
         setOutputs(updatedOutputs);
         setInputs(updatedInputs);
 
-        // Handle output device disconnection
+        // Handle output device disconnection (use refs for current values)
         if (
           event.port.state === "disconnected" &&
-          selectedOutput?.id === event.port.id
+          selectedOutputIdRef.current === event.port.id
         ) {
           if (updatedOutputs.length > 0) {
             setSelectedOutput(updatedOutputs[0].output);
@@ -168,7 +178,7 @@ export function MIDIProvider({ children }) {
         // Handle input device disconnection
         if (
           event.port.state === "disconnected" &&
-          selectedInput?.id === event.port.id
+          selectedInputIdRef.current === event.port.id
         ) {
           setSelectedInput(null);
         }
@@ -180,7 +190,7 @@ export function MIDIProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedOutput?.id, selectedInput?.id]);
+  }, []);
 
   /**
    * Select a MIDI output device.
@@ -594,18 +604,43 @@ export function MIDIProvider({ children }) {
     setCurrentNotes([]);
   }, [selectedOutput, bleConnected]);
 
+  // Subscribe to chord events from useChordEngine
+  // This replaces the useEffect in App.jsx that watched currentChord
+  // Note: useEventSubscription uses a ref pattern, so no useCallback needed
+  useEventSubscription(appEvents, "chord:changed", (event) => {
+    if (isConnected || bleConnected) {
+      playChord(event.notes);
+    }
+  });
+
+  useEventSubscription(appEvents, "chord:cleared", () => {
+    if (isConnected || bleConnected) {
+      stopAllNotes();
+    }
+  });
+
   // Auto-connect on mount
   useEffect(() => {
     connectMIDI();
   }, []);
 
+  // Refs for cleanup to avoid stale closures
+  const selectedOutputRef = useRef(selectedOutput);
+  const bleConnectedRef = useRef(bleConnected);
+  const channelRef = useRef(channel);
+
+  // Keep refs in sync
+  selectedOutputRef.current = selectedOutput;
+  bleConnectedRef.current = bleConnected;
+  channelRef.current = channel;
+
   // Cleanup on unmount and page refresh
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (selectedOutput) {
-        sendPanic(selectedOutput);
+      if (selectedOutputRef.current) {
+        sendPanic(selectedOutputRef.current);
       }
-      if (bleConnected && bleCharacteristicRef.current) {
+      if (bleConnectedRef.current && bleCharacteristicRef.current) {
         sendBLEPanic(bleCharacteristicRef.current);
       }
     };
@@ -617,14 +652,14 @@ export function MIDIProvider({ children }) {
       const notes = currentNotesRef.current;
       if (notes.length > 0) {
         notes.forEach((note) => {
-          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+          if (selectedOutputRef.current) sendNoteOff(selectedOutputRef.current, channelRef.current, note);
         });
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLEChordOff(bleCharacteristicRef.current, channel, notes);
+        if (bleConnectedRef.current && bleCharacteristicRef.current) {
+          sendBLEChordOff(bleCharacteristicRef.current, channelRef.current, notes);
         }
       }
     };
-  }, [selectedOutput, bleConnected, channel]);
+  }, []);
 
   const value = {
     // State

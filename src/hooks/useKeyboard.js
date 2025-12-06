@@ -30,8 +30,8 @@ export function useKeyboard(onAllKeysUp) {
 
     // Prevent default browser behavior for certain keys
     // This prevents browser shortcuts from interfering
+    // Note: Tab is NOT prevented to maintain keyboard accessibility
     const shouldPreventDefault = [
-      "Tab",
       " ", // Space
       "Escape",
       "/",
@@ -75,43 +75,40 @@ export function useKeyboard(onAllKeysUp) {
   /**
    * Handle key up events
    */
-  const handleKeyUp = useCallback(
-    (event) => {
-      const key = event.key.toLowerCase();
+  const handleKeyUp = useCallback((event) => {
+    const key = event.key.toLowerCase();
 
-      // Ignore modifier/control keys, arrow keys, and number keys
-      const isControlKey =
-        event.key === "Shift" ||
-        event.key === "CapsLock" ||
-        event.key === " " ||
-        event.key === "Control" ||
-        event.key === "Alt" ||
-        event.key === "Meta" ||
-        event.key === "ArrowUp" ||
-        event.key === "ArrowDown" ||
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowRight" ||
-        (event.key >= "0" && event.key <= "9"); // Filter out number keys
+    // Ignore modifier/control keys, arrow keys, and number keys
+    const isControlKey =
+      event.key === "Shift" ||
+      event.key === "CapsLock" ||
+      event.key === " " ||
+      event.key === "Control" ||
+      event.key === "Alt" ||
+      event.key === "Meta" ||
+      event.key === "ArrowUp" ||
+      event.key === "ArrowDown" ||
+      event.key === "ArrowLeft" ||
+      event.key === "ArrowRight" ||
+      (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
-      if (isControlKey) {
-        return; // Don't remove from pressed keys (wasn't added)
+    if (isControlKey) {
+      return; // Don't remove from pressed keys (wasn't added)
+    }
+
+    // Remove key from pressed keys set
+    setPressedKeys((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+
+      // If all keys are now released, set flag
+      if (newSet.size === 0) {
+        setAllKeysReleased(true);
       }
 
-      // Remove key from pressed keys set
-      setPressedKeys((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
-
-        // If all keys are now released, set flag
-        if (newSet.size === 0) {
-          setAllKeysReleased(true);
-        }
-
-        return newSet;
-      });
-    },
-    [onAllKeysUp]
-  );
+      return newSet;
+    });
+  }, []);
 
   /**
    * Set up event listeners
