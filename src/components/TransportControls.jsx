@@ -46,7 +46,7 @@ export function TransportControls({
         onBpmChange(value);
       }
     },
-    [onBpmChange]
+    [onBpmChange],
   );
 
   // Handle BPM increment/decrement
@@ -54,7 +54,7 @@ export function TransportControls({
     (delta) => {
       onBpmChange(bpm + delta);
     },
-    [bpm, onBpmChange]
+    [bpm, onBpmChange],
   );
 
   // Handle humanize slider
@@ -62,7 +62,7 @@ export function TransportControls({
     (e) => {
       onHumanizeChange(parseInt(e.target.value, 10));
     },
-    [onHumanizeChange]
+    [onHumanizeChange],
   );
 
   // Handle humanize increment/decrement (for mobile)
@@ -71,7 +71,7 @@ export function TransportControls({
       const newValue = Math.max(0, Math.min(100, humanize + delta));
       onHumanizeChange(newValue);
     },
-    [humanize, onHumanizeChange]
+    [humanize, onHumanizeChange],
   );
 
   // Handle strum toggle
@@ -84,7 +84,7 @@ export function TransportControls({
     (e) => {
       onStrumSpreadChange(parseInt(e.target.value, 10));
     },
-    [onStrumSpreadChange]
+    [onStrumSpreadChange],
   );
 
   // Handle strum spread increment/decrement
@@ -93,7 +93,7 @@ export function TransportControls({
       const newValue = Math.max(0, Math.min(200, strumSpread + delta));
       onStrumSpreadChange(newValue);
     },
-    [strumSpread, onStrumSpreadChange]
+    [strumSpread, onStrumSpreadChange],
   );
 
   // Handle strum direction change
@@ -101,7 +101,7 @@ export function TransportControls({
     (e) => {
       onStrumDirectionChange(e.target.value);
     },
-    [onStrumDirectionChange]
+    [onStrumDirectionChange],
   );
 
   // Cycle strum direction (for mobile tap)
@@ -118,7 +118,7 @@ export function TransportControls({
       const value = e.target.value;
       onSelectInput(value || null);
     },
-    [onSelectInput]
+    [onSelectInput],
   );
 
   // Handle sync toggle - also select first input if none selected
@@ -135,15 +135,27 @@ export function TransportControls({
         onSelectInput(midiInputs[0].id);
       }
     }
-  }, [syncEnabled, onSyncEnabledChange, selectedInputId, bleSyncEnabled, bleConnected, midiInputs, onSelectInput]);
+  }, [
+    syncEnabled,
+    onSyncEnabledChange,
+    selectedInputId,
+    bleSyncEnabled,
+    bleConnected,
+    midiInputs,
+    onSelectInput,
+  ]);
 
   // Direction display helper
   const getDirectionLabel = (dir) => {
     switch (dir) {
-      case "up": return "↑";
-      case "down": return "↓";
-      case "alternate": return "↕";
-      default: return dir;
+      case "up":
+        return "↑";
+      case "down":
+        return "↓";
+      case "alternate":
+        return "↕";
+      default:
+        return dir;
     }
   };
 
@@ -190,7 +202,9 @@ export function TransportControls({
               className={`strum-slider ${!strumEnabled ? "disabled" : ""}`}
               disabled={!strumEnabled}
             />
-            <span className={`strum-value ${!strumEnabled ? "disabled" : ""}`}>{strumSpread}ms</span>
+            <span className={`strum-value ${!strumEnabled ? "disabled" : ""}`}>
+              {strumSpread}ms
+            </span>
             <select
               className={`strum-direction-select ${!strumEnabled ? "disabled" : ""}`}
               value={strumDirection}
@@ -210,7 +224,7 @@ export function TransportControls({
         {/* BPM Section */}
         <div className="transport-section bpm-section">
           <label className="transport-label">
-            BPM{syncEnabled && <span className="sync-indicator">•</span>}
+            {syncEnabled ? "EXT" : "BPM"}
           </label>
           <div className="bpm-controls">
             {!syncEnabled && (
@@ -222,15 +236,18 @@ export function TransportControls({
                 -
               </button>
             )}
-            <input
-              type="number"
-              min="20"
-              max="300"
-              value={bpm}
-              onChange={handleBpmInput}
-              className={`bpm-input ${syncEnabled ? "synced" : ""}`}
-              disabled={syncEnabled}
-            />
+            {syncEnabled ? (
+              <div className="bpm-input synced">SYNC</div>
+            ) : (
+              <input
+                type="number"
+                min="20"
+                max="300"
+                value={bpm}
+                onChange={handleBpmInput}
+                className="bpm-input"
+              />
+            )}
             {!syncEnabled && (
               <button
                 className="bpm-adjust-btn"
@@ -264,7 +281,13 @@ export function TransportControls({
             onClick={onTogglePlay}
             disabled={syncEnabled}
             aria-label={isPlaying ? "Stop" : "Play"}
-            title={syncEnabled ? "Controlled by external MIDI" : (isPlaying ? "Stop" : "Play")}
+            title={
+              syncEnabled
+                ? "Controlled by external MIDI"
+                : isPlaying
+                  ? "Stop"
+                  : "Play"
+            }
           >
             {isPlaying ? (
               <span className="stop-icon" />
@@ -284,15 +307,21 @@ export function TransportControls({
             <button
               className={`sync-toggle ${syncEnabled ? "active" : ""}`}
               onClick={handleSyncToggle}
-              aria-label={syncEnabled ? "Disable MIDI sync" : "Enable MIDI sync"}
-              title={syncEnabled ? "Syncing to external MIDI clock" : "Click to sync to external MIDI clock"}
+              aria-label={
+                syncEnabled ? "Disable MIDI sync" : "Enable MIDI sync"
+              }
+              title={
+                syncEnabled
+                  ? "Syncing to external MIDI clock"
+                  : "Click to sync to external MIDI clock"
+              }
             >
               {syncEnabled ? "ON" : "OFF"}
             </button>
             {syncEnabled && (midiInputs.length > 0 || bleConnected) && (
               <select
                 className="midi-input-select"
-                value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
+                value={bleSyncEnabled ? "ble" : selectedInputId || ""}
                 onChange={handleInputChange}
               >
                 <option value="">Select input...</option>
@@ -341,7 +370,7 @@ export function TransportControls({
             Sequence
           </button>
           <button
-            className={`mobile-tab ${mobileTab === "feel" ? "active" : ""} ${(humanize > 0 || strumEnabled) ? "has-value" : ""}`}
+            className={`mobile-tab ${mobileTab === "feel" ? "active" : ""} ${humanize > 0 || strumEnabled ? "has-value" : ""}`}
             onClick={() => setMobileTab("feel")}
           >
             Feel
@@ -361,12 +390,30 @@ export function TransportControls({
             <div className="mobile-transport-content">
               {/* BPM */}
               <div className="mobile-bpm">
-                <button className="mobile-adj-btn" onClick={() => adjustBpm(-1)} disabled={syncEnabled}>-</button>
+                {!syncEnabled && (
+                  <button
+                    className="mobile-adj-btn"
+                    onClick={() => adjustBpm(-1)}
+                  >
+                    -
+                  </button>
+                )}
                 <div className="mobile-bpm-display">
-                  <span className="mobile-bpm-value">{bpm}</span>
-                  <span className="mobile-bpm-label">BPM</span>
+                  <span className="mobile-bpm-value">
+                    {syncEnabled ? "EXT" : bpm}
+                  </span>
+                  <span className="mobile-bpm-label">
+                    {syncEnabled ? "SYNC" : "BPM"}
+                  </span>
                 </div>
-                <button className="mobile-adj-btn" onClick={() => adjustBpm(1)} disabled={syncEnabled}>+</button>
+                {!syncEnabled && (
+                  <button
+                    className="mobile-adj-btn"
+                    onClick={() => adjustBpm(1)}
+                  >
+                    +
+                  </button>
+                )}
               </div>
 
               {/* Beat Grid */}
@@ -387,7 +434,11 @@ export function TransportControls({
                 onClick={onTogglePlay}
                 disabled={syncEnabled}
               >
-                {isPlaying ? <span className="stop-icon" /> : <span className="play-icon" />}
+                {isPlaying ? (
+                  <span className="stop-icon" />
+                ) : (
+                  <span className="play-icon" />
+                )}
               </button>
 
               {/* Sequencer Button */}
@@ -406,9 +457,19 @@ export function TransportControls({
               {/* Humanize */}
               <div className="mobile-feel-group">
                 <span className="mobile-feel-label">Human</span>
-                <button className="mobile-adj-btn small" onClick={() => adjustHumanize(-10)}>-</button>
+                <button
+                  className="mobile-adj-btn small"
+                  onClick={() => adjustHumanize(-10)}
+                >
+                  -
+                </button>
                 <div className="mobile-feel-value">{humanize}%</div>
-                <button className="mobile-adj-btn small" onClick={() => adjustHumanize(10)}>+</button>
+                <button
+                  className="mobile-adj-btn small"
+                  onClick={() => adjustHumanize(10)}
+                >
+                  +
+                </button>
               </div>
 
               <div className="mobile-feel-divider" />
@@ -425,15 +486,21 @@ export function TransportControls({
                   className="mobile-adj-btn small"
                   onClick={() => adjustStrumSpread(-10)}
                   disabled={!strumEnabled}
-                >-</button>
-                <div className={`mobile-feel-value ${!strumEnabled ? "disabled" : ""}`}>
+                >
+                  -
+                </button>
+                <div
+                  className={`mobile-feel-value ${!strumEnabled ? "disabled" : ""}`}
+                >
                   {strumSpread}ms
                 </div>
                 <button
                   className="mobile-adj-btn small"
                   onClick={() => adjustStrumSpread(10)}
                   disabled={!strumEnabled}
-                >+</button>
+                >
+                  +
+                </button>
                 <button
                   className={`mobile-direction-btn ${!strumEnabled ? "disabled" : ""}`}
                   onClick={cycleStrumDirection}
@@ -458,23 +525,31 @@ export function TransportControls({
               {syncEnabled && (midiInputs.length > 0 || bleConnected) && (
                 <select
                   className="mobile-sync-select"
-                  value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
+                  value={bleSyncEnabled ? "ble" : selectedInputId || ""}
                   onChange={handleInputChange}
                 >
                   <option value="">Select input...</option>
                   {bleConnected && (
-                    <option value="ble">{bleDevice?.name || "Bluetooth MIDI"}</option>
+                    <option value="ble">
+                      {bleDevice?.name || "Bluetooth MIDI"}
+                    </option>
                   )}
                   {midiInputs.map((input) => (
-                    <option key={input.id} value={input.id}>{input.name}</option>
+                    <option key={input.id} value={input.id}>
+                      {input.name}
+                    </option>
                   ))}
                 </select>
               )}
               {syncEnabled && midiInputs.length === 0 && !bleConnected && (
-                <span className="mobile-sync-hint">No MIDI inputs available</span>
+                <span className="mobile-sync-hint">
+                  No MIDI inputs available
+                </span>
               )}
               {!syncEnabled && (
-                <span className="mobile-sync-hint">Sync to external MIDI clock</span>
+                <span className="mobile-sync-hint">
+                  Sync to external MIDI clock
+                </span>
               )}
             </div>
           )}
