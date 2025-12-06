@@ -163,3 +163,10 @@
 .toggle-status.inactive {
   color: var(--text-secondary);
 }
+
+.settings-build {
+  color: var(--text-muted, #666);
+  font-size: 0.75rem;
+  margin: 0;
+  font-family: monospace;
+}

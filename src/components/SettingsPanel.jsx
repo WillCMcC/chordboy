@@ -87,6 +87,9 @@ export function SettingsPanel({
             <p className="settings-description">
               ChordBoy - MIDI Chord Controller for Jazz Performance
             </p>
+            <p className="settings-build">
+              Build: {__BUILD_TIMESTAMP__}
+            </p>
           </div>
         </div>
       </div>
