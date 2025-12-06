@@ -188,6 +188,22 @@
   gap: var(--space-2);
 }
 
+.step-grid-large {
+  gap: var(--space-1);
+}
+
+.step-grid-large .step-cell {
+  min-height: 40px;
+}
+
+.step-grid-large .step-preset {
+  font-size: 1rem;
+}
+
+.step-grid-large .step-number {
+  font-size: 0.5rem;
+}
+
 .step-cell {
   aspect-ratio: 1;
   min-height: 48px;
@@ -289,8 +305,8 @@
   flex-direction: row;
   flex-wrap: wrap;
   gap: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .setting-group {
@@ -461,9 +477,25 @@
     gap: var(--space-1);
   }
 
+  .step-grid-large {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
   .step-cell {
     min-height: 44px;
     border-radius: var(--radius-sm);
+  }
+
+  .step-grid-large .step-cell {
+    min-height: 36px;
+  }
+
+  .step-grid-large .step-preset {
+    font-size: 0.85rem;
+  }
+
+  .step-grid-large .step-number {
+    font-size: 0.45rem;
   }
 
   .step-preset {
@@ -485,7 +517,10 @@
 
   .settings-row {
     gap: var(--space-3);
-    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    padding-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    border-top: none;
   }
 
   .setting-group {

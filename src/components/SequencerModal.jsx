@@ -105,84 +105,12 @@ export function SequencerModal({
         </div>
 
         <div className="sequencer-content">
-          {/* Preset palette */}
-          <div className="sequencer-section">
-            <div className="section-header">
-              <h3>Presets</h3>
-              <span className="section-hint">
-                {selectedPreset
-                  ? `Click step to place, right-click to clear`
-                  : "Select a preset, or right-click step to clear"}
-              </span>
-            </div>
-            <div className="preset-palette">
-              {presetSlots.map((slot) => {
-                const hasPreset = savedPresets.has(slot);
-                const isSelected = selectedPreset === slot;
-
-                return (
-                  <button
-                    key={slot}
-                    className={`palette-preset ${hasPreset ? "filled" : "empty"} ${isSelected ? "selected" : ""}`}
-                    onClick={() => hasPreset && handlePresetSelect(slot)}
-                    disabled={!hasPreset}
-                  >
-                    {slot}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Step grid */}
-          <div className="sequencer-section">
-            <div className="section-header">
-              <h3>Sequence</h3>
-              <button className="clear-sequence-btn" onClick={onClearSequence}>
-                Clear All
-              </button>
-            </div>
-            <div className="step-grid">
-              {sequence.map((presetSlot, index) => {
-                const isCurrentStep = isPlaying && sequencerEnabled && currentStep === index;
-                const isDownbeat = index % (stepsPerBeat === 1 ? 1 : stepsPerBeat) === 0;
-                const isMeasureStart = index % 4 === 0;
-
-                return (
-                  <div
-                    key={index}
-                    className={`step-cell ${presetSlot ? "filled" : "empty"} ${isCurrentStep ? "playing" : ""} ${isMeasureStart ? "measure-start" : ""} ${isDownbeat ? "downbeat" : ""}`}
-                    onClick={(e) => handleStepClick(index, e)}
-                    onContextMenu={(e) => handleStepRightClick(index, e)}
-                  >
-                    {presetSlot && (
-                      <>
-                        <span className="step-preset">{getPresetLabel(presetSlot)}</span>
-                        <button
-                          className="step-clear-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onClearStep(index);
-                          }}
-                          aria-label="Clear step"
-                        >
-                          ×
-                        </button>
-                      </>
-                    )}
-                    <span className="step-number">{index + 1}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Grid settings */}
+          {/* Grid settings - moved above presets */}
           <div className="sequencer-section settings-row">
             <div className="setting-group">
               <label>Steps</label>
               <div className="button-group">
-                {[4, 8, 16].map((steps) => (
+                {[4, 8, 16, 32].map((steps) => (
                   <button
                     key={steps}
                     className={`setting-btn ${sequencerSteps === steps ? "active" : ""}`}
@@ -246,6 +174,78 @@ export function SequencerModal({
               >
                 {sequencerEnabled ? "ON" : "OFF"}
               </button>
+            </div>
+          </div>
+
+          {/* Preset palette */}
+          <div className="sequencer-section">
+            <div className="section-header">
+              <h3>Presets</h3>
+              <span className="section-hint">
+                {selectedPreset
+                  ? `Click step to place, right-click to clear`
+                  : "Select a preset, or right-click step to clear"}
+              </span>
+            </div>
+            <div className="preset-palette">
+              {presetSlots.map((slot) => {
+                const hasPreset = savedPresets.has(slot);
+                const isSelected = selectedPreset === slot;
+
+                return (
+                  <button
+                    key={slot}
+                    className={`palette-preset ${hasPreset ? "filled" : "empty"} ${isSelected ? "selected" : ""}`}
+                    onClick={() => hasPreset && handlePresetSelect(slot)}
+                    disabled={!hasPreset}
+                  >
+                    {slot}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step grid */}
+          <div className="sequencer-section">
+            <div className="section-header">
+              <h3>Sequence</h3>
+              <button className="clear-sequence-btn" onClick={onClearSequence}>
+                Clear All
+              </button>
+            </div>
+            <div className={`step-grid ${sequencerSteps > 16 ? "step-grid-large" : ""}`}>
+              {sequence.map((presetSlot, index) => {
+                const isCurrentStep = isPlaying && sequencerEnabled && currentStep === index;
+                const isDownbeat = index % (stepsPerBeat === 1 ? 1 : stepsPerBeat) === 0;
+                const isMeasureStart = index % 4 === 0;
+
+                return (
+                  <div
+                    key={index}
+                    className={`step-cell ${presetSlot ? "filled" : "empty"} ${isCurrentStep ? "playing" : ""} ${isMeasureStart ? "measure-start" : ""} ${isDownbeat ? "downbeat" : ""}`}
+                    onClick={(e) => handleStepClick(index, e)}
+                    onContextMenu={(e) => handleStepRightClick(index, e)}
+                  >
+                    {presetSlot && (
+                      <>
+                        <span className="step-preset">{getPresetLabel(presetSlot)}</span>
+                        <button
+                          className="step-clear-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClearStep(index);
+                          }}
+                          aria-label="Clear step"
+                        >
+                          ×
+                        </button>
+                      </>
+                    )}
+                    <span className="step-number">{index + 1}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
