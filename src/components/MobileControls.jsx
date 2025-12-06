@@ -201,15 +201,11 @@ export function MobileControls({
   }, []);
 
   const handlePresetUp = (slot) => {
-    const slotStr = slot.toString();
     const touch = presetTouchRef.current;
 
-    // Only stop recall if this preset wasn't "held" via drag-down
-    if (savedPresets.has(slotStr) && activePresetSlot === slotStr) {
-      if (!touch.isHeld && heldPreset !== slotStr) {
-        onStopRecall();
-      }
-    }
+    // On mobile, keep presets active after tap - don't auto-release
+    // User can tap another preset or use "Clear Notes" to release
+    // The drag-down "hold" gesture now just provides haptic feedback
 
     // Reset touch tracking
     presetTouchRef.current = {

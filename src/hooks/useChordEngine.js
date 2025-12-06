@@ -7,7 +7,7 @@
  * @module hooks/useChordEngine
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
@@ -142,10 +142,30 @@ export function useChordEngine(pressedKeys) {
   });
 
   /**
+   * Track if recalledKeys was just set by the sequencer.
+   * This prevents the "clear on keypress" effect from immediately clearing
+   * a preset that was just triggered by the sequencer.
+   */
+  const recalledKeysJustSetRef = useRef(false);
+
+  // Set the flag whenever recalledKeys changes to a truthy value
+  useEffect(() => {
+    if (recalledKeys) {
+      recalledKeysJustSetRef.current = true;
+    }
+  }, [recalledKeys]);
+
+  /**
    * Clear recalled keys when user starts pressing chord keys manually.
+   * Skip if recalledKeys was just set (by sequencer) to avoid race condition.
    */
   useEffect(() => {
     if (recalledKeys && pressedKeys.size > 0) {
+      // If recalledKeys was just set this render, skip clearing and reset the flag
+      if (recalledKeysJustSetRef.current) {
+        recalledKeysJustSetRef.current = false;
+        return;
+      }
       setRecalledKeys(null);
       setRecalledOctave(null);
       setActivePresetSlot(null);

@@ -285,3 +285,150 @@ export async function sendBLEChordOff(characteristic, channel, notes) {
   const packet = createBatchedBLEMidiPacket(messages);
   await characteristic.writeValueWithoutResponse(packet);
 }
+
+/**
+ * Parse a BLE MIDI packet and extract MIDI messages.
+ *
+ * BLE MIDI format uses a state machine:
+ * - Header byte: 10xxxxxx (0x80-0xBF, 6 bits of timestamp high)
+ * - Each MIDI message is preceded by a timestamp: 1xxxxxxx (0x80-0xFF)
+ * - MIDI data bytes have high bit clear: 0xxxxxxx
+ *
+ * Key insight: After header, the next byte MUST be a timestamp (even if it's 0xF8).
+ * After each complete MIDI message, the next byte is another timestamp.
+ * This is how we distinguish timestamp 0xF8 from MIDI clock 0xF8.
+ *
+ * @param {DataView} dataView - The raw BLE MIDI packet data
+ * @returns {number[][]} Array of MIDI messages (e.g., [[0xf8], [0x90, 60, 80]])
+ */
+export function parseBLEMidiPacket(dataView) {
+  const messages = [];
+  const length = dataView.byteLength;
+
+  if (length < 3) return messages; // Minimum: header + timestamp + 1 midi byte
+
+  let i = 0;
+
+  // Read and validate header (must be 10xxxxxx = 0x80-0xBF)
+  const header = dataView.getUint8(i++);
+  if ((header & 0xc0) !== 0x80) return messages;
+
+  let runningStatus = null;
+
+  while (i < length) {
+    // STATE: EXPECT_TIMESTAMP
+    // After header or after each MIDI message, we expect a timestamp byte
+    const timestamp = dataView.getUint8(i++);
+
+    // Timestamp must have high bit set (1xxxxxxx = 0x80-0xFF)
+    if ((timestamp & 0x80) === 0) {
+      // Invalid - not a timestamp. Could be malformed packet.
+      break;
+    }
+
+    if (i >= length) break;
+
+    // STATE: EXPECT_MIDI
+    // Now read the MIDI message that follows this timestamp
+    const midiStart = dataView.getUint8(i);
+
+    // System realtime (0xF8-0xFF) - single byte messages
+    if (midiStart >= 0xf8) {
+      messages.push([midiStart]);
+      i++;
+      continue;
+    }
+
+    // System common (0xF0-0xF7) - SysEx etc, skip for now
+    if (midiStart >= 0xf0) {
+      // Skip until we find another timestamp (high bit set) or end
+      i++;
+      while (i < length && (dataView.getUint8(i) & 0x80) === 0) {
+        i++;
+      }
+      continue;
+    }
+
+    // Channel message - check for status byte or running status
+    let status;
+    if ((midiStart & 0x80) !== 0) {
+      // New status byte (0x80-0xEF)
+      status = midiStart;
+      runningStatus = status;
+      i++;
+    } else {
+      // Running status - midiStart is actually first data byte
+      status = runningStatus;
+      if (status === null) {
+        // No running status available, skip this byte
+        i++;
+        continue;
+      }
+    }
+
+    // Read data bytes based on message type
+    const dataCount = getDataByteCount(status);
+    const msg = [status];
+
+    // If we used running status, midiStart is already the first data byte
+    if ((midiStart & 0x80) === 0) {
+      msg.push(midiStart & 0x7f);
+    }
+
+    // Read remaining data bytes
+    while (msg.length < dataCount + 1 && i < length) {
+      const dataByte = dataView.getUint8(i);
+      // Data bytes must have high bit clear
+      if ((dataByte & 0x80) !== 0) {
+        // Hit a timestamp - stop reading data
+        break;
+      }
+      msg.push(dataByte & 0x7f);
+      i++;
+    }
+
+    // Only add complete messages
+    if (msg.length === dataCount + 1) {
+      messages.push(msg);
+    }
+  }
+
+  return messages;
+}
+
+/**
+ * Get the number of data bytes for a channel message.
+ * @param {number} status - MIDI status byte (0x80-0xEF)
+ * @returns {number} Number of data bytes (1 or 2)
+ */
+function getDataByteCount(status) {
+  const type = status & 0xf0;
+  switch (type) {
+    case 0xc0: // Program change
+    case 0xd0: // Channel pressure
+      return 1;
+    default: // Note off, Note on, Poly pressure, CC, Pitch bend
+      return 2;
+  }
+}
+
+/**
+ * Set up a listener for incoming BLE MIDI messages.
+ * @param {BluetoothRemoteGATTCharacteristic} characteristic - The MIDI characteristic
+ * @param {function(number[]): void} onMessage - Callback for each MIDI message received
+ * @returns {function(): void} Cleanup function to remove the listener
+ */
+export function addBLEMidiListener(characteristic, onMessage) {
+  const handleNotification = (event) => {
+    const messages = parseBLEMidiPacket(event.target.value);
+    for (const msg of messages) {
+      onMessage(msg);
+    }
+  };
+
+  characteristic.addEventListener("characteristicvaluechanged", handleNotification);
+
+  return () => {
+    characteristic.removeEventListener("characteristicvaluechanged", handleNotification);
+  };
+}

@@ -40,8 +40,10 @@ import {
   sendBLEPanic,
   sendBLEChordOn,
   sendBLEChordOff,
+  addBLEMidiListener,
 } from "../lib/bleMidi";
 import { getHumanizeOffsets, createHumanizeManager } from "../lib/humanize";
+import { getStrumOffsets, STRUM_UP } from "../lib/strum";
 
 /** @type {React.Context} MIDI context for provider/consumer pattern */
 const MIDIContext = createContext(null);
@@ -76,13 +78,21 @@ export function MIDIProvider({ children }) {
   const [bleConnected, setBleConnected] = useState(false);
   const [bleConnecting, setBleConnecting] = useState(false);
   const [bleError, setBleError] = useState(null);
+  const [bleSyncEnabled, setBleSyncEnabled] = useState(false);
   const bleServerRef = useRef(null);
   const bleCharacteristicRef = useRef(null);
+  const bleSyncCleanupRef = useRef(null);
 
   // Playback settings
   const [channel, setChannel] = useState(0);
   const [velocity, setVelocity] = useState(80);
   const [humanize, setHumanize] = useState(0);
+
+  // Strum settings
+  const [strumEnabled, setStrumEnabled] = useState(false);
+  const [strumSpread, setStrumSpread] = useState(50);
+  const [strumDirection, setStrumDirection] = useState(STRUM_UP);
+  const strumLastDirectionRef = useRef(STRUM_UP);
 
   // Currently playing notes
   const [currentNotes, setCurrentNotes] = useState([]);
@@ -189,24 +199,39 @@ export function MIDIProvider({ children }) {
 
   /**
    * Select a MIDI input device (for clock sync).
-   * @param {string|null} inputId - Device ID to select, or null to clear
+   * Supports both regular MIDI inputs and BLE device.
+   * @param {string|null} inputId - Device ID to select, "ble" for BLE device, or null to clear
    */
   const selectInput = useCallback(
     (inputId) => {
+      // Handle clearing selection
       if (!inputId) {
         if (selectedInput) {
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(null);
+        setBleSyncEnabled(false);
         return;
       }
 
+      // Handle BLE selection
+      if (inputId === "ble") {
+        if (selectedInput) {
+          selectedInput.onmidimessage = null;
+        }
+        setSelectedInput(null);
+        setBleSyncEnabled(true);
+        return;
+      }
+
+      // Handle regular MIDI input selection
       const input = inputs.find((i) => i.id === inputId);
       if (input) {
         if (selectedInput) {
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(input.input);
+        setBleSyncEnabled(false);
       }
     },
     [inputs, selectedInput]
@@ -308,6 +333,52 @@ export function MIDIProvider({ children }) {
   }, [selectedInput]);
 
   /**
+   * Handle incoming MIDI messages from BLE device when BLE sync is enabled.
+   */
+  useEffect(() => {
+    // Clean up any existing listener
+    if (bleSyncCleanupRef.current) {
+      bleSyncCleanupRef.current();
+      bleSyncCleanupRef.current = null;
+    }
+
+    if (!bleSyncEnabled || !bleConnected || !bleCharacteristicRef.current) {
+      return;
+    }
+
+    const handleBleMessage = (msg) => {
+      const [status] = msg;
+
+      switch (status) {
+        case MIDI_CLOCK:
+          onMidiClockRef.current?.();
+          break;
+        case MIDI_START:
+          onMidiStartRef.current?.();
+          break;
+        case MIDI_STOP:
+          onMidiStopRef.current?.();
+          break;
+        case MIDI_CONTINUE:
+          onMidiStartRef.current?.();
+          break;
+      }
+    };
+
+    bleSyncCleanupRef.current = addBLEMidiListener(
+      bleCharacteristicRef.current,
+      handleBleMessage
+    );
+
+    return () => {
+      if (bleSyncCleanupRef.current) {
+        bleSyncCleanupRef.current();
+        bleSyncCleanupRef.current = null;
+      }
+    };
+  }, [bleSyncEnabled, bleConnected]);
+
+  /**
    * Play a single note.
    * @param {number} note - MIDI note number
    * @param {number} [vel] - Velocity (0-127)
@@ -375,11 +446,28 @@ export function MIDIProvider({ children }) {
         }
       }
 
-      // Start new notes with optional humanization
+      // Start new notes with optional strum or humanization
       const notesToStart = notes.filter((n) => !currentNotesSet.has(n));
 
       if (notesToStart.length > 0) {
-        if (humanize > 0 && notesToStart.length > 1) {
+        if (strumEnabled && strumSpread > 0 && notesToStart.length > 1) {
+          // Strum: evenly-spaced delays based on note pitch order
+          const { offsets, nextDirection } = getStrumOffsets(
+            notesToStart,
+            strumSpread,
+            strumDirection,
+            strumLastDirectionRef.current
+          );
+          strumLastDirectionRef.current = nextDirection;
+          notesToStart.forEach((note, i) => {
+            humanizeManager.current.schedule(() => {
+              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              if (bleConnected && bleCharacteristicRef.current) {
+                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
+              }
+            }, offsets[i]);
+          });
+        } else if (humanize > 0 && notesToStart.length > 1) {
           // Humanization: stagger notes (works for Web MIDI, less ideal for BLE)
           const offsets = getHumanizeOffsets(notesToStart.length, humanize);
           notesToStart.forEach((note, i) => {
@@ -404,7 +492,7 @@ export function MIDIProvider({ children }) {
 
       setCurrentNotes(notes);
     },
-    [selectedOutput, bleConnected, channel, velocity, humanize]
+    [selectedOutput, bleConnected, channel, velocity, humanize, strumEnabled, strumSpread, strumDirection]
   );
 
   /**
@@ -434,7 +522,24 @@ export function MIDIProvider({ children }) {
 
       // Small delay for clear re-articulation
       setTimeout(() => {
-        if (humanize > 0 && notes.length > 1) {
+        if (strumEnabled && strumSpread > 0 && notes.length > 1) {
+          // Strum: evenly-spaced delays based on note pitch order
+          const { offsets, nextDirection } = getStrumOffsets(
+            notes,
+            strumSpread,
+            strumDirection,
+            strumLastDirectionRef.current
+          );
+          strumLastDirectionRef.current = nextDirection;
+          notes.forEach((note, i) => {
+            humanizeManager.current.schedule(() => {
+              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              if (bleConnected && bleCharacteristicRef.current) {
+                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
+              }
+            }, offsets[i]);
+          });
+        } else if (humanize > 0 && notes.length > 1) {
           const offsets = getHumanizeOffsets(notes.length, humanize);
           notes.forEach((note, i) => {
             humanizeManager.current.schedule(() => {
@@ -456,7 +561,7 @@ export function MIDIProvider({ children }) {
         setCurrentNotes(notes);
       }, 5);
     },
-    [selectedOutput, bleConnected, channel, velocity, humanize]
+    [selectedOutput, bleConnected, channel, velocity, humanize, strumEnabled, strumSpread, strumDirection]
   );
 
   /**
@@ -535,6 +640,9 @@ export function MIDIProvider({ children }) {
     velocity,
     currentNotes,
     humanize,
+    strumEnabled,
+    strumSpread,
+    strumDirection,
 
     // BLE State
     bleSupported,
@@ -542,6 +650,7 @@ export function MIDIProvider({ children }) {
     bleConnected,
     bleConnecting,
     bleError,
+    bleSyncEnabled,
 
     // Actions
     connectMIDI,
@@ -559,6 +668,9 @@ export function MIDIProvider({ children }) {
     setChannel,
     setVelocity,
     setHumanize,
+    setStrumEnabled,
+    setStrumSpread,
+    setStrumDirection,
 
     // MIDI Clock functions
     sendMIDIClock: () => sendMIDIClock(selectedOutput),

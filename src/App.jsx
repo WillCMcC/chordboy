@@ -60,10 +60,20 @@ function App() {
     isConnected,
     humanize,
     setHumanize,
+    strumEnabled,
+    strumSpread,
+    strumDirection,
+    setStrumEnabled,
+    setStrumSpread,
+    setStrumDirection,
     inputs: midiInputs,
     selectedInput,
     selectInput,
     setClockCallbacks,
+    // BLE for sync
+    bleConnected,
+    bleDevice,
+    bleSyncEnabled,
   } = useMIDI();
 
   // Keyboard input
@@ -295,8 +305,17 @@ function App() {
           midiInputs={midiInputs}
           selectedInputId={selectedInput?.id}
           onSelectInput={selectInput}
+          bleConnected={bleConnected}
+          bleDevice={bleDevice}
+          bleSyncEnabled={bleSyncEnabled}
           humanize={humanize}
           onHumanizeChange={setHumanize}
+          strumEnabled={strumEnabled}
+          strumSpread={strumSpread}
+          strumDirection={strumDirection}
+          onStrumEnabledChange={setStrumEnabled}
+          onStrumSpreadChange={setStrumSpread}
+          onStrumDirectionChange={setStrumDirection}
           sequencerEnabled={sequencerEnabled}
           onOpenSequencer={() => setShowSequencer(true)}
         />
