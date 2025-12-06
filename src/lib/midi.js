@@ -35,6 +35,9 @@ export function getMIDIOutputs(midiAccess) {
 
   const outputs = [];
   midiAccess.outputs.forEach((output) => {
+    // Filter out outputs with empty names (virtual ports with no real device)
+    if (!output.name || output.name.trim() === "") return;
+
     outputs.push({
       id: output.id,
       name: output.name,
@@ -58,6 +61,9 @@ export function getMIDIInputs(midiAccess) {
 
   const inputs = [];
   midiAccess.inputs.forEach((input) => {
+    // Filter out inputs with empty names (virtual ports with no real device)
+    if (!input.name || input.name.trim() === "") return;
+
     inputs.push({
       id: input.id,
       name: input.name,

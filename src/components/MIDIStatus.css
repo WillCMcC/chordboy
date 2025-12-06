@@ -121,6 +121,12 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
+/* Ensure option text is readable in native mobile pickers */
+.device-selector option {
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
 .connect-button,
 .retry-button {
   background: var(--accent-gradient);

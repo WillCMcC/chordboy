@@ -38,6 +38,8 @@ import {
   sendBLENoteOn,
   sendBLENoteOff,
   sendBLEPanic,
+  sendBLEChordOn,
+  sendBLEChordOff,
 } from "../lib/bleMidi";
 import { getHumanizeOffsets, createHumanizeManager } from "../lib/humanize";
 
@@ -236,21 +238,21 @@ export function MIDIProvider({ children }) {
       const device = await scanForBLEMidiDevice();
       setBleDevice(device);
 
-      // Listen for disconnection
+      const { server, characteristic } = await connectToBLEMidiDevice(device);
+      bleServerRef.current = server;
+      bleCharacteristicRef.current = characteristic;
+      setBleConnected(true);
+
+      // Listen for disconnection AFTER successful connection
       device.addEventListener("gattserverdisconnected", () => {
         setBleConnected(false);
         bleServerRef.current = null;
         bleCharacteristicRef.current = null;
       });
-
-      const { server, characteristic } = await connectToBLEMidiDevice(device);
-      bleServerRef.current = server;
-      bleCharacteristicRef.current = characteristic;
-      setBleConnected(true);
     } catch (err) {
       if (err.name !== "NotFoundError") {
         // NotFoundError means user cancelled the picker
-        setBleError(err.message);
+        setBleError(err.message || err.toString() || "Connection failed");
         console.error("BLE MIDI connection error:", err);
       }
       setBleDevice(null);
@@ -363,33 +365,41 @@ export function MIDIProvider({ children }) {
 
       // Stop removed notes immediately
       const notesToStop = currentNotesSnapshot.filter((n) => !newNotesSet.has(n));
-      notesToStop.forEach((note) => {
-        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      if (notesToStop.length > 0) {
+        notesToStop.forEach((note) => {
+          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+        });
+        // BLE: batch all note-offs into single packet
         if (bleConnected && bleCharacteristicRef.current) {
-          sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+          sendBLEChordOff(bleCharacteristicRef.current, channel, notesToStop);
         }
-      });
+      }
 
       // Start new notes with optional humanization
       const notesToStart = notes.filter((n) => !currentNotesSet.has(n));
 
-      const sendNoteOnBoth = (note, noteVel) => {
-        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, noteVel);
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLENoteOn(bleCharacteristicRef.current, channel, note, noteVel);
+      if (notesToStart.length > 0) {
+        if (humanize > 0 && notesToStart.length > 1) {
+          // Humanization: stagger notes (works for Web MIDI, less ideal for BLE)
+          const offsets = getHumanizeOffsets(notesToStart.length, humanize);
+          notesToStart.forEach((note, i) => {
+            humanizeManager.current.schedule(() => {
+              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              if (bleConnected && bleCharacteristicRef.current) {
+                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
+              }
+            }, offsets[i]);
+          });
+        } else {
+          // No humanization: send all notes together
+          notesToStart.forEach((note) => {
+            if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+          });
+          // BLE: batch all note-ons into single packet
+          if (bleConnected && bleCharacteristicRef.current) {
+            sendBLEChordOn(bleCharacteristicRef.current, channel, notesToStart, vel);
+          }
         }
-      };
-
-      if (humanize > 0 && notesToStart.length > 1) {
-        const offsets = getHumanizeOffsets(notesToStart.length, humanize);
-        notesToStart.forEach((note, i) => {
-          humanizeManager.current.schedule(
-            () => sendNoteOnBoth(note, vel),
-            offsets[i]
-          );
-        });
-      } else {
-        notesToStart.forEach((note) => sendNoteOnBoth(note, vel));
       }
 
       setCurrentNotes(notes);
@@ -412,32 +422,35 @@ export function MIDIProvider({ children }) {
       humanizeManager.current.clear();
 
       // Stop all current notes
-      currentNotesRef.current.forEach((note) => {
-        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      const currentNotes = currentNotesRef.current;
+      if (currentNotes.length > 0) {
+        currentNotes.forEach((note) => {
+          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+        });
         if (bleConnected && bleCharacteristicRef.current) {
-          sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+          sendBLEChordOff(bleCharacteristicRef.current, channel, currentNotes);
         }
-      });
-
-      const sendNoteOnBoth = (note, noteVel) => {
-        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, noteVel);
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLENoteOn(bleCharacteristicRef.current, channel, note, noteVel);
-        }
-      };
+      }
 
       // Small delay for clear re-articulation
       setTimeout(() => {
         if (humanize > 0 && notes.length > 1) {
           const offsets = getHumanizeOffsets(notes.length, humanize);
           notes.forEach((note, i) => {
-            humanizeManager.current.schedule(
-              () => sendNoteOnBoth(note, vel),
-              offsets[i]
-            );
+            humanizeManager.current.schedule(() => {
+              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              if (bleConnected && bleCharacteristicRef.current) {
+                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
+              }
+            }, offsets[i]);
           });
         } else {
-          notes.forEach((note) => sendNoteOnBoth(note, vel));
+          notes.forEach((note) => {
+            if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+          });
+          if (bleConnected && bleCharacteristicRef.current) {
+            sendBLEChordOn(bleCharacteristicRef.current, channel, notes, vel);
+          }
         }
 
         setCurrentNotes(notes);
@@ -451,12 +464,15 @@ export function MIDIProvider({ children }) {
    */
   const stopAllNotes = useCallback(() => {
     humanizeManager.current.clear();
-    currentNotesRef.current.forEach((note) => {
-      if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+    const notes = currentNotesRef.current;
+    if (notes.length > 0) {
+      notes.forEach((note) => {
+        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      });
       if (bleConnected && bleCharacteristicRef.current) {
-        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+        sendBLEChordOff(bleCharacteristicRef.current, channel, notes);
       }
-    });
+    }
     setCurrentNotes([]);
   }, [selectedOutput, bleConnected, channel]);
 
@@ -493,13 +509,14 @@ export function MIDIProvider({ children }) {
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (currentNotesRef.current.length > 0) {
-        currentNotesRef.current.forEach((note) => {
+      const notes = currentNotesRef.current;
+      if (notes.length > 0) {
+        notes.forEach((note) => {
           if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-          if (bleConnected && bleCharacteristicRef.current) {
-            sendBLENoteOff(bleCharacteristicRef.current, channel, note);
-          }
         });
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLEChordOff(bleCharacteristicRef.current, channel, notes);
+        }
       }
     };
   }, [selectedOutput, bleConnected, channel]);
