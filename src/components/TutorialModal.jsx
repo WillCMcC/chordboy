@@ -79,7 +79,7 @@ const MOBILE_STEP_CONTENT = [
     hint: "Save your chord to a preset slot",
   },
   {
-    content: "Hold a chord while you switch:\n\nSwipe right on any key to lock it\nSwipe again or tap to release\n\nGreat for playing over changes!",
+    content: "Using presets live:\n\nHold a preset to play it\nSwipe while holding to lock\nTap a locked preset to release\n\nGreat for playing over changes!",
     hint: "Tap Next to continue",
   },
   {
@@ -242,28 +242,33 @@ export function TutorialModal({
     setCompletedSteps(new Set([0]));
   }, [onClose]);
 
-  // Mobile action button handlers - hold to sustain, release to stop
-  // For tutorial, we use a simplified model: press adds, release removes
-  const handleKeyDown = useCallback((key, isRoot = false) => {
+  // Mobile action button handlers - tap to toggle (sustain on tap)
+  const handleRootTap = useCallback((key) => {
     if (setMobileKeys) {
+      const rootKeys = ["q", "w", "e", "r", "a", "s", "d", "f", "z", "x", "c", "v"];
       setMobileKeys((prev) => {
         const next = new Set(prev);
-        if (isRoot) {
+        if (prev.has(key)) {
+          next.delete(key);
+        } else {
           // Remove any existing root keys (radio behavior for roots)
-          const rootKeys = ["q", "w", "e", "r", "a", "s", "d", "f", "z", "x", "c", "v"];
           rootKeys.forEach((k) => next.delete(k));
+          next.add(key);
         }
-        next.add(key);
         return next;
       });
     }
   }, [setMobileKeys]);
 
-  const handleKeyUp = useCallback((key) => {
+  const handleModifierTap = useCallback((key) => {
     if (setMobileKeys) {
       setMobileKeys((prev) => {
         const next = new Set(prev);
-        next.delete(key);
+        if (prev.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+        }
         return next;
       });
     }
@@ -277,34 +282,18 @@ export function TutorialModal({
 
     switch (stepId) {
       case "root":
-        // Show a few root note buttons - hold to sustain
+        // Show a few root note buttons - tap to toggle
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Hold to play:</div>
+            <div className="tutorial-action-label">Tap to select:</div>
             <div className="tutorial-action-buttons">
               {[["q", "C"], ["e", "D"], ["s", "F"], ["f", "G"], ["x", "A"]].map(([key, note]) => (
                 <button
                   key={key}
                   className="tutorial-action-btn tutorial-action-root"
-                  onTouchStart={(e) => {
+                  onPointerDown={(e) => {
                     e.preventDefault();
-                    handleKeyDown(key, true);
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleKeyDown(key, true);
-                  }}
-                  onMouseUp={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
-                  }}
-                  onMouseLeave={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
+                    handleRootTap(key);
                   }}
                 >
                   {note}
@@ -315,32 +304,16 @@ export function TutorialModal({
         );
 
       case "quality":
-        // Show minor button - hold root, add modifier
+        // Show minor button - tap root, then tap modifier
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Hold root + modifier together:</div>
+            <div className="tutorial-action-label">Tap root, then add modifier:</div>
             <div className="tutorial-action-buttons">
               <button
                 className="tutorial-action-btn tutorial-action-root"
-                onTouchStart={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
-                  handleKeyDown("q", true);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleKeyDown("q", true);
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
-                }}
-                onMouseLeave={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
+                  handleRootTap("q");
                 }}
               >
                 C
@@ -348,25 +321,9 @@ export function TutorialModal({
               <span className="tutorial-action-plus">+</span>
               <button
                 className="tutorial-action-btn tutorial-action-modifier"
-                onTouchStart={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
-                  handleKeyDown("u", false);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("u");
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleKeyDown("u", false);
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("u");
-                }}
-                onMouseLeave={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("u");
+                  handleModifierTap("u");
                 }}
               >
                 min
@@ -376,32 +333,16 @@ export function TutorialModal({
         );
 
       case "extension":
-        // Show extension buttons - hold to play
+        // Show extension buttons - tap to toggle
         return (
           <div className="tutorial-actions">
-            <div className="tutorial-action-label">Hold root + extensions:</div>
+            <div className="tutorial-action-label">Tap root, then add extensions:</div>
             <div className="tutorial-action-buttons">
               <button
                 className="tutorial-action-btn tutorial-action-root"
-                onTouchStart={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
-                  handleKeyDown("q", true);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleKeyDown("q", true);
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
-                }}
-                onMouseLeave={(e) => {
-                  e.preventDefault();
-                  handleKeyUp("q");
+                  handleRootTap("q");
                 }}
               >
                 C
@@ -411,25 +352,9 @@ export function TutorialModal({
                 <button
                   key={key}
                   className="tutorial-action-btn tutorial-action-modifier"
-                  onTouchStart={(e) => {
+                  onPointerDown={(e) => {
                     e.preventDefault();
-                    handleKeyDown(key, false);
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleKeyDown(key, false);
-                  }}
-                  onMouseUp={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
-                  }}
-                  onMouseLeave={(e) => {
-                    e.preventDefault();
-                    handleKeyUp(key);
+                    handleModifierTap(key);
                   }}
                 >
                   {label}

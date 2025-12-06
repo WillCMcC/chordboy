@@ -157,25 +157,6 @@
   }
 }
 
-/* Locked state - when user swipes to sustain a key */
-.mobile-btn.locked {
-  background: var(--accent-gradient) !important;
-  color: white;
-  border-color: var(--accent-color) !important;
-  box-shadow: 0 0 16px var(--accent-glow);
-}
-
-.mobile-btn.locked.active {
-  border-color: white !important;
-}
-
-.lock-indicator {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 0.55rem;
-  opacity: 0.85;
-}
 
 /* Make preset buttons position relative for the held indicator */
 .mobile-grid .mobile-btn {
