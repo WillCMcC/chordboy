@@ -7,13 +7,20 @@ import "./MIDIStatus.css";
  */
 export function MIDIStatus() {
   const {
-    isConnected,
     isLoading,
     error,
     outputs,
     selectedOutput,
     selectOutput,
     connectMIDI,
+    // BLE
+    bleSupported,
+    bleDevice,
+    bleConnected,
+    bleConnecting,
+    bleError,
+    connectBLE,
+    disconnectBLE,
   } = useMIDI();
 
   // Get display name for selected output
@@ -21,47 +28,90 @@ export function MIDIStatus() {
     (o) => o.output === selectedOutput
   )?.name;
 
+  const hasWiredConnection = outputs.length > 0;
+
   return (
     <div className="midi-status">
-      {isLoading ? (
-        <div className="midi-status-content">
-          <span className="status-indicator loading"></span>
-          <span>Connecting to MIDI...</span>
-        </div>
-      ) : error ? (
-        <div className="midi-status-content error">
-          <span className="status-indicator error"></span>
-          <span className="error-message">{error}</span>
-          <button onClick={connectMIDI} className="retry-button">
-            Retry
-          </button>
-        </div>
-      ) : isConnected ? (
-        <div className="midi-status-content connected">
-          <span className="status-indicator connected"></span>
-          {outputs.length > 1 ? (
-            <select
-              value={selectedOutput?.id || ""}
-              onChange={(e) => selectOutput(e.target.value)}
-              className="device-selector"
-            >
-              {outputs.map((output) => (
-                <option key={output.id} value={output.id}>
-                  {output.name}
-                </option>
-              ))}
-            </select>
+      {/* Wired MIDI Section */}
+      <div className="midi-section">
+        <div className="midi-section-label">Wired/USB</div>
+        {isLoading ? (
+          <div className="midi-status-content">
+            <span className="status-indicator loading"></span>
+            <span>Connecting to MIDI...</span>
+          </div>
+        ) : error ? (
+          <div className="midi-status-content error">
+            <span className="status-indicator error"></span>
+            <span className="error-message">{error}</span>
+            <button onClick={connectMIDI} className="retry-button">
+              Retry
+            </button>
+          </div>
+        ) : hasWiredConnection ? (
+          <div className="midi-status-content connected">
+            <span className="status-indicator connected"></span>
+            {outputs.length > 1 ? (
+              <select
+                value={selectedOutput?.id || ""}
+                onChange={(e) => selectOutput(e.target.value)}
+                className="device-selector"
+              >
+                {outputs.map((output) => (
+                  <option key={output.id} value={output.id}>
+                    {output.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span>{selectedOutputName || "MIDI Connected"}</span>
+            )}
+          </div>
+        ) : (
+          <div className="midi-status-content">
+            <span className="status-indicator disconnected"></span>
+            <span>No Devices</span>
+            <button onClick={connectMIDI} className="connect-button">
+              Rescan
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* BLE MIDI Section */}
+      {bleSupported && (
+        <div className="midi-section">
+          <div className="midi-section-label">Bluetooth</div>
+          {bleConnecting ? (
+            <div className="midi-status-content">
+              <span className="status-indicator loading"></span>
+              <span>Scanning...</span>
+            </div>
+          ) : bleError ? (
+            <div className="midi-status-content error">
+              <span className="status-indicator error"></span>
+              <span className="error-message">{bleError}</span>
+              <button onClick={connectBLE} className="retry-button">
+                Retry
+              </button>
+            </div>
+          ) : bleConnected ? (
+            <div className="midi-status-content connected">
+              <span className="status-indicator connected"></span>
+              <span className="ble-device-name">{bleDevice?.name || "BLE Device"}</span>
+              <button onClick={disconnectBLE} className="disconnect-button">
+                Disconnect
+              </button>
+            </div>
           ) : (
-            <span>{selectedOutputName || "MIDI Connected"}</span>
+            <div className="midi-status-content">
+              <span className="status-indicator disconnected"></span>
+              <span>Not Connected</span>
+              <button onClick={connectBLE} className="connect-button">
+                Scan
+              </button>
+            </div>
           )}
-        </div>
-      ) : (
-        <div className="midi-status-content">
-          <span className="status-indicator disconnected"></span>
-          <span>No Devices Found</span>
-          <button onClick={connectMIDI} className="connect-button">
-            Rescan
-          </button>
         </div>
       )}
     </div>

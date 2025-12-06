@@ -21,6 +21,7 @@ import { useChordEngine } from "./hooks/useChordEngine";
 import { useMIDI } from "./hooks/useMIDI";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
+import { useWakeLock } from "./hooks/useWakeLock";
 import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
 
@@ -30,9 +31,26 @@ const TUTORIAL_SEEN_KEY = "chordboy-tutorial-seen";
  * Main application component.
  * @returns {JSX.Element} The app component
  */
+const WAKE_LOCK_KEY = "chordboy-wake-lock-enabled";
+
 function App() {
   const isMobile = useIsMobile();
   const { isInstallable, install } = usePWAInstall();
+
+  // Wake lock to keep screen on during performance
+  const [wakeLockEnabled, setWakeLockEnabled] = useState(() => {
+    const saved = localStorage.getItem(WAKE_LOCK_KEY);
+    // Default to true on mobile, false on desktop
+    return saved !== null ? saved === "true" : isMobile;
+  });
+  const { isSupported: wakeLockSupported, isActive: wakeLockActive } =
+    useWakeLock(wakeLockEnabled);
+
+  // Persist wake lock preference
+  const handleWakeLockChange = useCallback((enabled) => {
+    setWakeLockEnabled(enabled);
+    localStorage.setItem(WAKE_LOCK_KEY, String(enabled));
+  }, []);
 
   // MIDI connection and playback
   const {
@@ -230,6 +248,10 @@ function App() {
         onClose={() => setShowSettings(false)}
         isInstallable={isInstallable}
         onInstall={install}
+        wakeLockSupported={wakeLockSupported}
+        wakeLockEnabled={wakeLockEnabled}
+        wakeLockActive={wakeLockActive}
+        onWakeLockChange={handleWakeLockChange}
       />
 
       {/* Tutorial modal */}

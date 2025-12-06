@@ -30,6 +30,15 @@ import {
   MIDI_STOP,
   MIDI_CONTINUE,
 } from "../lib/midi";
+import {
+  isBLESupported,
+  scanForBLEMidiDevice,
+  connectToBLEMidiDevice,
+  disconnectBLEMidiDevice,
+  sendBLENoteOn,
+  sendBLENoteOff,
+  sendBLEPanic,
+} from "../lib/bleMidi";
 import { getHumanizeOffsets, createHumanizeManager } from "../lib/humanize";
 
 /** @type {React.Context} MIDI context for provider/consumer pattern */
@@ -58,6 +67,15 @@ export function MIDIProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // BLE MIDI state
+  const [bleSupported] = useState(() => isBLESupported());
+  const [bleDevice, setBleDevice] = useState(null);
+  const [bleConnected, setBleConnected] = useState(false);
+  const [bleConnecting, setBleConnecting] = useState(false);
+  const [bleError, setBleError] = useState(null);
+  const bleServerRef = useRef(null);
+  const bleCharacteristicRef = useRef(null);
 
   // Playback settings
   const [channel, setChannel] = useState(0);
@@ -203,6 +221,60 @@ export function MIDIProvider({ children }) {
   }, []);
 
   /**
+   * Scan for and connect to a BLE MIDI device.
+   */
+  const connectBLE = useCallback(async () => {
+    if (!bleSupported) {
+      setBleError("Bluetooth is not supported in this browser");
+      return;
+    }
+
+    setBleConnecting(true);
+    setBleError(null);
+
+    try {
+      const device = await scanForBLEMidiDevice();
+      setBleDevice(device);
+
+      // Listen for disconnection
+      device.addEventListener("gattserverdisconnected", () => {
+        setBleConnected(false);
+        bleServerRef.current = null;
+        bleCharacteristicRef.current = null;
+      });
+
+      const { server, characteristic } = await connectToBLEMidiDevice(device);
+      bleServerRef.current = server;
+      bleCharacteristicRef.current = characteristic;
+      setBleConnected(true);
+    } catch (err) {
+      if (err.name !== "NotFoundError") {
+        // NotFoundError means user cancelled the picker
+        setBleError(err.message);
+        console.error("BLE MIDI connection error:", err);
+      }
+      setBleDevice(null);
+      setBleConnected(false);
+    } finally {
+      setBleConnecting(false);
+    }
+  }, [bleSupported]);
+
+  /**
+   * Disconnect from the current BLE MIDI device.
+   */
+  const disconnectBLE = useCallback(() => {
+    if (bleServerRef.current) {
+      disconnectBLEMidiDevice(bleServerRef.current);
+    }
+    bleServerRef.current = null;
+    bleCharacteristicRef.current = null;
+    setBleDevice(null);
+    setBleConnected(false);
+    setBleError(null);
+  }, []);
+
+  /**
    * Handle incoming MIDI messages on selected input.
    */
   useEffect(() => {
@@ -240,11 +312,17 @@ export function MIDIProvider({ children }) {
    */
   const playNote = useCallback(
     (note, vel = velocity) => {
-      if (!selectedOutput) return;
-      sendNoteOn(selectedOutput, channel, note, vel);
-      setCurrentNotes((prev) => [...prev, note]);
+      if (selectedOutput) {
+        sendNoteOn(selectedOutput, channel, note, vel);
+      }
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
+      }
+      if (selectedOutput || bleConnected) {
+        setCurrentNotes((prev) => [...prev, note]);
+      }
     },
-    [selectedOutput, channel, velocity]
+    [selectedOutput, bleConnected, channel, velocity]
   );
 
   /**
@@ -253,11 +331,15 @@ export function MIDIProvider({ children }) {
    */
   const stopNote = useCallback(
     (note) => {
-      if (!selectedOutput) return;
-      sendNoteOff(selectedOutput, channel, note);
+      if (selectedOutput) {
+        sendNoteOff(selectedOutput, channel, note);
+      }
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+      }
       setCurrentNotes((prev) => prev.filter((n) => n !== note));
     },
-    [selectedOutput, channel]
+    [selectedOutput, bleConnected, channel]
   );
 
   /**
@@ -270,7 +352,8 @@ export function MIDIProvider({ children }) {
    */
   const playChord = useCallback(
     (notes, vel = velocity) => {
-      if (!selectedOutput || !notes?.length) return;
+      const hasOutput = selectedOutput || bleConnected;
+      if (!hasOutput || !notes?.length) return;
 
       humanizeManager.current.clear();
 
@@ -280,28 +363,38 @@ export function MIDIProvider({ children }) {
 
       // Stop removed notes immediately
       const notesToStop = currentNotesSnapshot.filter((n) => !newNotesSet.has(n));
-      notesToStop.forEach((note) => sendNoteOff(selectedOutput, channel, note));
+      notesToStop.forEach((note) => {
+        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+        }
+      });
 
       // Start new notes with optional humanization
       const notesToStart = notes.filter((n) => !currentNotesSet.has(n));
+
+      const sendNoteOnBoth = (note, noteVel) => {
+        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, noteVel);
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLENoteOn(bleCharacteristicRef.current, channel, note, noteVel);
+        }
+      };
 
       if (humanize > 0 && notesToStart.length > 1) {
         const offsets = getHumanizeOffsets(notesToStart.length, humanize);
         notesToStart.forEach((note, i) => {
           humanizeManager.current.schedule(
-            () => sendNoteOn(selectedOutput, channel, note, vel),
+            () => sendNoteOnBoth(note, vel),
             offsets[i]
           );
         });
       } else {
-        notesToStart.forEach((note) =>
-          sendNoteOn(selectedOutput, channel, note, vel)
-        );
+        notesToStart.forEach((note) => sendNoteOnBoth(note, vel));
       }
 
       setCurrentNotes(notes);
     },
-    [selectedOutput, channel, velocity, humanize]
+    [selectedOutput, bleConnected, channel, velocity, humanize]
   );
 
   /**
@@ -313,14 +406,25 @@ export function MIDIProvider({ children }) {
    */
   const retriggerChord = useCallback(
     (notes, vel = velocity) => {
-      if (!selectedOutput || !notes?.length) return;
+      const hasOutput = selectedOutput || bleConnected;
+      if (!hasOutput || !notes?.length) return;
 
       humanizeManager.current.clear();
 
       // Stop all current notes
-      currentNotesRef.current.forEach((note) =>
-        sendNoteOff(selectedOutput, channel, note)
-      );
+      currentNotesRef.current.forEach((note) => {
+        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+        }
+      });
+
+      const sendNoteOnBoth = (note, noteVel) => {
+        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, noteVel);
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLENoteOn(bleCharacteristicRef.current, channel, note, noteVel);
+        }
+      };
 
       // Small delay for clear re-articulation
       setTimeout(() => {
@@ -328,41 +432,46 @@ export function MIDIProvider({ children }) {
           const offsets = getHumanizeOffsets(notes.length, humanize);
           notes.forEach((note, i) => {
             humanizeManager.current.schedule(
-              () => sendNoteOn(selectedOutput, channel, note, vel),
+              () => sendNoteOnBoth(note, vel),
               offsets[i]
             );
           });
         } else {
-          notes.forEach((note) =>
-            sendNoteOn(selectedOutput, channel, note, vel)
-          );
+          notes.forEach((note) => sendNoteOnBoth(note, vel));
         }
 
         setCurrentNotes(notes);
       }, 5);
     },
-    [selectedOutput, channel, velocity, humanize]
+    [selectedOutput, bleConnected, channel, velocity, humanize]
   );
 
   /**
    * Stop all currently playing notes.
    */
   const stopAllNotes = useCallback(() => {
-    if (!selectedOutput) return;
-
     humanizeManager.current.clear();
-    currentNotesRef.current.forEach((note) => sendNoteOff(selectedOutput, channel, note));
+    currentNotesRef.current.forEach((note) => {
+      if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+      }
+    });
     setCurrentNotes([]);
-  }, [selectedOutput, channel]);
+  }, [selectedOutput, bleConnected, channel]);
 
   /**
    * MIDI panic - stop all notes on all channels.
    */
   const panic = useCallback(() => {
-    if (!selectedOutput) return;
-    sendPanic(selectedOutput);
+    if (selectedOutput) {
+      sendPanic(selectedOutput);
+    }
+    if (bleConnected && bleCharacteristicRef.current) {
+      sendBLEPanic(bleCharacteristicRef.current);
+    }
     setCurrentNotes([]);
-  }, [selectedOutput]);
+  }, [selectedOutput, bleConnected]);
 
   // Auto-connect on mount
   useEffect(() => {
@@ -375,19 +484,25 @@ export function MIDIProvider({ children }) {
       if (selectedOutput) {
         sendPanic(selectedOutput);
       }
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLEPanic(bleCharacteristicRef.current);
+      }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (selectedOutput && currentNotesRef.current.length > 0) {
-        currentNotesRef.current.forEach((note) =>
-          sendNoteOff(selectedOutput, channel, note)
-        );
+      if (currentNotesRef.current.length > 0) {
+        currentNotesRef.current.forEach((note) => {
+          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+          if (bleConnected && bleCharacteristicRef.current) {
+            sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+          }
+        });
       }
     };
-  }, [selectedOutput, channel]);
+  }, [selectedOutput, bleConnected, channel]);
 
   const value = {
     // State
@@ -396,7 +511,7 @@ export function MIDIProvider({ children }) {
     inputs,
     selectedOutput,
     selectedInput,
-    isConnected,
+    isConnected: isConnected || bleConnected,
     error,
     isLoading,
     channel,
@@ -404,11 +519,20 @@ export function MIDIProvider({ children }) {
     currentNotes,
     humanize,
 
+    // BLE State
+    bleSupported,
+    bleDevice,
+    bleConnected,
+    bleConnecting,
+    bleError,
+
     // Actions
     connectMIDI,
     selectOutput,
     selectInput,
     setClockCallbacks,
+    connectBLE,
+    disconnectBLE,
     playNote,
     stopNote,
     playChord,

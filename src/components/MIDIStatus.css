@@ -1,6 +1,21 @@
 .midi-status {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.midi-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.midi-section-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .midi-status-content {
@@ -137,4 +152,30 @@
 
 .retry-button:hover {
   box-shadow: 0 4px 16px var(--error-glow);
+}
+
+.disconnect-button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out-expo);
+  white-space: nowrap;
+}
+
+.disconnect-button:hover {
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.ble-device-name {
+  font-weight: 500;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

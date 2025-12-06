@@ -16,17 +16,22 @@ import "./SettingsPanel.css";
  * @param {Function} props.onClose - Callback to close the panel
  * @param {boolean} props.isInstallable - Whether PWA install is available
  * @param {Function} props.onInstall - Callback to trigger PWA install
+ * @param {boolean} props.wakeLockSupported - Whether Wake Lock API is supported
+ * @param {boolean} props.wakeLockEnabled - Whether wake lock is enabled
+ * @param {boolean} props.wakeLockActive - Whether wake lock is currently active
+ * @param {Function} props.onWakeLockChange - Callback to toggle wake lock
  * @returns {JSX.Element|null} The settings panel or null if closed
- *
- * @example
- * <SettingsPanel
- *   isOpen={showSettings}
- *   onClose={() => setShowSettings(false)}
- *   isInstallable={isInstallable}
- *   onInstall={install}
- * />
  */
-export function SettingsPanel({ isOpen, onClose, isInstallable, onInstall }) {
+export function SettingsPanel({
+  isOpen,
+  onClose,
+  isInstallable,
+  onInstall,
+  wakeLockSupported,
+  wakeLockEnabled,
+  wakeLockActive,
+  onWakeLockChange,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -43,6 +48,29 @@ export function SettingsPanel({ isOpen, onClose, isInstallable, onInstall }) {
             <h3>MIDI Interface</h3>
             <MIDIStatus />
           </div>
+          {wakeLockSupported && (
+            <div className="settings-section">
+              <h3>Display</h3>
+              <label className="settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={wakeLockEnabled}
+                  onChange={(e) => onWakeLockChange(e.target.checked)}
+                />
+                <span className="toggle-label">
+                  Keep screen on
+                  {wakeLockEnabled && (
+                    <span className={`toggle-status ${wakeLockActive ? "active" : "inactive"}`}>
+                      {wakeLockActive ? " (active)" : " (inactive)"}
+                    </span>
+                  )}
+                </span>
+              </label>
+              <p className="settings-description">
+                Prevents the screen from turning off during performance.
+              </p>
+            </div>
+          )}
           {isInstallable && (
             <div className="settings-section">
               <h3>Install App</h3>

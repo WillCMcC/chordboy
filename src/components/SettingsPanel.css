@@ -104,3 +104,62 @@
 .install-btn:active {
   transform: scale(0.98);
 }
+
+/* Toggle switch styles */
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.settings-toggle input[type="checkbox"] {
+  width: 2.5rem;
+  height: 1.375rem;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.settings-toggle input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1rem;
+  height: 1rem;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.settings-toggle input[type="checkbox"]:checked {
+  background: var(--accent-primary);
+}
+
+.settings-toggle input[type="checkbox"]:checked::before {
+  transform: translateX(1.125rem);
+}
+
+.toggle-label {
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.toggle-status {
+  font-size: 0.8125rem;
+  margin-left: 0.25rem;
+}
+
+.toggle-status.active {
+  color: #22c55e;
+}
+
+.toggle-status.inactive {
+  color: var(--text-secondary);
+}
