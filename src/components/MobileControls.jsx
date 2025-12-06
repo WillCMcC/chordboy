@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
+import { TransportControls } from "./TransportControls";
 import "./MobileControls.css";
 
 /** Threshold in pixels for swipe gesture to "lock" a preset */
@@ -45,6 +46,30 @@ export function MobileControls({
   showKeyboard,
   onToggleKeyboard,
   onSolvePresets,
+  // Transport props
+  bpm,
+  isPlaying,
+  currentBeat,
+  syncEnabled,
+  onBpmChange,
+  onTogglePlay,
+  onSyncEnabledChange,
+  midiInputs,
+  selectedInputId,
+  onSelectInput,
+  bleConnected,
+  bleDevice,
+  bleSyncEnabled,
+  humanize,
+  onHumanizeChange,
+  strumEnabled,
+  strumSpread,
+  strumDirection,
+  onStrumEnabledChange,
+  onStrumSpreadChange,
+  onStrumDirectionChange,
+  sequencerEnabled,
+  onOpenSequencer,
 }) {
   const [clearMode, setClearMode] = useState(false);
   const [solveMode, setSolveMode] = useState(false);
@@ -250,6 +275,35 @@ export function MobileControls({
 
   return (
     <div className="mobile-controls">
+      {/* Transport controls - scrolls with content */}
+      <div className="mobile-controls-section transport-section">
+        <TransportControls
+          bpm={bpm}
+          isPlaying={isPlaying}
+          currentBeat={currentBeat}
+          syncEnabled={syncEnabled}
+          onBpmChange={onBpmChange}
+          onTogglePlay={onTogglePlay}
+          onSyncEnabledChange={onSyncEnabledChange}
+          midiInputs={midiInputs}
+          selectedInputId={selectedInputId}
+          onSelectInput={onSelectInput}
+          bleConnected={bleConnected}
+          bleDevice={bleDevice}
+          bleSyncEnabled={bleSyncEnabled}
+          humanize={humanize}
+          onHumanizeChange={onHumanizeChange}
+          strumEnabled={strumEnabled}
+          strumSpread={strumSpread}
+          strumDirection={strumDirection}
+          onStrumEnabledChange={onStrumEnabledChange}
+          onStrumSpreadChange={onStrumSpreadChange}
+          onStrumDirectionChange={onStrumDirectionChange}
+          sequencerEnabled={sequencerEnabled}
+          onOpenSequencer={onOpenSequencer}
+        />
+      </div>
+
       <div className="mobile-controls-section presets-section">
         <div className="mobile-controls-header">
           <span className="mobile-controls-label">Presets</span>

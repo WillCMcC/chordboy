@@ -1,90 +1,59 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-ChordBoy is a web-based MIDI chord controller optimized for jazz performance. It enables musicians to play complex jazz chords using a two-handed keyboard interface, outputting MIDI to external instruments or DAWs via the Web MIDI API.
+ChordBoy is a web-based MIDI chord controller for jazz performance. Users play complex chords using a two-handed keyboard interface: left hand selects root notes, right hand adds chord qualities/extensions.
 
 ## Commands
 
 ```bash
-npm run dev           # Start Vite dev server on port 3000
-npm run build         # Build for production
-npm run preview       # Preview production build
-npm run test          # Run tests in watch mode
-npm run test:run      # Run tests once
-npm run test:coverage # Run tests with coverage report
+npm run dev      # Vite dev server
+npm run build    # Production build
+npm run test:run # Run tests once
 ```
 
-## Architecture
-
-### Data Flow
+## Project Structure
 
 ```
-User Presses Keys → useKeyboard() → useChordEngine() → useMIDI() → MIDI Output
-                                  ↓
-                         parseKeys() → buildChord() → getChordName()
+src/
+  hooks/       # React hooks (useKeyboard, useChordEngine, useMIDI, usePresets, useTransport)
+  lib/         # Pure functions (chord building, MIDI, keyboard mappings, voice leading)
+  components/  # UI components
 ```
 
-### Key Files
+## Data Flow
 
-**Hooks (src/hooks/):**
+```
+Keyboard → useKeyboard → useChordEngine → appEvents → useMIDI → MIDI Output
+                              ↓
+               parseKeys → buildChord → voicing transforms
+```
 
-- `useKeyboard.js` - Captures keyboard events, tracks pressed keys
-- `useChordEngine.js` - Central orchestrator: parses keys, builds chords, manages inversions/voicings/presets
-- `useMIDI.jsx` - MIDI connection via MIDIProvider context, handles note on/off with smart diffing
+The `appEvents` event bus decouples chord state from MIDI playback. `useChordEngine` emits `chord:changed` and `chord:cleared` events; `useMIDI` subscribes and handles playback.
 
-**Lib (src/lib/):**
+## Key Concepts
 
-- `keyboardMappings.js` - Maps physical keys to musical functions (left hand = root notes Q/W/E/R/A/S/D/F/Z/X/C/V, right hand = modifiers J/U/M/K/I/L/O etc.)
-- `chordBuilder.js` - Converts root + modifiers → chord structure with MIDI notes
-- `chordTheory.js` - Note-to-MIDI conversion, interval definitions (INTERVALS constant)
-- `chordNamer.js` - Formats chord names with proper notation (e.g., "C Maj7♯11")
-- `chordSolver.js` - Voice leading optimization for chord progressions
-- `voicingTransforms.js` - Shared voicing helpers (applyProgressiveDrop, applySpread)
+- **Left hand keys** (QWER/ASDF/ZXCV): Select root note chromatically (C through B)
+- **Right hand keys**: Add modifiers (J=major, U=minor, K=dom7, I=maj7, L=9th, etc.)
+- **Voicing controls**: Shift=inversion, CapsLock=drop, arrows=octave/spread
+- **Presets**: 0-9 keys save/recall chords, persisted to IndexedDB
 
-### Keyboard Mapping
+## Architecture Notes
 
-**Left Hand (Root Selection):**
+- React 19 + Vite 7, no external state management
+- Web MIDI API (Chrome/Edge/Opera) + BLE MIDI support
+- Event-driven: hooks communicate via `appEvents` pub/sub, not prop drilling
+- Smart chord diffing: only triggers MIDI note-on/off for changed notes
 
-- Row 1: Q=C, W=C#, E=D, R=D#
-- Row 2: A=E, S=F, D=F#, F=G
-- Row 3: Z=G#, X=A, C=A#, V=B
+## Detailed Documentation
 
-**Right Hand (Modifiers):**
+See `agent_docs/` for in-depth reference when working on specific areas:
 
-- Quality: J=major, U=minor, M=dim, 7=aug
-- Sevenths: K=dom7, I=maj7, ,=6th
-- Extensions: L=9th, O=11th, .=13th
-- Alterations: [=♯9, ]=♭9, '=♯11, /=♭5
+- `architecture.md` - Component relationships, event flow, state management
+- `keyboard-mapping.md` - Complete key-to-function mappings
+- `chord-building.md` - Chord construction pipeline, voicing transforms
+- `midi-integration.md` - MIDI/BLE setup, clock sync, humanization
+- `testing.md` - Test patterns and coverage
 
-**Controls:**
+## Rules
 
-- Shift: cycle inversions
-- CapsLock: drop notes
-- Arrow keys: octave (←/→), spread (↑/↓)
-- Space: save to next preset slot
-- 0-9: save/recall presets
-
-### Chord Building Pipeline
-
-1. `parseKeys()` extracts root note and modifier list from pressed keys
-2. `buildChord()` creates intervals array based on quality and extensions
-3. Voicing transforms applied: drop, spread, inversion
-4. `getChordName()` generates display name
-5. `useMIDI.playChord()` sends MIDI with smart diff (only triggers changed notes)
-
-## Tech Stack
-
-- React 19 with Vite 7
-- Web MIDI API (Chrome/Edge/Opera only)
-- PWA support via vite-plugin-pwa
-- No external state management (React state + context)
-- Presets persist to IndexedDB
-
-## Developer Rules
-
-- Treat yourself and everyone else with respect
-- Do not run server or test processes
-- Do not attempt to create commits or manage git in any way unless asked
+- Do not run dev server or watch-mode tests
+- Do not create commits unless asked

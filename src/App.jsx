@@ -96,6 +96,16 @@ function App() {
     }
   }, []);
 
+  // Hide mobile browser URL bar by scrolling on mount
+  useEffect(() => {
+    if (!isMobile) return;
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 1);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isMobile]);
+
   const handleCloseTutorial = useCallback(() => {
     setShowTutorial(false);
     localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
@@ -191,7 +201,11 @@ function App() {
    * Auto-scroll mobile keyboard to show active notes.
    */
   useEffect(() => {
-    if (!showMobileKeyboard || !mobileKeyboardRef.current || !currentChord?.notes?.length) {
+    if (
+      !showMobileKeyboard ||
+      !mobileKeyboardRef.current ||
+      !currentChord?.notes?.length
+    ) {
       return;
     }
 
@@ -218,7 +232,9 @@ function App() {
 
     const centerWhiteKeyIndex = getWhiteKeyIndex(centerNote);
     const targetScrollPosition =
-      centerWhiteKeyIndex * whiteKeyWidth - container.clientWidth / 2 + whiteKeyWidth;
+      centerWhiteKeyIndex * whiteKeyWidth -
+      container.clientWidth / 2 +
+      whiteKeyWidth;
 
     container.scrollTo({
       left: Math.max(0, targetScrollPosition),
@@ -278,7 +294,10 @@ function App() {
         onSavePreset={saveCurrentChordToSlot}
       />
 
-      <main className="main" style={{ paddingBottom: isMobile ? "50vh" : "2rem" }}>
+      <main
+        className="main"
+        style={{ paddingBottom: isMobile ? "55dvh" : "2rem" }}
+      >
         {/* Chord display with aurora glow */}
         <ChordDisplay
           currentChord={currentChord}
@@ -290,32 +309,34 @@ function App() {
           showHints={!isMobile}
         />
 
-        {/* Transport controls */}
-        <TransportControls
-          bpm={bpm}
-          isPlaying={isPlaying}
-          currentBeat={currentBeat}
-          syncEnabled={syncEnabled}
-          onBpmChange={setBpm}
-          onTogglePlay={toggleTransport}
-          onSyncEnabledChange={setSyncEnabled}
-          midiInputs={midiInputs}
-          selectedInputId={selectedInput?.id}
-          onSelectInput={selectInput}
-          bleConnected={bleConnected}
-          bleDevice={bleDevice}
-          bleSyncEnabled={bleSyncEnabled}
-          humanize={humanize}
-          onHumanizeChange={setHumanize}
-          strumEnabled={strumEnabled}
-          strumSpread={strumSpread}
-          strumDirection={strumDirection}
-          onStrumEnabledChange={setStrumEnabled}
-          onStrumSpreadChange={setStrumSpread}
-          onStrumDirectionChange={setStrumDirection}
-          sequencerEnabled={sequencerEnabled}
-          onOpenSequencer={() => setShowSequencer(true)}
-        />
+        {/* Transport controls - desktop only, mobile is inside MobileControls */}
+        {!isMobile && (
+          <TransportControls
+            bpm={bpm}
+            isPlaying={isPlaying}
+            currentBeat={currentBeat}
+            syncEnabled={syncEnabled}
+            onBpmChange={setBpm}
+            onTogglePlay={toggleTransport}
+            onSyncEnabledChange={setSyncEnabled}
+            midiInputs={midiInputs}
+            selectedInputId={selectedInput?.id}
+            onSelectInput={selectInput}
+            bleConnected={bleConnected}
+            bleDevice={bleDevice}
+            bleSyncEnabled={bleSyncEnabled}
+            humanize={humanize}
+            onHumanizeChange={setHumanize}
+            strumEnabled={strumEnabled}
+            strumSpread={strumSpread}
+            strumDirection={strumDirection}
+            onStrumEnabledChange={setStrumEnabled}
+            onStrumSpreadChange={setStrumSpread}
+            onStrumDirectionChange={setStrumDirection}
+            sequencerEnabled={sequencerEnabled}
+            onOpenSequencer={() => setShowSequencer(true)}
+          />
+        )}
 
         {/* Desktop presets panel */}
         {!isMobile && (
@@ -373,6 +394,30 @@ function App() {
             showKeyboard={showMobileKeyboard}
             onToggleKeyboard={() => setShowMobileKeyboard(!showMobileKeyboard)}
             onSolvePresets={solvePresets}
+            // Transport props for mobile
+            bpm={bpm}
+            isPlaying={isPlaying}
+            currentBeat={currentBeat}
+            syncEnabled={syncEnabled}
+            onBpmChange={setBpm}
+            onTogglePlay={toggleTransport}
+            onSyncEnabledChange={setSyncEnabled}
+            midiInputs={midiInputs}
+            selectedInputId={selectedInput?.id}
+            onSelectInput={selectInput}
+            bleConnected={bleConnected}
+            bleDevice={bleDevice}
+            bleSyncEnabled={bleSyncEnabled}
+            humanize={humanize}
+            onHumanizeChange={setHumanize}
+            strumEnabled={strumEnabled}
+            strumSpread={strumSpread}
+            strumDirection={strumDirection}
+            onStrumEnabledChange={setStrumEnabled}
+            onStrumSpreadChange={setStrumSpread}
+            onStrumDirectionChange={setStrumDirection}
+            sequencerEnabled={sequencerEnabled}
+            onOpenSequencer={() => setShowSequencer(true)}
           />
         )}
       </main>

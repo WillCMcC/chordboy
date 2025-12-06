@@ -617,10 +617,12 @@
     box-shadow: 0 0 6px var(--accent-glow);
   }
 
-  /* Tab Content */
+  /* Tab Content - fixed height to prevent jumping between tabs */
   .mobile-tab-content {
     padding: var(--space-3);
-    min-height: 48px;
+    height: 56px;
+    display: flex;
+    align-items: center;
   }
 
   /* Transport Tab Content */
@@ -629,6 +631,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
+    width: 100%;
   }
 
   .mobile-bpm {
@@ -784,6 +787,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
+    width: 100%;
   }
 
   .mobile-feel-group {
@@ -888,6 +892,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    width: 100%;
   }
 
   .mobile-sync-toggle {

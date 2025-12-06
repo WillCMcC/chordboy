@@ -27,7 +27,10 @@ export default defineConfig({
         name: "ChordBoy",
         short_name: "ChordBoy",
         description: "MIDI Chord Controller for Jazz Performance",
-        theme_color: "#ffffff",
+        theme_color: "#0a0a0f",
+        background_color: "#0a0a0f",
+        display: "standalone",
+        orientation: "portrait",
         icons: [
           {
             src: "icon.svg",
