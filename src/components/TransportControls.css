@@ -29,6 +29,12 @@
   gap: var(--space-1);
 }
 
+/* Desktop: fixed height for vertical alignment */
+.transport-desktop .transport-section {
+  height: 44px;
+  justify-content: center;
+}
+
 .transport-label {
   font-size: 0.65rem;
   font-weight: 600;
@@ -42,8 +48,9 @@
 
 .transport-divider {
   width: 1px;
-  height: 32px;
+  height: 44px;
   background: var(--border-color);
+  align-self: center;
 }
 
 /* Humanize Dial */
@@ -123,7 +130,10 @@
   font-size: 0.65rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s var(--ease-out-expo), border-color 0.2s var(--ease-out-expo), color 0.2s var(--ease-out-expo);
+  transition:
+    background 0.2s var(--ease-out-expo),
+    border-color 0.2s var(--ease-out-expo),
+    color 0.2s var(--ease-out-expo);
   letter-spacing: 0.04em;
   text-align: center;
 }
@@ -441,15 +451,24 @@
 }
 
 @keyframes pulse-sync {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
-/* Synced BPM input */
+/* Synced BPM display */
 .bpm-input.synced {
-  background: var(--secondary-bg);
-  border-color: rgba(139, 92, 246, 0.4);
-  color: var(--text-secondary);
+  width: 44px;
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   cursor: default;
 }
 
@@ -512,18 +531,26 @@
 /* Grid icon using background */
 .seq-icon {
   background:
-    linear-gradient(var(--text-secondary), var(--text-secondary)) 0 0 / 5px 5px no-repeat,
-    linear-gradient(var(--text-secondary), var(--text-secondary)) 9px 0 / 5px 5px no-repeat,
-    linear-gradient(var(--text-secondary), var(--text-secondary)) 0 9px / 5px 5px no-repeat,
-    linear-gradient(var(--text-secondary), var(--text-secondary)) 9px 9px / 5px 5px no-repeat;
+    linear-gradient(var(--text-secondary), var(--text-secondary)) 0 0 / 5px 5px
+      no-repeat,
+    linear-gradient(var(--text-secondary), var(--text-secondary)) 9px 0 / 5px
+      5px no-repeat,
+    linear-gradient(var(--text-secondary), var(--text-secondary)) 0 9px / 5px
+      5px no-repeat,
+    linear-gradient(var(--text-secondary), var(--text-secondary)) 9px 9px / 5px
+      5px no-repeat;
 }
 
 .seq-btn:hover .seq-icon {
   background:
-    linear-gradient(var(--text-primary), var(--text-primary)) 0 0 / 5px 5px no-repeat,
-    linear-gradient(var(--text-primary), var(--text-primary)) 9px 0 / 5px 5px no-repeat,
-    linear-gradient(var(--text-primary), var(--text-primary)) 0 9px / 5px 5px no-repeat,
-    linear-gradient(var(--text-primary), var(--text-primary)) 9px 9px / 5px 5px no-repeat;
+    linear-gradient(var(--text-primary), var(--text-primary)) 0 0 / 5px 5px
+      no-repeat,
+    linear-gradient(var(--text-primary), var(--text-primary)) 9px 0 / 5px 5px
+      no-repeat,
+    linear-gradient(var(--text-primary), var(--text-primary)) 0 9px / 5px 5px
+      no-repeat,
+    linear-gradient(var(--text-primary), var(--text-primary)) 9px 9px / 5px 5px
+      no-repeat;
 }
 
 .seq-btn.active .seq-icon {
