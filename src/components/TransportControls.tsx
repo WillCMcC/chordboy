@@ -429,12 +429,22 @@ export function TransportControls({
             <div className="mobile-transport-content">
               {/* BPM */}
               <div className="mobile-bpm">
-                <button className="mobile-adj-btn" onClick={() => adjustBpm(-1)} disabled={syncEnabled}>-</button>
+                {!syncEnabled && (
+                  <button className="mobile-adj-btn" onClick={() => adjustBpm(-1)}>-</button>
+                )}
                 <div className="mobile-bpm-display">
-                  <span className="mobile-bpm-value">{bpm}</span>
-                  <span className="mobile-bpm-label">BPM</span>
+                  {syncEnabled ? (
+                    <span className="mobile-bpm-value synced">EXT</span>
+                  ) : (
+                    <>
+                      <span className="mobile-bpm-value">{bpm}</span>
+                      <span className="mobile-bpm-label">BPM</span>
+                    </>
+                  )}
                 </div>
-                <button className="mobile-adj-btn" onClick={() => adjustBpm(1)} disabled={syncEnabled}>+</button>
+                {!syncEnabled && (
+                  <button className="mobile-adj-btn" onClick={() => adjustBpm(1)}>+</button>
+                )}
               </div>
 
               {/* Beat Grid */}
