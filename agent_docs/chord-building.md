@@ -18,15 +18,16 @@ Final MIDI note array
 
 ## Key Files
 
-- `src/lib/parseKeys.js` - Extracts root and modifiers from pressed keys
-- `src/lib/chordBuilder.js` - Builds chord structure from root + modifiers
-- `src/lib/chordTheory.js` - INTERVALS constant, note-to-MIDI conversion
-- `src/lib/chordNamer.js` - Generates display names (e.g., "Cmaj7#11")
-- `src/lib/voicingTransforms.js` - Drop and spread voicing helpers
+- `src/lib/parseKeys.ts` - Extracts root and modifiers from pressed keys
+- `src/lib/chordBuilder.ts` - Builds chord structure from root + modifiers
+- `src/lib/chordTheory.ts` - INTERVALS constant, note-to-MIDI conversion
+- `src/lib/chordNamer.ts` - Generates display names (e.g., "Cmaj7#11")
+- `src/lib/voicingTransforms.ts` - Drop and spread voicing helpers
+- `src/types/index.ts` - Type definitions for `Chord`, `VoicedChord`, `Interval`, etc.
 
 ## Chord Building Logic
 
-See `buildChord()` in `src/lib/chordBuilder.js:15`:
+See `buildChord()` in `src/lib/chordBuilder.ts`:
 
 1. Start with root (UNISON interval)
 2. Add triad based on quality modifier:
@@ -43,7 +44,7 @@ See `buildChord()` in `src/lib/chordBuilder.js:15`:
 
 ## Voicing Transforms
 
-**Progressive Drop** (`applyProgressiveDrop` in voicingTransforms.js):
+**Progressive Drop** (`applyProgressiveDrop` in voicingTransforms.ts):
 - Drops highest notes down an octave
 - dropCount=1: drop highest note
 - dropCount=2: drop two highest notes
@@ -52,22 +53,22 @@ See `buildChord()` in `src/lib/chordBuilder.js:15`:
 - Spreads notes across octaves
 - spreadAmount 0-3
 
-**Inversion** (`invertChord` in chordBuilder.js:142):
+**Inversion** (`invertChord` in chordBuilder.ts):
 - Moves lowest notes up an octave
 - inversionIndex=1: first inversion, etc.
 
 ## Voice Leading Solver
 
-`src/lib/chordSolver.js` - `solveChordVoicings(presets, options)`:
+`src/lib/chordSolver.ts` - `solveChordVoicings(presets, options)`:
 
 Optimizes voicings across a chord progression to minimize voice movement. Used by "Solve" button in PresetsPanel.
 
 ## Intervals Reference
 
-From `src/lib/chordTheory.js`:
+From `src/lib/chordTheory.ts`:
 
-```javascript
-INTERVALS = {
+```typescript
+const INTERVALS = {
   UNISON: 0,
   MINOR_SECOND: 1,
   MAJOR_SECOND: 2,
@@ -81,5 +82,5 @@ INTERVALS = {
   MINOR_SEVENTH: 10,
   MAJOR_SEVENTH: 11,
   // ... extensions at octave+
-}
+} as const;
 ```

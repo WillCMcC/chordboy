@@ -1,6 +1,6 @@
 # Keyboard Mapping
 
-Source: `src/lib/keyboardMappings.js`
+Source: `src/lib/keyboardMappings.ts`
 
 ## Left Hand - Root Notes (Chromatic)
 
@@ -63,14 +63,14 @@ Presets store: keys, octave, inversion, drop, spread.
 
 ## Helper Functions
 
-```javascript
-// src/lib/keyboardMappings.js
-getRootNote(pressedKeys)      // Returns root note name or null
-getModifiers(pressedKeys)     // Returns array of modifier names
-isSpecialKeyPressed(keys, fn) // Check if special function active
+```typescript
+// src/lib/keyboardMappings.ts
+getRootNote(pressedKeys: Set<string>): NoteName | null
+getModifiers(pressedKeys: Set<string>): ModifierType[]
+isSpecialKeyPressed(keys: Set<string>, fn: SpecialFunction): boolean
 ```
 
-```javascript
-// src/lib/parseKeys.js
-parseKeys(pressedKeys) // Returns { root, modifiers } from key set
+```typescript
+// src/lib/parseKeys.ts
+parseKeys(pressedKeys: Set<string>): ParsedKeys  // Returns { root, modifiers }
 ```

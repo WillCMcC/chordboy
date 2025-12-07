@@ -11,26 +11,26 @@ Do not use `npm run test` (watch mode).
 
 ## Test Files
 
-Located alongside source files with `.test.js` suffix:
+Located alongside source files with `.test.ts` suffix:
 
 ```
 src/lib/
-  chordTheory.test.js
-  chordBuilder.test.js
-  chordNamer.test.js
-  voicingTransforms.test.js
-  keyboardMappings.test.js
-  parseKeys.test.js
-  pianoLayout.test.js
-  sequencerLogic.test.js
-  tutorialLogic.test.js
+  chordTheory.test.ts
+  chordBuilder.test.ts
+  chordNamer.test.ts
+  voicingTransforms.test.ts
+  keyboardMappings.test.ts
+  parseKeys.test.ts
+  pianoLayout.test.ts
+  sequencerLogic.test.ts
+  tutorialLogic.test.ts
 ```
 
 ## Test Patterns
 
 Using Vitest. Common patterns in this codebase:
 
-```javascript
+```typescript
 import { describe, it, expect } from "vitest";
 
 describe("functionName", () => {
@@ -53,6 +53,8 @@ describe("functionName", () => {
 - Voicing transforms (voicingTransforms)
 - Keyboard mappings (keyboardMappings)
 - Key parsing (parseKeys)
+- Sequencer step logic (sequencerLogic)
+- Tutorial conditions (tutorialLogic)
 
 **Not tested (UI/integration):**
 - React hooks
@@ -61,10 +63,10 @@ describe("functionName", () => {
 
 ## Adding Tests
 
-For pure functions in `src/lib/`, add corresponding `.test.js` file:
+For pure functions in `src/lib/`, add corresponding `.test.ts` file:
 
-```javascript
-// src/lib/newFeature.test.js
+```typescript
+// src/lib/newFeature.test.ts
 import { describe, it, expect } from "vitest";
 import { newFunction } from "./newFeature";
 

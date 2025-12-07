@@ -2,15 +2,16 @@
 
 ## Files
 
-- `src/hooks/useMIDI.jsx` - Main MIDI hook and provider
-- `src/lib/midi.js` - Low-level Web MIDI API functions
-- `src/lib/bleMidi.js` - Bluetooth LE MIDI support
+- `src/hooks/useMIDI.tsx` - Main MIDI hook and provider
+- `src/lib/midi.ts` - Low-level Web MIDI API functions
+- `src/lib/bleMidi.ts` - Bluetooth LE MIDI support
+- `src/workers/clockWorker.ts` - Web Worker for precise MIDI clock
 
 ## MIDIProvider
 
-Wraps the app in `main.jsx`. Provides context for all MIDI operations.
+Wraps the app in `main.tsx`. Provides context for all MIDI operations.
 
-```javascript
+```typescript
 // Available from useMIDI() hook:
 {
   // Connection
@@ -34,9 +35,9 @@ Wraps the app in `main.jsx`. Provides context for all MIDI operations.
 
 ## Smart Chord Diffing
 
-`playChord()` in useMIDI.jsx:436 only sends note-on/off for changed notes:
+`playChord()` in useMIDI.tsx only sends note-on/off for changed notes:
 
-```javascript
+```typescript
 const notesToStop = currentNotes.filter(n => !newNotesSet.has(n));
 const notesToStart = notes.filter(n => !currentNotesSet.has(n));
 ```
@@ -45,15 +46,23 @@ const notesToStart = notes.filter(n => !currentNotesSet.has(n));
 
 ## Humanization
 
-`src/lib/humanize.js` - Staggers note timing for natural feel:
+`src/lib/humanize.ts` - Staggers note timing for natural feel:
 - `getHumanizeOffsets(noteCount, amount)` returns timing offsets
 - Applied when `humanize > 0` and multiple notes
 
 ## Strum Mode
 
-`src/lib/strum.js` - Arpeggiates notes by pitch:
+`src/lib/strum.ts` - Arpeggiates notes by pitch:
 - Directions: `STRUM_UP`, `STRUM_DOWN`, `STRUM_ALT`
 - `strumSpread` controls total duration in ms
+
+## Clock Worker
+
+`src/workers/clockWorker.ts` - Web Worker for precise MIDI clock:
+- Runs in background thread (avoids browser throttling when tab inactive)
+- Receives messages: `start`, `stop`, `setBpm`
+- Sends `pulse` messages at 24 PPQN (standard MIDI clock rate)
+- Used by `useTransport` hook for sequencer timing
 
 ## MIDI Clock Sync
 

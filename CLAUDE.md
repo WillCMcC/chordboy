@@ -14,9 +14,11 @@ npm run test:run # Run tests once
 
 ```
 src/
+  types/       # Centralized TypeScript type definitions
   hooks/       # React hooks (useKeyboard, useChordEngine, useMIDI, usePresets, useTransport)
   lib/         # Pure functions (chord building, MIDI, keyboard mappings, voice leading)
   components/  # UI components
+  workers/     # Web Workers (MIDI clock)
 ```
 
 ## Data Flow
@@ -38,10 +40,11 @@ The `appEvents` event bus decouples chord state from MIDI playback. `useChordEng
 
 ## Architecture Notes
 
-- React 19 + Vite 7, no external state management
+- React 19 + Vite 7 + TypeScript (strict mode)
 - Web MIDI API (Chrome/Edge/Opera) + BLE MIDI support
-- Event-driven: hooks communicate via `appEvents` pub/sub, not prop drilling
+- Event-driven: hooks communicate via typed `appEvents` pub/sub, not prop drilling
 - Smart chord diffing: only triggers MIDI note-on/off for changed notes
+- Web Worker for precise MIDI clock (avoids background tab throttling)
 
 ## Detailed Documentation
 
