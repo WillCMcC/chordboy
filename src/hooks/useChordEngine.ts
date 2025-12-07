@@ -15,11 +15,12 @@ import { useState, useEffect, useMemo, useCallback, useRef, Dispatch, SetStateAc
 import { parseKeys } from "../lib/parseKeys";
 import { buildChord, invertChord } from "../lib/chordBuilder";
 import { getChordName } from "../lib/chordNamer";
-import { applyProgressiveDrop, applySpread } from "../lib/voicingTransforms";
+import { applySpread, applyVoicingStyle } from "../lib/voicingTransforms";
 import { usePresets } from "./usePresets";
 import { useVoicingKeyboard } from "./useVoicingKeyboard";
 import { appEvents } from "../lib/eventBus";
-import type { Chord, MIDINote, Octave, Preset, ParsedKeys } from "../types";
+import type { Chord, MIDINote, Octave, Preset, ParsedKeys, VoicingStyle } from "../types";
+import { VOICING_STYLES } from "../types";
 
 /** Options for useChordEngine */
 export interface UseChordEngineOptions {
@@ -35,10 +36,12 @@ export interface VoicedChord extends Chord {
   name: string;
   /** Current inversion index */
   inversion: number;
-  /** Number of dropped notes */
+  /** Number of dropped notes (legacy) */
   droppedNotes: number;
   /** Spread amount applied */
   spreadAmount: number;
+  /** Jazz voicing style */
+  voicingStyle: VoicingStyle;
 }
 
 /** Return type for useChordEngine */
@@ -50,6 +53,7 @@ export interface UseChordEngineReturn {
   octave: Octave;
   droppedNotes: number;
   spreadAmount: number;
+  voicingStyle: VoicingStyle;
 
   // Preset state
   savedPresets: Map<string, Preset>;
@@ -75,9 +79,11 @@ export interface UseChordEngineReturn {
   setInversionIndex: Dispatch<SetStateAction<number>>;
   setDroppedNotes: Dispatch<SetStateAction<number>>;
   setSpreadAmount: Dispatch<SetStateAction<number>>;
+  setVoicingStyle: Dispatch<SetStateAction<VoicingStyle>>;
   cycleInversion: () => void;
   cycleDrop: () => void;
   cycleSpread: () => void;
+  cycleVoicingStyle: () => void;
 }
 
 /**
@@ -106,11 +112,14 @@ export function useChordEngine(
   /** Current octave (0-7) */
   const [octave, setOctave] = useState<Octave>(4);
 
-  /** Number of dropped notes */
+  /** Number of dropped notes (legacy) */
   const [droppedNotes, setDroppedNotes] = useState<number>(0);
 
   /** Spread amount (0-3) */
   const [spreadAmount, setSpreadAmount] = useState<number>(0);
+
+  /** Jazz voicing style */
+  const [voicingStyle, setVoicingStyle] = useState<VoicingStyle>("close");
 
   // Use the extracted presets hook
   const {
@@ -120,6 +129,7 @@ export function useChordEngine(
     recalledInversion,
     recalledDrop,
     recalledSpread,
+    recalledVoicingStyle,
     activePresetSlot,
     savePreset,
     recallPreset,
@@ -134,6 +144,7 @@ export function useChordEngine(
     setRecalledInversion,
     setRecalledDrop,
     setRecalledSpread,
+    setRecalledVoicingStyle,
     setActivePresetSlot,
   } = usePresets({ defaultOctave: octave });
 
@@ -160,6 +171,8 @@ export function useChordEngine(
   /**
    * Apply voicing transforms to the base chord.
    * Uses recalled values when a preset is active, otherwise uses global values.
+   *
+   * Transform order: voicingStyle -> spread -> inversion
    */
   const currentChord = useMemo((): VoicedChord | null => {
     if (!baseChord) return null;
@@ -168,15 +181,12 @@ export function useChordEngine(
     const activeInversion = recalledInversion !== null ? recalledInversion : inversionIndex;
     const activeDrop = recalledDrop !== null ? recalledDrop : droppedNotes;
     const activeSpread = recalledSpread !== null ? recalledSpread : spreadAmount;
+    const activeVoicingStyle = recalledVoicingStyle !== null ? recalledVoicingStyle : voicingStyle;
 
-    let notes = [...baseChord.notes];
+    // Apply voicing style first (this is the main jazz voicing transform)
+    let notes = applyVoicingStyle(baseChord, activeVoicingStyle);
 
-    // Apply progressive note dropping
-    if (activeDrop > 0) {
-      notes = applyProgressiveDrop(notes, activeDrop);
-    }
-
-    // Apply spread
+    // Apply spread (can be used on top of any voicing style)
     if (activeSpread > 0) {
       notes = applySpread(notes, activeSpread);
     }
@@ -193,8 +203,9 @@ export function useChordEngine(
       inversion: activeInversion,
       droppedNotes: activeDrop,
       spreadAmount: activeSpread,
+      voicingStyle: activeVoicingStyle,
     };
-  }, [baseChord, inversionIndex, droppedNotes, spreadAmount, recalledInversion, recalledDrop, recalledSpread]);
+  }, [baseChord, inversionIndex, droppedNotes, spreadAmount, voicingStyle, recalledInversion, recalledDrop, recalledSpread, recalledVoicingStyle]);
 
   // Track previous chord to detect changes and emit events
   const prevChordRef = useRef<VoicedChord | null>(null);
@@ -243,17 +254,21 @@ export function useChordEngine(
     inversionIndex,
     droppedNotes,
     spreadAmount,
+    voicingStyle,
     recalledInversion,
     recalledDrop,
     recalledSpread,
+    recalledVoicingStyle,
     setInversionIndex,
     setDroppedNotes,
     setSpreadAmount,
+    setVoicingStyle,
     setOctave,
     setRecalledOctave,
     setRecalledInversion,
     setRecalledDrop,
     setRecalledSpread,
+    setRecalledVoicingStyle,
     savePreset,
     recallPreset,
     stopRecalling,
@@ -291,6 +306,7 @@ export function useChordEngine(
     setInversionIndex(0);
     setDroppedNotes(0);
     setSpreadAmount(0);
+    setVoicingStyle("close");
   }, []);
 
   /**
@@ -409,6 +425,26 @@ export function useChordEngine(
   }, [activePresetSlot, savedPresets, spreadAmount, updateActivePresetVoicing, setRecalledSpread]);
 
   /**
+   * Cycle to the next voicing style. Updates recalled value if preset active, else global.
+   */
+  const cycleVoicingStyle = useCallback((): void => {
+    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+      setRecalledVoicingStyle((prev) => {
+        const current = prev !== null ? prev : voicingStyle;
+        const currentIndex = VOICING_STYLES.indexOf(current);
+        const newStyle = VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
+        updateActivePresetVoicing({ voicingStyle: newStyle });
+        return newStyle;
+      });
+    } else {
+      setVoicingStyle((prev) => {
+        const currentIndex = VOICING_STYLES.indexOf(prev);
+        return VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
+      });
+    }
+  }, [activePresetSlot, savedPresets, voicingStyle, updateActivePresetVoicing, setRecalledVoicingStyle]);
+
+  /**
    * Change octave by a given direction. Updates preset if one is active.
    */
   const changeOctave = useCallback(
@@ -466,6 +502,7 @@ export function useChordEngine(
           inversionIndex,
           droppedNotes,
           spreadAmount,
+          voicingStyle,
         });
       }
       return false;
@@ -477,6 +514,7 @@ export function useChordEngine(
       inversionIndex,
       droppedNotes,
       spreadAmount,
+      voicingStyle,
       savePreset,
     ]
   );
@@ -536,16 +574,15 @@ export function useChordEngine(
 
       if (!chord) return null;
 
-      let notes = [...chord.notes];
+      // Apply voicing style first
+      let notes = applyVoicingStyle(chord, preset.voicingStyle ?? "close");
 
-      if (preset.droppedNotes && preset.droppedNotes > 0) {
-        notes = applyProgressiveDrop(notes, preset.droppedNotes);
-      }
-
+      // Apply spread
       if (preset.spreadAmount && preset.spreadAmount > 0) {
         notes = applySpread(notes, preset.spreadAmount);
       }
 
+      // Apply inversion last
       notes = invertChord(notes, preset.inversionIndex ?? 0);
 
       return notes;
@@ -558,6 +595,7 @@ export function useChordEngine(
   const effectiveInversionIndex = recalledInversion !== null ? recalledInversion : inversionIndex;
   const effectiveDroppedNotes = recalledDrop !== null ? recalledDrop : droppedNotes;
   const effectiveSpreadAmount = recalledSpread !== null ? recalledSpread : spreadAmount;
+  const effectiveVoicingStyle = recalledVoicingStyle !== null ? recalledVoicingStyle : voicingStyle;
 
   return {
     // Chord state
@@ -567,6 +605,7 @@ export function useChordEngine(
     octave: effectiveOctave,
     droppedNotes: effectiveDroppedNotes,
     spreadAmount: effectiveSpreadAmount,
+    voicingStyle: effectiveVoicingStyle,
 
     // Preset state
     savedPresets,
@@ -592,8 +631,10 @@ export function useChordEngine(
     setInversionIndex,
     setDroppedNotes,
     setSpreadAmount,
+    setVoicingStyle,
     cycleInversion,
     cycleDrop,
     cycleSpread,
+    cycleVoicingStyle,
   };
 }

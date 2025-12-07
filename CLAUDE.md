@@ -35,7 +35,7 @@ The `appEvents` event bus decouples chord state from MIDI playback. `useChordEng
 
 - **Left hand keys** (QWER/ASDF/ZXCV): Select root note chromatically (C through B)
 - **Right hand keys**: Add modifiers (J=major, U=minor, K=dom7, I=maj7, L=9th, etc.)
-- **Voicing controls**: Shift=inversion, CapsLock=drop, arrows=octave/spread
+- **Voicing controls**: L-Shift=inversion, R-Shift=voicing style, arrows=octave/spread
 - **Presets**: 0-9 keys save/recall chords, persisted to IndexedDB
 
 ## Architecture Notes

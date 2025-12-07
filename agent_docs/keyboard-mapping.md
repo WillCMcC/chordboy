@@ -47,11 +47,23 @@ Organized by finger position:
 
 | Key | Function |
 |-----|----------|
-| Shift | Cycle inversion |
-| CapsLock | Cycle drop voicing |
+| Left Shift | Cycle inversion |
+| Right Shift | Cycle voicing style (Close → Drop 2 → Drop 3 → Rootless A → Rootless B → Shell → Quartal) |
 | Arrow Left/Right | Octave down/up |
 | Arrow Up/Down | Spread amount |
 | Space | Save to next available preset slot |
+
+## Jazz Voicing Styles
+
+| Style | Description |
+|-------|-------------|
+| Close | Standard close position voicing |
+| Drop 2 | 2nd note from top dropped an octave (Barry Harris style) |
+| Drop 3 | 3rd note from top dropped an octave |
+| Rootless A | Bill Evans Type A: 3-5-7-9 (3rd on bottom, root omitted) |
+| Rootless B | Bill Evans Type B: 7-9-3-5 (7th on bottom, root omitted) |
+| Shell | Bud Powell style: root + 3rd + 7th only |
+| Quartal | McCoy Tyner style: stacked 4ths ("So What" voicing for minor chords) |
 
 ## Preset Controls
 
@@ -59,7 +71,7 @@ Organized by finger position:
 |-----|----------|
 | 0-9 | Save current chord (if playing) or recall preset |
 
-Presets store: keys, octave, inversion, drop, spread.
+Presets store: keys, octave, inversion, spread, voicingStyle.
 
 ## Helper Functions
 

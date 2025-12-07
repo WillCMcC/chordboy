@@ -128,6 +128,7 @@ function App() {
     inversionIndex,
     octave,
     spreadAmount,
+    voicingStyle,
     savedPresets,
     clearPreset,
     cycleInversion,
@@ -312,6 +313,7 @@ function App() {
           octave={octave}
           inversionIndex={inversionIndex}
           spreadAmount={spreadAmount}
+          voicingStyle={voicingStyle}
           showHints={!isMobile}
         />
 

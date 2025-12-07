@@ -8,7 +8,8 @@
 
 import { useEffect, useRef, useCallback, Dispatch, SetStateAction } from "react";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
-import type { Chord, Preset, MIDINote, Octave } from "../types";
+import type { Chord, Preset, MIDINote, Octave, VoicingStyle } from "../types";
+import { VOICING_STYLES } from "../types";
 
 /** Preset data for saving */
 export interface PresetData {
@@ -17,6 +18,7 @@ export interface PresetData {
   inversionIndex?: number;
   droppedNotes?: number;
   spreadAmount?: number;
+  voicingStyle?: VoicingStyle;
 }
 
 /** Voicing updates that can be applied to a preset */
@@ -25,6 +27,7 @@ export interface VoicingUpdates {
   inversionIndex?: number;
   droppedNotes?: number;
   spreadAmount?: number;
+  voicingStyle?: VoicingStyle;
 }
 
 /** Options for useVoicingKeyboard */
@@ -43,22 +46,28 @@ export interface UseVoicingKeyboardOptions {
   octave: Octave;
   /** Current inversion */
   inversionIndex: number;
-  /** Current drop amount */
+  /** Current drop amount (legacy) */
   droppedNotes: number;
   /** Current spread amount */
   spreadAmount: number;
+  /** Current voicing style */
+  voicingStyle: VoicingStyle;
   /** Inversion from recalled preset */
   recalledInversion: number | null;
   /** Drop from recalled preset */
   recalledDrop: number | null;
   /** Spread from recalled preset */
   recalledSpread: number | null;
+  /** Voicing style from recalled preset */
+  recalledVoicingStyle: VoicingStyle | null;
   /** Setter for inversion */
   setInversionIndex: Dispatch<SetStateAction<number>>;
-  /** Setter for dropped notes */
+  /** Setter for dropped notes (legacy) */
   setDroppedNotes: Dispatch<SetStateAction<number>>;
   /** Setter for spread */
   setSpreadAmount: Dispatch<SetStateAction<number>>;
+  /** Setter for voicing style */
+  setVoicingStyle: Dispatch<SetStateAction<VoicingStyle>>;
   /** Setter for octave */
   setOctave: Dispatch<SetStateAction<Octave>>;
   /** Setter for recalled octave */
@@ -69,6 +78,8 @@ export interface UseVoicingKeyboardOptions {
   setRecalledDrop: Dispatch<SetStateAction<number | null>>;
   /** Setter for recalled spread */
   setRecalledSpread: Dispatch<SetStateAction<number | null>>;
+  /** Setter for recalled voicing style */
+  setRecalledVoicingStyle: Dispatch<SetStateAction<VoicingStyle | null>>;
   /** Function to save a preset */
   savePreset: (slotNumber: string, presetData: PresetData) => boolean;
   /** Function to recall a preset */
@@ -117,17 +128,21 @@ export function useVoicingKeyboard({
   inversionIndex,
   droppedNotes,
   spreadAmount,
+  voicingStyle,
   recalledInversion: _recalledInversion,
   recalledDrop: _recalledDrop,
   recalledSpread: _recalledSpread,
+  recalledVoicingStyle: _recalledVoicingStyle,
   setInversionIndex,
   setDroppedNotes,
   setSpreadAmount,
+  setVoicingStyle,
   setOctave,
   setRecalledOctave,
   setRecalledInversion,
   setRecalledDrop,
   setRecalledSpread,
+  setRecalledVoicingStyle,
   savePreset,
   recallPreset,
   stopRecalling,
@@ -159,6 +174,7 @@ export function useVoicingKeyboard({
           inversionIndex,
           droppedNotes,
           spreadAmount,
+          voicingStyle,
         });
       }
       // Recall if not holding keys and preset exists
@@ -176,6 +192,7 @@ export function useVoicingKeyboard({
       inversionIndex,
       droppedNotes,
       spreadAmount,
+      voicingStyle,
       savePreset,
       recallPreset,
     ]
@@ -220,39 +237,40 @@ export function useVoicingKeyboard({
   );
 
   /**
-   * Handle caps lock key for cycling dropped notes.
+   * Handle right shift key for cycling jazz voicing styles.
+   * Left shift (location=1) cycles inversions, right shift (location=2) cycles voicing styles.
    * Updates recalled value if preset active, else global.
    */
-  const handleCapsLock = useCallback(
+  const handleRightShift = useCallback(
     (event: KeyboardEvent): boolean => {
-      if (event.key !== "CapsLock") return false;
+      // Right shift has location === 2
+      if (event.key !== "Shift" || event.location !== 2) return false;
 
       event.preventDefault();
 
-      if (currentChord?.notes) {
-        const maxDrops = currentChord.notes.length - 1;
-
-        if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-          setRecalledDrop((prev) => {
-            const current = prev !== null ? prev : droppedNotes;
-            const newDropped = (current + 1) % (maxDrops + 1);
-            updatePresetVoicing(activePresetSlot, { droppedNotes: newDropped });
-            return newDropped;
-          });
-        } else {
-          setDroppedNotes((prev) => (prev + 1) % (maxDrops + 1));
-        }
+      if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
+        setRecalledVoicingStyle((prev) => {
+          const current = prev !== null ? prev : voicingStyle;
+          const currentIndex = VOICING_STYLES.indexOf(current);
+          const newStyle = VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
+          updatePresetVoicing(activePresetSlot, { voicingStyle: newStyle });
+          return newStyle;
+        });
+      } else {
+        setVoicingStyle((prev) => {
+          const currentIndex = VOICING_STYLES.indexOf(prev);
+          return VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
+        });
       }
 
       return true;
     },
     [
-      currentChord,
       activePresetSlot,
       savedPresets,
-      droppedNotes,
-      setDroppedNotes,
-      setRecalledDrop,
+      voicingStyle,
+      setVoicingStyle,
+      setRecalledVoicingStyle,
       updatePresetVoicing,
     ]
   );
@@ -282,6 +300,7 @@ export function useVoicingKeyboard({
           inversionIndex,
           droppedNotes,
           spreadAmount,
+          voicingStyle,
         });
       }
       // Generate random chord if no chord selected
@@ -293,6 +312,7 @@ export function useVoicingKeyboard({
           inversionIndex: 0,
           droppedNotes: 0,
           spreadAmount: 0,
+          voicingStyle: "close",
         });
       }
 
@@ -306,6 +326,7 @@ export function useVoicingKeyboard({
       inversionIndex,
       droppedNotes,
       spreadAmount,
+      voicingStyle,
       findNextAvailableSlot,
       savePreset,
     ]
@@ -434,7 +455,7 @@ export function useVoicingKeyboard({
       // Try each handler in order
       if (handleNumberKey(event)) return;
       if (handleShiftKey(event)) return;
-      if (handleCapsLock(event)) return;
+      if (handleRightShift(event)) return;
       if (handleSpaceKey(event)) return;
       if (handleArrowUp(event)) return;
       if (handleArrowDown(event)) return;
@@ -466,7 +487,7 @@ export function useVoicingKeyboard({
   }, [
     handleNumberKey,
     handleShiftKey,
-    handleCapsLock,
+    handleRightShift,
     handleSpaceKey,
     handleArrowUp,
     handleArrowDown,

@@ -114,15 +114,62 @@ export interface ParsedKeys {
 // Voicing Types
 // ============================================================================
 
-/** Drop voicing types */
+/** Drop voicing types (legacy, kept for backwards compatibility) */
 export type DropType = "none" | "drop2" | "drop3" | "drop24";
+
+/**
+ * Jazz voicing styles - determines how chord tones are arranged
+ *
+ * close     - Standard close position (all notes within one octave)
+ * rootless-a - Bill Evans Type A: 3-5-7-9 (3rd on bottom)
+ * rootless-b - Bill Evans Type B: 7-9-3-5 (7th on bottom)
+ * shell     - Bud Powell shell: root + 3rd + 7th only
+ * quartal   - McCoy Tyner style: stacked 4ths (So What chord for m7)
+ * drop2     - True drop 2: 2nd note from top dropped an octave
+ * drop3     - True drop 3: 3rd note from top dropped an octave
+ * drop24    - Drop 2 and 4: both dropped an octave
+ */
+export type VoicingStyle =
+  | "close"
+  | "rootless-a"
+  | "rootless-b"
+  | "shell"
+  | "quartal"
+  | "drop2"
+  | "drop3"
+  | "drop24";
+
+/** Array of voicing styles for cycling */
+export const VOICING_STYLES: VoicingStyle[] = [
+  "close",
+  "drop2",
+  "drop3",
+  "rootless-a",
+  "rootless-b",
+  "shell",
+  "quartal",
+];
+
+/** Human-readable labels for voicing styles */
+export const VOICING_STYLE_LABELS: Record<VoicingStyle, string> = {
+  "close": "Close",
+  "rootless-a": "Rootless A",
+  "rootless-b": "Rootless B",
+  "shell": "Shell",
+  "quartal": "Quartal",
+  "drop2": "Drop 2",
+  "drop3": "Drop 3",
+  "drop24": "Drop 2+4",
+};
 
 /** Voicing state for a chord */
 export interface VoicingState {
   /** Current inversion (0 = root position) */
   inversion: number;
-  /** Drop voicing type */
+  /** Drop voicing type (legacy) */
   drop: DropType;
+  /** Jazz voicing style */
+  voicingStyle: VoicingStyle;
   /** Spread amount (0-3 octaves) */
   spread: number;
   /** Octave shift from base */
@@ -135,8 +182,10 @@ export interface VoicingSettings {
   inversionIndex: number;
   /** Spread amount */
   spreadAmount: number;
-  /** Number of dropped notes */
+  /** Number of dropped notes (legacy) */
   droppedNotes: number;
+  /** Jazz voicing style */
+  voicingStyle: VoicingStyle;
   /** Target octave */
   octave: Octave;
 }
@@ -155,8 +204,10 @@ export interface Preset {
   inversionIndex?: number;
   /** Spread amount */
   spreadAmount?: number;
-  /** Number of dropped notes */
+  /** Number of dropped notes (legacy, kept for backwards compat) */
   droppedNotes?: number;
+  /** Jazz voicing style */
+  voicingStyle?: VoicingStyle;
 }
 
 /** Serialized preset for storage (keys as array) */
@@ -166,6 +217,7 @@ export interface SerializedPreset {
   inversionIndex?: number;
   spreadAmount?: number;
   droppedNotes?: number;
+  voicingStyle?: VoicingStyle;
 }
 
 // ============================================================================

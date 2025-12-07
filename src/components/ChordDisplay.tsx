@@ -7,7 +7,8 @@
  */
 
 import type { CSSProperties } from "react";
-import type { MIDINote } from "../types";
+import type { MIDINote, VoicingStyle } from "../types";
+import { VOICING_STYLE_LABELS } from "../types";
 import { buildNorthernLightsGradient } from "../lib/noteColors";
 import "./ChordDisplay.css";
 
@@ -31,6 +32,8 @@ interface ChordDisplayProps {
   inversionIndex: number;
   /** Current spread amount */
   spreadAmount: number;
+  /** Current voicing style */
+  voicingStyle: VoicingStyle;
   /** Whether to show keyboard hints */
   showHints?: boolean;
 }
@@ -49,6 +52,7 @@ export function ChordDisplay({
   octave,
   inversionIndex,
   spreadAmount,
+  voicingStyle,
   showHints = true,
 }: ChordDisplayProps) {
   const hasChord = !!displayChord;
@@ -87,7 +91,9 @@ export function ChordDisplay({
             {octave}
           </p>
           <p>
-            <strong>Inversion:</strong> {inversionIndex}{" "}
+            <strong>Voicing:</strong> {VOICING_STYLE_LABELS[voicingStyle]}{" "}
+            <span style={{ opacity: 0.5 }}>|</span>{" "}
+            <strong>Inv:</strong> {inversionIndex}{" "}
             <span style={{ opacity: 0.5 }}>|</span>{" "}
             <strong>Spread:</strong> {spreadAmount}
           </p>
@@ -99,7 +105,10 @@ export function ChordDisplay({
             style={{ opacity: hasChord ? 1 : 0 }}
           >
             <span className="keyboard-hint">
-              <kbd>Shift</kbd> Inversions
+              <kbd>L-Shift</kbd> Inversion
+            </span>
+            <span className="keyboard-hint">
+              <kbd>R-Shift</kbd> Voicing
             </span>
             <span className="keyboard-hint">
               <kbd>↑</kbd>
@@ -110,10 +119,10 @@ export function ChordDisplay({
               <kbd>→</kbd> Octave
             </span>
             <span className="keyboard-hint">
-              <kbd>Space</kbd> Save preset
+              <kbd>Space</kbd> Save
             </span>
             <span className="keyboard-hint">
-              <kbd>1-9</kbd> Recall preset
+              <kbd>1-9</kbd> Presets
             </span>
           </div>
         )}

@@ -17,7 +17,7 @@ import {
 } from "../lib/presetStorage";
 import { solveChordVoicings } from "../lib/chordSolver";
 import { useAsyncStorage } from "./usePersistence";
-import type { Preset, Octave } from "../types";
+import type { Preset, Octave, VoicingStyle } from "../types";
 
 /** Preset data input for saving */
 export interface PresetInput {
@@ -27,10 +27,12 @@ export interface PresetInput {
   octave: Octave;
   /** Which inversion to use */
   inversionIndex?: number;
-  /** How many notes are dropped down an octave */
+  /** How many notes are dropped down an octave (legacy) */
   droppedNotes?: number;
   /** How much spread is applied (0-3) */
   spreadAmount?: number;
+  /** Jazz voicing style */
+  voicingStyle?: VoicingStyle;
 }
 
 /** Options for usePresets */
@@ -45,6 +47,7 @@ export interface PresetVoicingUpdates {
   inversionIndex?: number;
   droppedNotes?: number;
   spreadAmount?: number;
+  voicingStyle?: VoicingStyle;
 }
 
 /** Return type for usePresets */
@@ -56,6 +59,7 @@ export interface UsePresetsReturn {
   recalledInversion: number | null;
   recalledDrop: number | null;
   recalledSpread: number | null;
+  recalledVoicingStyle: VoicingStyle | null;
   activePresetSlot: string | null;
   isLoaded: boolean;
 
@@ -75,6 +79,7 @@ export interface UsePresetsReturn {
   setRecalledInversion: Dispatch<SetStateAction<number | null>>;
   setRecalledDrop: Dispatch<SetStateAction<number | null>>;
   setRecalledSpread: Dispatch<SetStateAction<number | null>>;
+  setRecalledVoicingStyle: Dispatch<SetStateAction<VoicingStyle | null>>;
   setActivePresetSlot: Dispatch<SetStateAction<string | null>>;
 }
 
@@ -127,6 +132,9 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
   /** Spread amount from recalled preset */
   const [recalledSpread, setRecalledSpread] = useState<number | null>(null);
 
+  /** Voicing style from recalled preset */
+  const [recalledVoicingStyle, setRecalledVoicingStyle] = useState<VoicingStyle | null>(null);
+
   /** Currently active preset slot */
   const [activePresetSlot, setActivePresetSlot] = useState<string | null>(null);
 
@@ -150,6 +158,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
         inversionIndex: presetData.inversionIndex || 0,
         droppedNotes: presetData.droppedNotes || 0,
         spreadAmount: presetData.spreadAmount || 0,
+        voicingStyle: presetData.voicingStyle || "close",
       });
       return newPresets;
     });
@@ -176,6 +185,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
       setRecalledInversion(preset.inversionIndex ?? 0);
       setRecalledDrop(preset.droppedNotes ?? 0);
       setRecalledSpread(preset.spreadAmount ?? 0);
+      setRecalledVoicingStyle(preset.voicingStyle ?? "close");
       setActivePresetSlot(slotNumber);
 
       return preset;
@@ -192,6 +202,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
     setRecalledInversion(null);
     setRecalledDrop(null);
     setRecalledSpread(null);
+    setRecalledVoicingStyle(null);
     setActivePresetSlot(null);
   }, []);
 
@@ -314,6 +325,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
     recalledInversion,
     recalledDrop,
     recalledSpread,
+    recalledVoicingStyle,
     activePresetSlot,
     isLoaded,
 
@@ -333,6 +345,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
     setRecalledInversion,
     setRecalledDrop,
     setRecalledSpread,
+    setRecalledVoicingStyle,
     setActivePresetSlot,
   };
 }
