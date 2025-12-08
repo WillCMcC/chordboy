@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 /**
  * BeforeInstallPromptEvent interface
@@ -54,7 +54,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
    * Trigger the PWA install prompt.
    * Can only be called once per beforeinstallprompt event.
    */
-  const install = async (): Promise<void> => {
+  const install = useCallback(async (): Promise<void> => {
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
@@ -62,7 +62,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
 
     setDeferredPrompt(null);
     setIsInstallable(false);
-  };
+  }, [deferredPrompt]);
 
   return { isInstallable, install };
 }

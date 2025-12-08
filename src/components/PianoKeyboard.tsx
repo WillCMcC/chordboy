@@ -46,6 +46,10 @@ export function PianoKeyboard({
   const whiteKeys = keys.filter((key) => !key.isBlack);
   const blackKeys = keys.filter((key) => key.isBlack);
 
+  // Convert arrays to Sets for O(1) lookups
+  const activeNoteSet = useMemo(() => new Set(activeNotes), [activeNotes]);
+  const triggeredNoteSet = useMemo(() => new Set(triggeredNotes), [triggeredNotes]);
+
   return (
     <div className="piano-keyboard">
       <div className="piano-container">
@@ -57,8 +61,8 @@ export function PianoKeyboard({
               midiNumber={key.midi}
               noteName={key.noteName}
               isBlack={false}
-              isActive={activeNotes.includes(key.midi)}
-              isTriggered={triggeredNotes.includes(key.midi)}
+              isActive={activeNoteSet.has(key.midi)}
+              isTriggered={triggeredNoteSet.has(key.midi)}
               isMobile={isMobile}
               activeColor={getNoteColor ? getNoteColor(key.midi) : null}
             />
@@ -80,8 +84,8 @@ export function PianoKeyboard({
                 midiNumber={key.midi}
                 noteName={key.noteName}
                 isBlack={true}
-                isActive={activeNotes.includes(key.midi)}
-                isTriggered={triggeredNotes.includes(key.midi)}
+                isActive={activeNoteSet.has(key.midi)}
+                isTriggered={triggeredNoteSet.has(key.midi)}
                 style={{ left: `${leftPosition}px` }}
                 isMobile={isMobile}
                 activeColor={getNoteColor ? getNoteColor(key.midi) : null}

@@ -322,6 +322,12 @@ export interface MIDIInputInfo {
   input: MIDIInput;
 }
 
+/** MIDI input info for UI components (display only, no MIDIInput object) */
+export interface MIDIInputInfoDisplay {
+  id: string;
+  name: string;
+}
+
 // ============================================================================
 // Event Bus Types
 // ============================================================================

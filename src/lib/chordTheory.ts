@@ -63,17 +63,27 @@ export const INTERVALS = {
 } as const;
 
 /**
- * Convert a note name and octave to a MIDI note number
+ * Convert a note name and octave to a MIDI note number.
+ *
  * @param noteName - Note name (e.g., "C", "C#", "Bb")
  * @param octave - Octave number (default: 4, middle octave)
  * @returns MIDI note number (0-127)
+ *
+ * @remarks
+ * If an invalid note name is provided, this function logs a warning and
+ * returns middle C (MIDI 60) as a safe fallback. This design choice ensures
+ * the application continues to function even with unexpected input, which is
+ * preferable in a real-time audio context where throwing exceptions could
+ * cause audible glitches or dropped notes.
  */
 export function noteToMIDI(noteName: NoteNameWithFlats, octave: Octave = 4): MIDINote {
   const semitone = NOTE_TO_SEMITONE[noteName];
 
   if (semitone === undefined) {
-    console.error(`Invalid note name: ${noteName}`);
-    return 60; // Default to middle C
+    // Fallback to middle C for invalid input - prevents audio interruption
+    // while still alerting developers to the issue during development
+    console.warn(`noteToMIDI: Invalid note name "${noteName}", defaulting to middle C (60)`);
+    return MIDDLE_C_MIDI;
   }
 
   // Calculate MIDI note number

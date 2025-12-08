@@ -4,43 +4,10 @@
  */
 
 import type { Preset, SerializedPreset } from "../types";
-
-const DB_NAME = "ChordBoyDB";
-const DB_VERSION = 2; // v2 adds sequencer store
-const STORE_NAME = "presets";
-const SEQUENCER_STORE = "sequencer";
+import { initDB, STORE_NAMES } from "./dbUtils";
 
 /** Serialized preset entry for storage */
 type PresetEntry = [string, SerializedPreset];
-
-/**
- * Initialize the IndexedDB database
- */
-function initDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      console.error("IndexedDB error:", request.error);
-      reject(request.error);
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-      // Add sequencer store in v2
-      if (!db.objectStoreNames.contains(SEQUENCER_STORE)) {
-        db.createObjectStore(SEQUENCER_STORE);
-      }
-    };
-  });
-}
 
 /**
  * Save all presets to IndexedDB
@@ -51,8 +18,8 @@ export async function savePresetsToStorage(
 ): Promise<void> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([STORE_NAMES.PRESETS], "readwrite");
+    const store = transaction.objectStore(STORE_NAMES.PRESETS);
 
     // Convert Map to array of [key, value] pairs for storage
     const presetsArray: PresetEntry[] = Array.from(presetsMap.entries()).map(
@@ -92,8 +59,8 @@ export async function savePresetsToStorage(
 export async function loadPresetsFromStorage(): Promise<Map<string, Preset>> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([STORE_NAMES.PRESETS], "readonly");
+    const store = transaction.objectStore(STORE_NAMES.PRESETS);
     const request = store.get("chordPresets");
 
     return new Promise((resolve, reject) => {
@@ -134,8 +101,8 @@ export async function loadPresetsFromStorage(): Promise<Map<string, Preset>> {
 export async function clearPresetsFromStorage(): Promise<void> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
+    const transaction = db.transaction([STORE_NAMES.PRESETS], "readwrite");
+    const store = transaction.objectStore(STORE_NAMES.PRESETS);
     store.delete("chordPresets");
 
     return new Promise((resolve, reject) => {

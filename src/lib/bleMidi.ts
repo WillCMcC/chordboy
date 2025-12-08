@@ -211,16 +211,24 @@ export function createBatchedBLEMidiPacket(midiMessages: number[][]): Uint8Array
 
 /**
  * Send a MIDI message over BLE.
+ * Wraps the write operation in try-catch to prevent unhandled promise rejections
+ * when the BLE connection is lost or the device becomes unavailable.
  *
  * @param characteristic - The MIDI characteristic
  * @param midiMessage - Raw MIDI message bytes
+ * @throws Logs error and re-throws if write fails (allows caller to handle disconnection)
  */
 export async function sendBLEMidiMessage(
   characteristic: BluetoothRemoteGATTCharacteristic,
   midiMessage: number[]
 ): Promise<void> {
   const packet = createBLEMidiPacket(midiMessage);
-  await characteristic.writeValueWithoutResponse(packet as unknown as BufferSource);
+  try {
+    await characteristic.writeValueWithoutResponse(packet as unknown as BufferSource);
+  } catch (err) {
+    console.error("BLE MIDI write failed:", (err as Error).message);
+    throw err; // Re-throw to allow callers to handle disconnection
+  }
 }
 
 /**

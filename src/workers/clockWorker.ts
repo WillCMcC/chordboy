@@ -46,9 +46,10 @@ export type ClockWorkerOutgoingMessage = PulseMessage;
 // Worker State
 // ============================================================================
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 let bpm = 120;
 let pulseInterval = (60000 / bpm) / 24; // 24 PPQN
+let nextTickTime = 0; // Next expected tick time using performance.now()
 
 // ============================================================================
 // Worker Self Context
@@ -82,33 +83,49 @@ self.onmessage = (event: MessageEvent<ClockWorkerMessage>): void => {
       const setBpmMsg = event.data as SetBpmMessage;
       bpm = setBpmMsg.payload.bpm;
       pulseInterval = (60000 / bpm) / 24;
-      // Restart if running to apply new interval
-      if (intervalId !== null) {
-        stopClock();
-        startClock();
-      }
+      // Note: tempo changes take effect immediately on next tick calculation
+      // No need to restart - the tick function uses current pulseInterval
       break;
     }
   }
 };
 
 /**
- * Start the clock interval.
+ * High-resolution tick function with drift compensation.
+ * Uses performance.now() for precise timing and catches up on any missed ticks.
  */
-function startClock(): void {
-  if (intervalId !== null) return;
+function tick(): void {
+  const now = performance.now();
 
-  intervalId = setInterval(() => {
+  // Catch up on any missed ticks (if event loop was delayed)
+  while (nextTickTime <= now) {
     self.postMessage({ type: "pulse" } satisfies PulseMessage);
-  }, pulseInterval);
+    nextTickTime += pulseInterval;
+  }
+
+  // Schedule next tick with drift compensation
+  // Subtract 1ms to account for setTimeout's minimum delay and ensure we wake up slightly early
+  const delay = Math.max(0, nextTickTime - performance.now() - 1);
+  timeoutId = setTimeout(tick, delay);
 }
 
 /**
- * Stop the clock interval.
+ * Start the clock with high-resolution timing.
+ */
+function startClock(): void {
+  if (timeoutId !== null) return;
+
+  // Initialize next tick time to now, so first tick happens immediately
+  nextTickTime = performance.now();
+  tick();
+}
+
+/**
+ * Stop the clock.
  */
 function stopClock(): void {
-  if (intervalId !== null) {
-    clearInterval(intervalId);
-    intervalId = null;
+  if (timeoutId !== null) {
+    clearTimeout(timeoutId);
+    timeoutId = null;
   }
 }

@@ -1,13 +1,7 @@
 import type { ChangeEvent } from "react";
+import type { MIDIOutputInfo } from "../types";
 import { useMIDI } from "../hooks/useMIDI";
 import "./MIDIStatus.css";
-
-/** MIDI output device info for display */
-interface MIDIOutputInfo {
-  id: string;
-  name: string;
-  output: MIDIOutput | null;
-}
 
 /**
  * MIDIStatus Component

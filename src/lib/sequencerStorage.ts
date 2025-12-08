@@ -4,43 +4,7 @@
  */
 
 import type { SequencerState } from "../types";
-
-const DB_NAME = "ChordBoyDB";
-const DB_VERSION = 2; // Bump version to add sequencer store
-const PRESETS_STORE = "presets";
-const SEQUENCER_STORE = "sequencer";
-
-/**
- * Initialize the IndexedDB database
- */
-function initDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      console.error("IndexedDB error:", request.error);
-      reject(request.error);
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-
-      // Create presets store if it doesn't exist (from v1)
-      if (!db.objectStoreNames.contains(PRESETS_STORE)) {
-        db.createObjectStore(PRESETS_STORE);
-      }
-
-      // Create sequencer store (new in v2)
-      if (!db.objectStoreNames.contains(SEQUENCER_STORE)) {
-        db.createObjectStore(SEQUENCER_STORE);
-      }
-    };
-  });
-}
+import { initDB, STORE_NAMES } from "./dbUtils";
 
 /**
  * Save sequencer state to IndexedDB
@@ -51,8 +15,8 @@ export async function saveSequencerToStorage(
 ): Promise<void> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([SEQUENCER_STORE], "readwrite");
-    const store = transaction.objectStore(SEQUENCER_STORE);
+    const transaction = db.transaction([STORE_NAMES.SEQUENCER], "readwrite");
+    const store = transaction.objectStore(STORE_NAMES.SEQUENCER);
 
     // Store the sequencer state
     store.put(sequencerState, "sequencerState");
@@ -78,8 +42,8 @@ export async function saveSequencerToStorage(
 export async function loadSequencerFromStorage(): Promise<SequencerState | null> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([SEQUENCER_STORE], "readonly");
-    const store = transaction.objectStore(SEQUENCER_STORE);
+    const transaction = db.transaction([STORE_NAMES.SEQUENCER], "readonly");
+    const store = transaction.objectStore(STORE_NAMES.SEQUENCER);
     const request = store.get("sequencerState");
 
     return new Promise((resolve, reject) => {
@@ -105,8 +69,8 @@ export async function loadSequencerFromStorage(): Promise<SequencerState | null>
 export async function clearSequencerFromStorage(): Promise<void> {
   try {
     const db = await initDB();
-    const transaction = db.transaction([SEQUENCER_STORE], "readwrite");
-    const store = transaction.objectStore(SEQUENCER_STORE);
+    const transaction = db.transaction([STORE_NAMES.SEQUENCER], "readwrite");
+    const store = transaction.objectStore(STORE_NAMES.SEQUENCER);
     store.delete("sequencerState");
 
     return new Promise((resolve, reject) => {

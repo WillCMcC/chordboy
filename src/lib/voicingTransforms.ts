@@ -11,6 +11,17 @@ import type { MIDINote, VoicingStyle, Chord, Interval } from "../types";
 import { INTERVALS } from "./chordTheory";
 
 /**
+ * Clamp a note value to valid MIDI range (0-127).
+ * MIDI notes outside this range are invalid and can cause issues with hardware/software.
+ *
+ * @param note - The note value to clamp
+ * @returns A valid MIDI note number (0-127)
+ */
+function clampMIDI(note: number): MIDINote {
+  return Math.max(0, Math.min(127, note)) as MIDINote;
+}
+
+/**
  * Apply progressive note dropping by moving the highest notes down an octave.
  * This creates "drop" voicings commonly used in jazz piano.
  *
@@ -293,11 +304,11 @@ export function applyQuartal(chord: Chord): MIDINote[] {
     // Actually the So What voicing from the 3rd degree:
     // E-A-D-G-B for Dm7 (starting from E, the 3rd)
     return [
-      rootMidi + INTERVALS.MINOR_THIRD, // Start from the 3rd
-      rootMidi + INTERVALS.MINOR_THIRD + 5, // +P4
-      rootMidi + INTERVALS.MINOR_THIRD + 10, // +P4
-      rootMidi + INTERVALS.MINOR_THIRD + 15, // +P4
-      rootMidi + INTERVALS.MINOR_THIRD + 19, // +M3
+      clampMIDI(rootMidi + INTERVALS.MINOR_THIRD), // Start from the 3rd
+      clampMIDI(rootMidi + INTERVALS.MINOR_THIRD + 5), // +P4
+      clampMIDI(rootMidi + INTERVALS.MINOR_THIRD + 10), // +P4
+      clampMIDI(rootMidi + INTERVALS.MINOR_THIRD + 15), // +P4
+      clampMIDI(rootMidi + INTERVALS.MINOR_THIRD + 19), // +M3
     ].sort((a, b) => a - b);
   }
 
@@ -307,25 +318,25 @@ export function applyQuartal(chord: Chord): MIDINote[] {
     // This is the classic McCoy Tyner dominant voicing
     const seventh = rootMidi + INTERVALS.MINOR_SEVENTH; // b7
     return [
-      seventh, // b7
-      seventh + 5, // b3 (P4 above b7)
-      seventh + 10, // b6 (P4 above that)
-      seventh + 15, // b2/b9 (P4 above that)
+      clampMIDI(seventh), // b7
+      clampMIDI(seventh + 5), // b3 (P4 above b7)
+      clampMIDI(seventh + 10), // b6 (P4 above that)
+      clampMIDI(seventh + 15), // b2/b9 (P4 above that)
     ].sort((a, b) => a - b);
   }
 
   // For non-minor, non-dominant chords: stack 4ths from root
   // Creates an ambiguous, modal sound
   const result: MIDINote[] = [
-    rootMidi,
-    rootMidi + 5, // P4
-    rootMidi + 10, // P4
-    rootMidi + 15, // P4
+    clampMIDI(rootMidi),
+    clampMIDI(rootMidi + 5), // P4
+    clampMIDI(rootMidi + 10), // P4
+    clampMIDI(rootMidi + 15), // P4
   ];
 
   // For major, add a 3rd on top for color
   if (chord.quality === "major") {
-    result.push(rootMidi + 19); // M3 on top
+    result.push(clampMIDI(rootMidi + 19)); // M3 on top
   }
 
   return result.sort((a, b) => a - b);

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import type { MIDINote, StrumDirection, GraceNotePayload } from "./types";
+import type { MIDINote, StrumDirection, GraceNotePayload, MIDIInputInfoDisplay } from "./types";
 import type { VoicedChord } from "./hooks/useChordEngine";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
@@ -33,12 +33,6 @@ import "./App.css";
 
 const TUTORIAL_SEEN_KEY = "chordboy-tutorial-seen";
 const WAKE_LOCK_KEY = "chordboy-wake-lock-enabled";
-
-/** MIDI input device info */
-interface MIDIInputInfo {
-  id: string;
-  name: string;
-}
 
 /**
  * Main application component.
@@ -67,7 +61,6 @@ function App() {
   const {
     retriggerChord,
     stopAllNotes,
-    isConnected: _isConnected,
     humanize,
     setHumanize,
     strumEnabled,
@@ -283,8 +276,10 @@ function App() {
   // Determine which chord to display (current or last)
   const displayChord = currentChord || lastChord;
 
-  // Cast midiInputs to the expected type
-  const typedMidiInputs = midiInputs as MIDIInputInfo[];
+  // Filter and map midiInputs to display type (handles null names safely)
+  const typedMidiInputs: MIDIInputInfoDisplay[] = midiInputs
+    .filter((input): input is typeof input & { name: string } => input.name !== null)
+    .map(({ id, name }) => ({ id, name }));
 
   return (
     <div className="app">

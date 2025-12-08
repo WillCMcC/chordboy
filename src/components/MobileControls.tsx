@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import type { Dispatch, SetStateAction, PointerEvent, TouchEvent, MouseEvent } from "react";
-import type { Preset, StrumDirection, NoteName } from "../types";
+import type { Preset, StrumDirection, NoteName, MIDIInputInfoDisplay } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 import { TransportControls } from "./TransportControls";
@@ -14,12 +14,6 @@ interface VoicingSettings {
   inversionIndex: number;
   spreadAmount: number;
   octave: number;
-}
-
-/** MIDI input device info */
-interface MIDIInputInfo {
-  id: string;
-  name: string;
 }
 
 /** Touch tracking state for preset swipe-to-lock gesture */
@@ -70,7 +64,7 @@ interface MobileControlsProps {
   onBpmChange: (bpm: number) => void;
   onTogglePlay: () => void;
   onSyncEnabledChange: (enabled: boolean) => void;
-  midiInputs: MIDIInputInfo[];
+  midiInputs: MIDIInputInfoDisplay[];
   selectedInputId: string | null;
   onSelectInput: (inputId: string | null) => void;
   bleConnected: boolean;

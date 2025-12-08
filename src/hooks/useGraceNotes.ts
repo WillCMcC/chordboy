@@ -33,13 +33,13 @@ const PAIR_KEYS: Record<string, [number, number]> = {
   p: [4, 5], // notes 5-6
 };
 
-const INTERVAL_KEYS: Record<string, [number, number]> = {
+const INTERVAL_KEYS: Record<string, number[]> = {
   v: [0, 2], // root + 3rd
   b: [0, 3], // root + 5th (or 7th in 4-note chords)
   n: [0, 4], // root + 7th (or 9th)
   m: [1, 3], // 3rd + 7th
   ",": [2, 4], // 5th + 9th
-  ".": [0, 1, 2] as unknown as [number, number], // root + 3rd + 5th (triad from chord)
+  ".": [0, 1, 2], // root + 3rd + 5th (triad from chord)
 };
 
 // Preset keys (0-9)

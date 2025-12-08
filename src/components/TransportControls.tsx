@@ -1,14 +1,8 @@
 import { useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { StrumDirection } from "../types";
+import type { StrumDirection, MIDIInputInfoDisplay } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import "./TransportControls.css";
-
-/** MIDI input device info */
-interface MIDIInputInfo {
-  id: string;
-  name: string;
-}
 
 /** Mobile tab identifiers */
 type MobileTab = "transport" | "feel" | "sync";
@@ -32,7 +26,7 @@ interface TransportControlsProps {
   onSyncEnabledChange: (enabled: boolean) => void;
   // MIDI inputs for sync
   /** Available MIDI inputs */
-  midiInputs: MIDIInputInfo[];
+  midiInputs: MIDIInputInfoDisplay[];
   /** Currently selected input ID */
   selectedInputId: string | null;
   /** Callback to select a MIDI input */

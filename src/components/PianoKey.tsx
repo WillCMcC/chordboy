@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CSSProperties } from "react";
 import type { MIDINote } from "../types";
 import "./PianoKey.css";
@@ -29,9 +30,10 @@ interface PianoKeyProps {
 
 /**
  * PianoKey Component
- * Renders a single piano key (white or black) with active state
+ * Renders a single piano key (white or black) with active state.
+ * Memoized to prevent unnecessary re-renders when parent state changes.
  */
-export function PianoKey({
+export const PianoKey = memo(function PianoKey({
   midiNumber,
   noteName,
   isBlack,
@@ -78,4 +80,4 @@ export function PianoKey({
       )}
     </div>
   );
-}
+});

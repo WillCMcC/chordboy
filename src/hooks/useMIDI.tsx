@@ -65,6 +65,9 @@ import type {
 } from "../types";
 import type { ClockCallbacks } from "./useTransport";
 
+/** Delay in ms between note-off and note-on for clear re-articulation */
+const REARTICULATION_DELAY_MS = 5;
+
 /** Trigger mode options: new (smart diff), all (retrigger), glide (pitch bend) */
 export type TriggerMode = "new" | "all" | "glide";
 
@@ -163,6 +166,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const bleServerRef = useRef<BluetoothRemoteGATTServer | null>(null);
   const bleCharacteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const bleSyncCleanupRef = useRef<(() => void) | null>(null);
+  const bleDisconnectHandlerRef = useRef<(() => void) | null>(null);
 
   // Playback settings
   const [channel, setChannel] = useState<MIDIChannel>(0);
@@ -365,11 +369,14 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
       setBleConnected(true);
 
       // Listen for disconnection AFTER successful connection
-      device.addEventListener("gattserverdisconnected", () => {
+      // Store handler in ref for cleanup
+      const disconnectHandler = (): void => {
         setBleConnected(false);
         bleServerRef.current = null;
         bleCharacteristicRef.current = null;
-      });
+      };
+      bleDisconnectHandlerRef.current = disconnectHandler;
+      device.addEventListener("gattserverdisconnected", disconnectHandler);
     } catch (err) {
       const error = err as Error & { name?: string };
       if (error.name !== "NotFoundError") {
@@ -388,6 +395,11 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
    * Disconnect from the current BLE MIDI device.
    */
   const disconnectBLE = useCallback((): void => {
+    // Clean up disconnect listener before disconnecting
+    if (bleDevice && bleDisconnectHandlerRef.current) {
+      bleDevice.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
+      bleDisconnectHandlerRef.current = null;
+    }
     if (bleServerRef.current) {
       disconnectBLEMidiDevice(bleServerRef.current);
     }
@@ -396,7 +408,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     setBleDevice(null);
     setBleConnected(false);
     setBleError(null);
-  }, []);
+  }, [bleDevice]);
 
   /**
    * Handle incoming MIDI messages on selected input.
@@ -647,7 +659,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
         }
 
         setCurrentNotes(notes);
-      }, 5);
+      }, REARTICULATION_DELAY_MS);
     },
     [selectedOutput, bleConnected, channel, velocity, humanize, strumEnabled, strumSpread, strumDirection]
   );
@@ -821,22 +833,24 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
       if (bleConnected && bleCharacteristicRef.current) {
         sendBLEChordOn(bleCharacteristicRef.current, channel, event.notes, graceVelocity);
       }
-    }, 5);
+    }, REARTICULATION_DELAY_MS);
   });
 
   // Auto-connect on mount
   useEffect(() => {
     connectMIDI();
-  }, []);
+  }, [connectMIDI]);
 
   // Refs for cleanup to avoid stale closures
   const selectedOutputRef = useRef<MIDIOutput | null>(selectedOutput);
   const bleConnectedRef = useRef<boolean>(bleConnected);
+  const bleDeviceRef = useRef<BluetoothDevice | null>(bleDevice);
   const channelRef = useRef<MIDIChannel>(channel);
 
   // Keep refs in sync
   selectedOutputRef.current = selectedOutput;
   bleConnectedRef.current = bleConnected;
+  bleDeviceRef.current = bleDevice;
   channelRef.current = channel;
 
   // Cleanup on unmount and page refresh
@@ -854,6 +868,11 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Clean up BLE disconnect listener
+      if (bleDeviceRef.current && bleDisconnectHandlerRef.current) {
+        bleDeviceRef.current.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
+        bleDisconnectHandlerRef.current = null;
+      }
       const notes = currentNotesRef.current;
       if (notes.length > 0) {
         notes.forEach((note) => {
