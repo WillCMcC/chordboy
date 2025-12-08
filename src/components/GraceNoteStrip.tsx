@@ -75,8 +75,6 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
    */
   const handleTouchStart = useCallback(
     (index: number, e: React.TouchEvent) => {
-      e.preventDefault(); // Prevent default touch behavior
-
       // Track this touch
       const touch = e.changedTouches[0];
       if (touch && !activeTouchesRef.current.has(touch.identifier)) {
@@ -102,7 +100,6 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
    */
   const handleAllTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      e.preventDefault();
       if (!notes?.length) return;
 
       const touch = e.changedTouches[0];
