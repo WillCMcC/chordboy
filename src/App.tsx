@@ -17,6 +17,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
 import { ChordDisplay } from "./components/ChordDisplay";
 import { TutorialModal } from "./components/TutorialModal";
+import { GraceNoteStrip } from "./components/GraceNoteStrip";
 import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
@@ -327,6 +328,11 @@ function App() {
           voicingStyle={voicingStyle}
           showHints={!isMobile}
         />
+
+        {/* Grace note strip for mobile - tap to re-articulate individual notes */}
+        {isMobile && currentChord && (
+          <GraceNoteStrip notes={currentChord.notes} />
+        )}
 
         {/* Transport controls - desktop only, mobile is inside MobileControls */}
         {!isMobile && (
