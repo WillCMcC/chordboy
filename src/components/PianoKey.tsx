@@ -17,6 +17,8 @@ interface PianoKeyProps {
   isBlack: boolean;
   /** Whether the key is currently active/playing */
   isActive: boolean;
+  /** Whether this key was just triggered (grace note) */
+  isTriggered?: boolean;
   /** Additional inline styles (e.g., positioning for black keys) */
   style?: CSSProperties;
   /** Whether rendering for mobile layout */
@@ -34,13 +36,14 @@ export function PianoKey({
   noteName,
   isBlack,
   isActive,
+  isTriggered = false,
   style,
   isMobile = false,
   activeColor = null,
 }: PianoKeyProps) {
   const className = `piano-key ${isBlack ? "black" : "white"} ${
     isActive ? "active" : ""
-  } ${isMobile ? "mobile" : ""}`;
+  } ${isTriggered ? "triggered" : ""} ${isMobile ? "mobile" : ""}`;
 
   // Mobile-specific dimensions
   const mobileStyles: CSSProperties = isMobile

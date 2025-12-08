@@ -125,3 +125,34 @@
 .piano-key.active {
   animation: keyPress 0.1s ease-out;
 }
+
+/* Triggered state for grace notes - bright flash */
+@keyframes graceFlash {
+  0% {
+    filter: brightness(1);
+  }
+  20% {
+    filter: brightness(1.8);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.piano-key.triggered {
+  animation: graceFlash 0.2s ease-out, keyPress 0.1s ease-out;
+}
+
+.piano-key.white.triggered {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 30px rgba(255, 255, 255, 0.8);
+}
+
+.piano-key.black.triggered {
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 0 30px rgba(249, 115, 22, 0.7);
+}

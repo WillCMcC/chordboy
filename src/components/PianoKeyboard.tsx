@@ -8,6 +8,8 @@ import "./PianoKeyboard.css";
 interface PianoKeyboardProps {
   /** Array of currently active/playing MIDI note numbers */
   activeNotes?: MIDINote[];
+  /** Array of notes that were just triggered (grace notes) - for visual pulse */
+  triggeredNotes?: MIDINote[];
   /** Starting octave for the keyboard display */
   startOctave?: Octave;
   /** Ending octave for the keyboard display */
@@ -25,6 +27,7 @@ interface PianoKeyboardProps {
  */
 export function PianoKeyboard({
   activeNotes = [],
+  triggeredNotes = [],
   startOctave = 3,
   endOctave = 5,
   isMobile = false,
@@ -55,6 +58,7 @@ export function PianoKeyboard({
               noteName={key.noteName}
               isBlack={false}
               isActive={activeNotes.includes(key.midi)}
+              isTriggered={triggeredNotes.includes(key.midi)}
               isMobile={isMobile}
               activeColor={getNoteColor ? getNoteColor(key.midi) : null}
             />
@@ -77,6 +81,7 @@ export function PianoKeyboard({
                 noteName={key.noteName}
                 isBlack={true}
                 isActive={activeNotes.includes(key.midi)}
+                isTriggered={triggeredNotes.includes(key.midi)}
                 style={{ left: `${leftPosition}px` }}
                 isMobile={isMobile}
                 activeColor={getNoteColor ? getNoteColor(key.midi) : null}

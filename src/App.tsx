@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import type { MIDINote, StrumDirection } from "./types";
+import type { MIDINote, StrumDirection, GraceNotePayload } from "./types";
 import type { VoicedChord } from "./hooks/useChordEngine";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
@@ -26,6 +26,8 @@ import { useGraceNotes } from "./hooks/useGraceNotes";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
 import { useWakeLock } from "./hooks/useWakeLock";
+import { useEventSubscription } from "./hooks/useEventSubscription";
+import { appEvents } from "./lib/eventBus";
 import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
 
@@ -98,7 +100,9 @@ function App() {
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [lastChord, setLastChord] = useState<VoicedChord | null>(null);
+  const [triggeredNotes, setTriggeredNotes] = useState<MIDINote[]>([]);
   const mobileKeyboardRef = useRef<HTMLDivElement>(null);
+  const triggeredTimeoutRef = useRef<number | null>(null);
 
   // Show tutorial on first visit
   useEffect(() => {
@@ -213,6 +217,23 @@ function App() {
       setLastChord(currentChord);
     }
   }, [currentChord]);
+
+  // Subscribe to grace note events for visual feedback on piano
+  useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
+    // Clear any pending timeout
+    if (triggeredTimeoutRef.current) {
+      clearTimeout(triggeredTimeoutRef.current);
+    }
+
+    // Set triggered notes for visual feedback
+    setTriggeredNotes(event.notes);
+
+    // Clear after animation completes
+    triggeredTimeoutRef.current = window.setTimeout(() => {
+      setTriggeredNotes([]);
+      triggeredTimeoutRef.current = null;
+    }, 200);
+  });
 
   /**
    * Auto-scroll mobile keyboard to show active notes.
@@ -380,6 +401,7 @@ function App() {
         {!isMobile && (
           <PianoKeyboard
             activeNotes={currentChord ? currentChord.notes : []}
+            triggeredNotes={triggeredNotes}
             startOctave={1}
             endOctave={7}
             getNoteColor={getNoteColor}
@@ -391,6 +413,7 @@ function App() {
           <div className="mobile-keyboard-container" ref={mobileKeyboardRef}>
             <PianoKeyboard
               activeNotes={currentChord ? currentChord.notes : []}
+              triggeredNotes={triggeredNotes}
               startOctave={2}
               endOctave={6}
               isMobile={true}

@@ -9,7 +9,6 @@
 import { useCallback, useRef } from "react";
 import { appEvents } from "../lib/eventBus";
 import { MIDIToNote } from "../lib/chordTheory";
-import { getNoteColor } from "../lib/noteColors";
 import type { MIDINote } from "../types";
 import "./GraceNoteStrip.css";
 
@@ -20,11 +19,16 @@ interface GraceNoteStripProps {
 }
 
 /**
- * Get the scale degree label for a note position in a chord.
- * Simplified: just shows position (1-based index).
+ * Get the interval label (semitones from root) for a note.
+ * Shows "R" for root, otherwise the number of semitones.
  */
-function getPositionLabel(index: number): string {
-  return String(index + 1);
+function getIntervalLabel(noteIndex: number, notes: MIDINote[]): string {
+  if (noteIndex === 0) return "R"; // Root
+  const rootNote = notes[0];
+  const currentNote = notes[noteIndex];
+  const semitones = (currentNote - rootNote) % 12;
+  // Handle negative modulo and octave wrapping
+  return String(semitones < 0 ? semitones + 12 : semitones);
 }
 
 /**
@@ -121,23 +125,18 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
       <div className="grace-note-buttons">
         {notes.map((note, index) => {
           const noteName = getNoteNameOnly(note);
-          const color = getNoteColor(note);
-          const position = getPositionLabel(index);
+          const interval = getIntervalLabel(index, notes);
 
           return (
             <button
               key={`${note}-${index}`}
               className="grace-note-btn"
-              style={{
-                "--note-color": color,
-                "--note-color-dim": `${color}40`,
-              } as React.CSSProperties}
               onTouchStart={(e) => handleTouchStart(index, e)}
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchEnd}
             >
               <span className="note-name">{noteName}</span>
-              <span className="note-position">{position}</span>
+              <span className="note-position">{interval}</span>
             </button>
           );
         })}
