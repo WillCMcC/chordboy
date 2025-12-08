@@ -119,6 +119,60 @@
   font-weight: 700;
 }
 
+/* Mobile solve controls container */
+.mobile-solve-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-spread-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mobile-spread-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mobile-spread-slider {
+  width: 50px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--tertiary-bg);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.mobile-spread-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
+}
+
+.mobile-spread-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
+}
+
 .mobile-btn.saved::after {
   content: "";
   position: absolute;

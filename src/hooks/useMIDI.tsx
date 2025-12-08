@@ -30,6 +30,9 @@ import {
   sendMIDIClock,
   sendMIDIStart,
   sendMIDIStop,
+  sendPitchBend,
+  semitonesToPitchBend,
+  resetPitchBend,
   MIDI_CLOCK,
   MIDI_START,
   MIDI_STOP,
@@ -61,6 +64,9 @@ import type {
 } from "../types";
 import type { ClockCallbacks } from "./useTransport";
 
+/** Trigger mode options: new (smart diff), all (retrigger), glide (pitch bend) */
+export type TriggerMode = "new" | "all" | "glide";
+
 /** MIDI Context value type */
 export interface MIDIContextValue {
   // State
@@ -79,6 +85,8 @@ export interface MIDIContextValue {
   strumEnabled: boolean;
   strumSpread: number;
   strumDirection: StrumDirection;
+  triggerMode: TriggerMode;
+  glideTime: number;
 
   // BLE State
   bleSupported: boolean;
@@ -107,6 +115,8 @@ export interface MIDIContextValue {
   setStrumEnabled: Dispatch<SetStateAction<boolean>>;
   setStrumSpread: Dispatch<SetStateAction<number>>;
   setStrumDirection: Dispatch<SetStateAction<StrumDirection>>;
+  setTriggerMode: Dispatch<SetStateAction<TriggerMode>>;
+  setGlideTime: Dispatch<SetStateAction<number>>;
 
   // MIDI Clock functions
   sendMIDIClock: () => void;
@@ -164,6 +174,12 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [strumDirection, setStrumDirection] = useState<StrumDirection>(STRUM_UP);
   const strumLastDirectionRef = useRef<StrumDirection>(STRUM_UP);
 
+  // Trigger mode: "new" = only new notes, "all" = retrigger entire chord, "glide" = pitch bend transition
+  const [triggerMode, setTriggerMode] = useState<TriggerMode>("new");
+
+  // Glide time for pitch bend transitions (when triggerMode === "glide")
+  const [glideTime, setGlideTime] = useState<number>(100); // ms
+
   // Currently playing notes
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
   const currentNotesRef = useRef<MIDINote[]>(currentNotes);
@@ -175,6 +191,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
   // Humanization timeout manager
   const humanizeManager = useRef<HumanizeManager>(createHumanizeManager());
+
+  // Glide animation state
+  const glideAnimationRef = useRef<number | null>(null);
 
   // MIDI clock callbacks (set by useTransport)
   const onMidiClockRef = useRef<(() => void) | null>(null);
@@ -633,6 +652,98 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   );
 
   /**
+   * Play a chord with pitch bend glide effect.
+   * Starts new notes with pitch offset and slides them to target pitch.
+   * This creates a portamento-like effect where notes "slide in".
+   */
+  const playChordWithGlide = useCallback(
+    (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
+      const hasOutput = selectedOutput || bleConnected;
+      if (!hasOutput || !notes?.length) return;
+
+      // Cancel any existing glide animation
+      if (glideAnimationRef.current) {
+        cancelAnimationFrame(glideAnimationRef.current);
+        glideAnimationRef.current = null;
+      }
+
+      humanizeManager.current.clear();
+
+      const currentNotesSnapshot = currentNotesRef.current;
+
+      // If no current notes, just play normally
+      if (currentNotesSnapshot.length === 0) {
+        playChord(notes, vel);
+        return;
+      }
+
+      // Calculate average pitch of current and new chords
+      const currentAvg = currentNotesSnapshot.reduce((a, b) => a + b, 0) / currentNotesSnapshot.length;
+      const newAvg = notes.reduce((a, b) => a + b, 0) / notes.length;
+      const pitchDiff = currentAvg - newAvg; // Note: reversed - we start FROM old pitch
+
+      // Ensure minimum bend of 1 semitone for audible effect
+      // Use the direction of pitch movement, but enforce minimum magnitude
+      const minBend = 1.0;
+      const direction = pitchDiff >= 0 ? 1 : -1;
+      const magnitude = Math.max(minBend, Math.abs(pitchDiff));
+
+      // Clamp to max +/- 2 semitones (standard pitch bend range)
+      const startBendSemitones = Math.min(2, magnitude) * direction;
+
+      // Stop old notes immediately
+      currentNotesSnapshot.forEach((note) => {
+        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      });
+
+      // Set initial pitch bend (offset from where old notes were)
+      const startBendValue = semitonesToPitchBend(startBendSemitones);
+      if (selectedOutput) {
+        sendPitchBend(selectedOutput, channel, startBendValue);
+      }
+
+      // Start new notes (they'll sound at the bent pitch initially)
+      notes.forEach((note) => {
+        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+      });
+      setCurrentNotes(notes);
+
+      // Animate pitch bend from offset back to center
+      const startTime = performance.now();
+      const duration = glideTime;
+
+      const animate = (): void => {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(1, elapsed / duration);
+
+        // Ease out: starts fast, slows at the end for smooth landing
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+
+        // Interpolate from start bend toward center (0)
+        const currentBend = startBendSemitones * (1 - easeOut);
+        const bendValue = semitonesToPitchBend(currentBend);
+
+        if (selectedOutput) {
+          sendPitchBend(selectedOutput, channel, bendValue);
+        }
+
+        if (progress < 1) {
+          glideAnimationRef.current = requestAnimationFrame(animate);
+        } else {
+          // Glide complete: ensure pitch bend is exactly centered
+          glideAnimationRef.current = null;
+          if (selectedOutput) {
+            resetPitchBend(selectedOutput, channel);
+          }
+        }
+      };
+
+      glideAnimationRef.current = requestAnimationFrame(animate);
+    },
+    [selectedOutput, bleConnected, channel, velocity, glideTime, playChord]
+  );
+
+  /**
    * Stop all currently playing notes.
    */
   const stopAllNotes = useCallback((): void => {
@@ -667,10 +778,13 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   // Note: useEventSubscription uses a ref pattern, so no useCallback needed
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
     if (isConnected || bleConnected) {
-      // On mobile (retrigger=true), use retriggerChord for clear re-articulation
-      // On desktop, use playChord for smooth transitions
-      if (event.retrigger) {
+      // Determine trigger behavior:
+      // - Mobile (event.retrigger=true) always retriggers
+      // - Desktop respects user's triggerMode setting
+      if (event.retrigger || triggerMode === "all") {
         retriggerChord(event.notes);
+      } else if (triggerMode === "glide") {
+        playChordWithGlide(event.notes);
       } else {
         playChord(event.notes);
       }
@@ -742,6 +856,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     strumEnabled,
     strumSpread,
     strumDirection,
+    triggerMode,
+    glideTime,
 
     // BLE State
     bleSupported,
@@ -770,6 +886,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     setStrumEnabled,
     setStrumSpread,
     setStrumDirection,
+    setTriggerMode,
+    setGlideTime,
 
     // MIDI Clock functions
     sendMIDIClock: () => selectedOutput && sendMIDIClock(selectedOutput),

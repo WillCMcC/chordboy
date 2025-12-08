@@ -66,6 +66,9 @@ export const RIGHT_HAND_MODIFIERS: RightHandModifierMap = {
   "]": "flat9", // Flat 9 (b9)
   "'": "sharp11", // Sharp 11 (#11)
   "\\": "flat13", // Flat 13 (b13) - using backslash as it's near the brackets
+
+  // ===== HALF-DIMINISHED (common jazz chord) =====
+  n: "half-dim", // Half-diminished (m7b5) - N key, next to M for diminished
 };
 
 /**

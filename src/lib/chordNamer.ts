@@ -39,11 +39,15 @@ export function getChordName(
   const hasSharp11 = modifiers.includes("sharp11");
   const hasFlat13 = modifiers.includes("flat13");
   const hasFlat5 = modifiers.includes("flat5");
+  const hasHalfDim = modifiers.includes("half-dim");
 
   // Build the chord name
 
-  // Quality + Seventh
-  if (hasDiminished) {
+  // Handle half-diminished first (it's a complete chord type)
+  if (hasHalfDim) {
+    name += "\u00F87"; // ø7 - the elegant half-diminished symbol
+    // Can still add extensions
+  } else if (hasDiminished) {
     name += " dim";
     if (hasDom7) {
       name += "7"; // Diminished 7th
@@ -84,27 +88,28 @@ export function getChordName(
 
   // Add extensions (9, 11, 13)
   // For jazz chords, we typically show the highest extension
+  // Skip extension replacement for half-dim (already complete)
   if (has13) {
     // If we already have a 7th, replace it with 13
-    if (hasDom7 && !name.includes("Maj")) {
+    if (hasDom7 && !name.includes("Maj") && !hasHalfDim) {
       name = name.replace("7", "13");
-    } else if (!hasMaj7 && !hasDom7) {
+    } else if (!hasMaj7 && !hasDom7 && !hasHalfDim) {
       name += "13";
     } else {
       name += " 13";
     }
   } else if (has11) {
-    if (hasDom7 && !name.includes("Maj")) {
+    if (hasDom7 && !name.includes("Maj") && !hasHalfDim) {
       name = name.replace("7", "11");
-    } else if (!hasMaj7 && !hasDom7) {
+    } else if (!hasMaj7 && !hasDom7 && !hasHalfDim) {
       name += "11";
     } else {
       name += " 11";
     }
   } else if (has9) {
-    if (hasDom7 && !name.includes("Maj")) {
+    if (hasDom7 && !name.includes("Maj") && !hasHalfDim) {
       name = name.replace("7", "9");
-    } else if (!hasMaj7 && !hasDom7) {
+    } else if (!hasMaj7 && !hasDom7 && !hasHalfDim) {
       name += "9";
     } else {
       name += " 9";

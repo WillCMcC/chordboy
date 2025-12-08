@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { StrumDirection } from "../types";
+import type { TriggerMode } from "../hooks/useMIDI";
 import "./TransportControls.css";
 
 /** MIDI input device info */
@@ -61,6 +62,15 @@ interface TransportControlsProps {
   onStrumSpreadChange: (spread: number) => void;
   /** Callback to change strum direction */
   onStrumDirectionChange: (direction: StrumDirection) => void;
+  // Trigger mode
+  /** Trigger mode - "new" (only new notes), "all" (retrigger full chord), or "glide" (pitch bend) */
+  triggerMode: TriggerMode;
+  /** Callback to change trigger mode */
+  onTriggerModeChange: (mode: TriggerMode) => void;
+  /** Glide time in ms (when triggerMode is "glide") */
+  glideTime: number;
+  /** Callback to change glide time */
+  onGlideTimeChange: (time: number) => void;
   // Sequencer
   /** Whether sequencer is enabled */
   sequencerEnabled: boolean;
@@ -98,6 +108,11 @@ export function TransportControls({
   onStrumEnabledChange,
   onStrumSpreadChange,
   onStrumDirectionChange,
+  // Trigger mode
+  triggerMode,
+  onTriggerModeChange,
+  glideTime,
+  onGlideTimeChange,
   // Sequencer
   sequencerEnabled,
   onOpenSequencer,
@@ -178,6 +193,41 @@ export function TransportControls({
     const nextIndex = (currentIndex + 1) % directions.length;
     onStrumDirectionChange(directions[nextIndex]);
   }, [strumDirection, onStrumDirectionChange]);
+
+  // Handle trigger mode - cycle through new -> all -> glide
+  const cycleTriggerMode = useCallback((): void => {
+    const modes: TriggerMode[] = ["new", "all", "glide"];
+    const currentIndex = modes.indexOf(triggerMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    onTriggerModeChange(modes[nextIndex]);
+  }, [triggerMode, onTriggerModeChange]);
+
+  // Handle glide time slider
+  const handleGlideTimeChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>): void => {
+      onGlideTimeChange(parseInt(e.target.value, 10));
+    },
+    [onGlideTimeChange]
+  );
+
+  // Handle glide time increment/decrement
+  const adjustGlideTime = useCallback(
+    (delta: number): void => {
+      const newValue = Math.max(20, Math.min(500, glideTime + delta));
+      onGlideTimeChange(newValue);
+    },
+    [glideTime, onGlideTimeChange]
+  );
+
+  // Trigger mode display helper
+  const getTriggerLabel = (mode: TriggerMode): string => {
+    switch (mode) {
+      case "new": return "New";
+      case "all": return "All";
+      case "glide": return "Glide";
+      default: return mode;
+    }
+  };
 
   // Handle MIDI input selection
   const handleInputChange = useCallback(
@@ -268,6 +318,40 @@ export function TransportControls({
               <option value="down">Down</option>
               <option value="alternate">Alt</option>
             </select>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="transport-divider" />
+
+        {/* Trigger Mode Section */}
+        <div className="transport-section articulation-section">
+          <label className="transport-label">Trigger</label>
+          <div className="articulation-controls">
+            <button
+              className={`trigger-mode-btn trigger-${triggerMode}`}
+              onClick={cycleTriggerMode}
+              title={
+                triggerMode === "new" ? "Only new notes trigger" :
+                triggerMode === "all" ? "All notes retrigger" :
+                "Pitch bend glide between chords"
+              }
+            >
+              {getTriggerLabel(triggerMode)}
+            </button>
+            {triggerMode === "glide" && (
+              <>
+                <input
+                  type="range"
+                  min="20"
+                  max="500"
+                  value={glideTime}
+                  onChange={handleGlideTimeChange}
+                  className="glide-slider"
+                />
+                <span className="glide-value">{glideTime}ms</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -478,48 +562,89 @@ export function TransportControls({
             </div>
           )}
 
-          {/* Feel Tab - Humanize & Strum in single row */}
+          {/* Feel Tab - Humanize, Strum, Trigger */}
           {mobileTab === "feel" && (
             <div className="mobile-feel-content">
-              {/* Humanize */}
-              <div className="mobile-feel-group">
-                <span className="mobile-feel-label">Human</span>
-                <button className="mobile-adj-btn small" onClick={() => adjustHumanize(-10)}>-</button>
-                <div className="mobile-feel-value">{humanize}%</div>
-                <button className="mobile-adj-btn small" onClick={() => adjustHumanize(10)}>+</button>
+              {/* Top row: Humanize slider & Strum controls */}
+              <div className="feel-controls-row">
+                {/* Humanize - inline slider */}
+                <div className="feel-control-inline">
+                  <span className="feel-control-label">Human</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={humanize}
+                    onChange={(e) => onHumanizeChange(parseInt(e.target.value, 10))}
+                    className="feel-slider"
+                  />
+                  <span className="feel-control-value">{humanize}%</span>
+                </div>
+
+                {/* Strum - toggle + slider + direction */}
+                <div className="feel-control-inline strum-control">
+                  <button
+                    className={`feel-toggle-btn ${strumEnabled ? "active" : ""}`}
+                    onClick={handleStrumToggle}
+                  >
+                    Strum
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={strumSpread}
+                    onChange={(e) => onStrumSpreadChange(parseInt(e.target.value, 10))}
+                    className={`feel-slider strum-slider ${!strumEnabled ? "disabled" : ""}`}
+                    disabled={!strumEnabled}
+                  />
+                  <span className={`feel-control-value ${!strumEnabled ? "disabled" : ""}`}>{strumSpread}ms</span>
+                  <button
+                    className={`feel-direction-btn ${!strumEnabled ? "disabled" : ""}`}
+                    onClick={cycleStrumDirection}
+                    disabled={!strumEnabled}
+                  >
+                    {getDirectionLabel(strumDirection)}
+                  </button>
+                </div>
               </div>
 
-              <div className="mobile-feel-divider" />
-
-              {/* Strum */}
-              <div className="mobile-feel-group">
-                <button
-                  className={`mobile-strum-toggle ${strumEnabled ? "active" : ""}`}
-                  onClick={handleStrumToggle}
-                >
-                  Strum
-                </button>
-                <button
-                  className="mobile-adj-btn small"
-                  onClick={() => adjustStrumSpread(-10)}
-                  disabled={!strumEnabled}
-                >-</button>
-                <div className={`mobile-feel-value ${!strumEnabled ? "disabled" : ""}`}>
-                  {strumSpread}ms
+              {/* Bottom row: Trigger segmented control + glide slider */}
+              <div className="feel-controls-row trigger-row">
+                <div className="trigger-segmented">
+                  <button
+                    className={`trigger-segment ${triggerMode === "new" ? "active" : ""}`}
+                    onClick={() => onTriggerModeChange("new")}
+                  >
+                    New
+                  </button>
+                  <button
+                    className={`trigger-segment ${triggerMode === "all" ? "active" : ""}`}
+                    onClick={() => onTriggerModeChange("all")}
+                  >
+                    All
+                  </button>
+                  <button
+                    className={`trigger-segment ${triggerMode === "glide" ? "active" : ""}`}
+                    onClick={() => onTriggerModeChange("glide")}
+                  >
+                    Glide
+                  </button>
                 </div>
-                <button
-                  className="mobile-adj-btn small"
-                  onClick={() => adjustStrumSpread(10)}
-                  disabled={!strumEnabled}
-                >+</button>
-                <button
-                  className={`mobile-direction-btn ${!strumEnabled ? "disabled" : ""}`}
-                  onClick={cycleStrumDirection}
-                  disabled={!strumEnabled}
-                  title={strumDirection}
-                >
-                  {getDirectionLabel(strumDirection)}
-                </button>
+
+                {/* Glide time slider - always visible but disabled when not in glide mode */}
+                <div className={`feel-control-inline glide-control ${triggerMode !== "glide" ? "disabled" : ""}`}>
+                  <input
+                    type="range"
+                    min="20"
+                    max="500"
+                    value={glideTime}
+                    onChange={(e) => onGlideTimeChange(parseInt(e.target.value, 10))}
+                    className={`feel-slider glide-slider ${triggerMode !== "glide" ? "disabled" : ""}`}
+                    disabled={triggerMode !== "glide"}
+                  />
+                  <span className={`feel-control-value ${triggerMode !== "glide" ? "disabled" : ""}`}>{glideTime}ms</span>
+                </div>
               </div>
             </div>
           )}

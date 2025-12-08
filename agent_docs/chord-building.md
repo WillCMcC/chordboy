@@ -31,6 +31,7 @@ See `buildChord()` in `src/lib/chordBuilder.ts`:
 
 1. Start with root (UNISON interval)
 2. Add triad based on quality modifier:
+   - **half-dim**: m3 + dim5 + m7 (complete m7♭5 chord) - the ii chord in minor ii-V-i
    - major: M3 + P5 (default)
    - minor: m3 + P5
    - diminished: m3 + dim5
@@ -62,6 +63,37 @@ See `buildChord()` in `src/lib/chordBuilder.ts`:
 `src/lib/chordSolver.ts` - `solveChordVoicings(presets, options)`:
 
 Optimizes voicings across a chord progression to minimize voice movement. Used by "Solve" button in PresetsPanel.
+
+### Jazz-Aware Features
+
+The solver includes sophisticated jazz voice leading awareness:
+
+1. **7th→3rd Resolution Weighting**: Rewards voicings where the 7th of one chord resolves smoothly (by half/whole step) to the 3rd of the next chord. This is the defining motion of ii-V-I progressions.
+
+2. **Register Constraints**: Each voicing style has optimal register ranges:
+   - Rootless voicings: C3-G5 (ideal around middle C)
+   - Shell voicings: C2-C5 (can go lower with root)
+   - Quartal voicings: C3-G5
+   - Upper structure: E3-C6 (higher register for clarity)
+
+3. **All Voicing Style Combinations**: The solver considers all 8 voicing styles × inversions × spreads × octave shifts, finding the optimal combination for smooth voice leading.
+
+### Solver Options
+
+```typescript
+interface SolverOptions {
+  targetOctave?: Octave;           // Center voicings around this octave
+  allowedStyles?: VoicingStyle[];  // Limit which styles to consider
+  jazzVoiceLeading?: boolean;      // Enable 7th→3rd weighting (default: true)
+  useRegisterConstraints?: boolean; // Apply register penalties (default: true)
+  spreadPreference?: number;       // -1 (close) to 1 (wide), 0 = neutral
+}
+```
+
+**Spread Preference**: Controls whether the solver favors close or wide voicings:
+- `-1`: Strongly prefer close voicings (minimal spread)
+- `0`: Neutral (default) - just minimizes voice movement
+- `1`: Strongly prefer wide voicings (drop voicings, spread chords)
 
 ## Intervals Reference
 

@@ -275,6 +275,7 @@ export function applyShell(chord: Chord): MIDINote[] {
 /**
  * Apply McCoy Tyner quartal voicing: stacked perfect 4ths
  * For minor chords, creates the "So What" voicing (4th-4th-4th-3rd).
+ * For dominant chords, creates quartal voicing from the 7th (Bb-Eb-Ab for C7sus).
  * For other chords, stacks 4ths from the root.
  *
  * @param chord - The chord to transform
@@ -283,6 +284,7 @@ export function applyShell(chord: Chord): MIDINote[] {
 export function applyQuartal(chord: Chord): MIDINote[] {
   const rootMidi = getRootMidi(chord);
   const isMinor = chord.quality === "minor";
+  const hasDom7 = chord.modifiers.includes("dom7");
 
   if (isMinor) {
     // "So What" voicing: 4th-4th-4th-3rd from the root
@@ -299,7 +301,20 @@ export function applyQuartal(chord: Chord): MIDINote[] {
     ].sort((a, b) => a - b);
   }
 
-  // For non-minor chords: stack 4ths from root
+  if (hasDom7) {
+    // Quartal voicing from the 7th for dominant chords
+    // For C7: Bb-Eb-Ab (creates a sus4 sound, very modal)
+    // This is the classic McCoy Tyner dominant voicing
+    const seventh = rootMidi + INTERVALS.MINOR_SEVENTH; // b7
+    return [
+      seventh, // b7
+      seventh + 5, // b3 (P4 above b7)
+      seventh + 10, // b6 (P4 above that)
+      seventh + 15, // b2/b9 (P4 above that)
+    ].sort((a, b) => a - b);
+  }
+
+  // For non-minor, non-dominant chords: stack 4ths from root
   // Creates an ambiguous, modal sound
   const result: MIDINote[] = [
     rootMidi,
@@ -308,9 +323,52 @@ export function applyQuartal(chord: Chord): MIDINote[] {
     rootMidi + 15, // P4
   ];
 
-  // For dominant or major, add a 3rd on top for color
+  // For major, add a 3rd on top for color
   if (chord.quality === "major") {
     result.push(rootMidi + 19); // M3 on top
+  }
+
+  return result.sort((a, b) => a - b);
+}
+
+/**
+ * Apply upper structure triad voicing for altered dominants.
+ * Places a major triad a minor 3rd above the root over the tritone.
+ * For C7alt: Eb major triad (Eb-G-Bb) = #9, #5/b13, b7
+ * This automatically creates an altered dominant sound.
+ *
+ * @param chord - The chord to transform
+ * @returns Upper structure voicing notes
+ */
+export function applyUpperStructure(chord: Chord): MIDINote[] {
+  const rootMidi = getRootMidi(chord);
+
+  // The tritone (3rd and 7th) defines the dominant sound
+  const third = findNoteByInterval(rootMidi, chord.notes, INTERVALS.MAJOR_THIRD);
+  const seventh =
+    findNoteByInterval(rootMidi, chord.notes, INTERVALS.MINOR_SEVENTH) ??
+    findNoteByInterval(rootMidi, chord.notes, INTERVALS.MAJOR_SEVENTH);
+
+  // Upper structure: major triad a minor 3rd above root
+  // For C7: Eb major = Eb(#9) - G(#5/b13) - Bb(7)
+  const upperRoot = rootMidi + INTERVALS.MINOR_THIRD; // #9 enharmonically
+  const upperThird = upperRoot + INTERVALS.MAJOR_THIRD; // #5/b13
+  const upperFifth = upperRoot + INTERVALS.PERFECT_FIFTH; // 7th
+
+  const result: MIDINote[] = [];
+
+  // Add the tritone (essential for dominant sound)
+  if (third) result.push(third);
+  if (seventh) result.push(seventh);
+
+  // Add the upper structure triad
+  result.push(upperRoot);
+  result.push(upperThird);
+  result.push(upperFifth);
+
+  // If we don't have a proper voicing, return original
+  if (result.length < 4) {
+    return chord.notes;
   }
 
   return result.sort((a, b) => a - b);
@@ -411,6 +469,8 @@ export function applyVoicingStyle(chord: Chord, style: VoicingStyle): MIDINote[]
       return applyTrueDrop3(chord.notes);
     case "drop24":
       return applyDrop24(chord.notes);
+    case "upper-struct":
+      return applyUpperStructure(chord);
     case "close":
     default:
       return chord.notes;
@@ -431,4 +491,123 @@ export function cycleVoicingStyle(
   const currentIndex = styles.indexOf(current);
   const nextIndex = (currentIndex + 1) % styles.length;
   return styles[nextIndex];
+}
+
+// ============================================================================
+// Register Constraints
+// ============================================================================
+
+/**
+ * Optimal register ranges for different voicing styles.
+ * Based on jazz piano convention: rootless voicings sound best around middle C.
+ *
+ * MIDI note ranges:
+ * - C3 = 48, C4 = 60 (middle C), C5 = 72
+ * - Ideal rootless range: E3 (52) to G5 (79)
+ * - Shell voicings can go lower since they include root
+ */
+export const REGISTER_CONSTRAINTS = {
+  // Rootless voicings: keep around middle C (C3-C5 range)
+  "rootless-a": { min: 48, max: 79, ideal: 60 },
+  "rootless-b": { min: 48, max: 79, ideal: 60 },
+  // Shell voicings can be lower (root provides foundation)
+  "shell": { min: 36, max: 72, ideal: 54 },
+  // Quartal voicings: similar to rootless
+  "quartal": { min: 48, max: 79, ideal: 60 },
+  // Upper structure: keep in mid-high register for clarity
+  "upper-struct": { min: 52, max: 84, ideal: 64 },
+  // Drop voicings: wider range acceptable
+  "drop2": { min: 40, max: 84, ideal: 58 },
+  "drop3": { min: 36, max: 84, ideal: 54 },
+  "drop24": { min: 36, max: 84, ideal: 54 },
+  // Close position: flexible
+  "close": { min: 36, max: 96, ideal: 60 },
+} as const;
+
+/**
+ * Calculate register penalty for a voicing based on its style.
+ * Penalizes voicings that are outside the ideal register for their style.
+ *
+ * @param notes - Array of MIDI notes
+ * @param style - The voicing style being used
+ * @returns Penalty score (0 = ideal, higher = worse)
+ */
+export function calculateRegisterPenalty(
+  notes: MIDINote[],
+  style: VoicingStyle
+): number {
+  if (!notes || notes.length === 0) return 0;
+
+  const constraints = REGISTER_CONSTRAINTS[style] || REGISTER_CONSTRAINTS.close;
+  const { min, max, ideal } = constraints;
+
+  let penalty = 0;
+  const lowestNote = Math.min(...notes);
+  const highestNote = Math.max(...notes);
+  const centerNote = (lowestNote + highestNote) / 2;
+
+  // Heavy penalty for notes outside the acceptable range
+  if (lowestNote < min) {
+    penalty += (min - lowestNote) * 3; // 3 points per semitone below min
+  }
+  if (highestNote > max) {
+    penalty += (highestNote - max) * 3; // 3 points per semitone above max
+  }
+
+  // Light penalty for distance from ideal center
+  penalty += Math.abs(centerNote - ideal) * 0.5;
+
+  return penalty;
+}
+
+/**
+ * Constrain voicing to its optimal register by octave shifting.
+ * Shifts the entire voicing up or down to fit within the ideal range.
+ *
+ * @param notes - Array of MIDI notes
+ * @param style - The voicing style being used
+ * @returns Adjusted notes within optimal register
+ */
+export function constrainToRegister(
+  notes: MIDINote[],
+  style: VoicingStyle
+): MIDINote[] {
+  if (!notes || notes.length === 0) return notes;
+
+  const constraints = REGISTER_CONSTRAINTS[style] || REGISTER_CONSTRAINTS.close;
+  const { min, max, ideal } = constraints;
+
+  const lowestNote = Math.min(...notes);
+  const highestNote = Math.max(...notes);
+  const range = highestNote - lowestNote;
+
+  // If the chord span is larger than the allowed range, just return as-is
+  if (range > max - min) return notes;
+
+  let shift = 0;
+
+  // Shift up if too low
+  if (lowestNote < min) {
+    shift = Math.ceil((min - lowestNote) / 12) * 12;
+  }
+  // Shift down if too high
+  else if (highestNote > max) {
+    shift = -Math.ceil((highestNote - max) / 12) * 12;
+  }
+  // Otherwise, try to center around ideal
+  else {
+    const center = (lowestNote + highestNote) / 2;
+    const idealShift = Math.round((ideal - center) / 12) * 12;
+
+    // Only apply centering shift if it keeps us in range
+    const shiftedLow = lowestNote + idealShift;
+    const shiftedHigh = highestNote + idealShift;
+    if (shiftedLow >= min && shiftedHigh <= max) {
+      shift = idealShift;
+    }
+  }
+
+  if (shift === 0) return notes;
+
+  return notes.map((n) => n + shift);
 }

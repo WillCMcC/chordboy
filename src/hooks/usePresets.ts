@@ -266,9 +266,13 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
   /**
    * Solve voice leading for a set of presets to minimize voice movement.
    * Uses savedPresetsRef to always get current state.
+   *
+   * @param selectedSlots - Array of slot IDs in progression order
+   * @param targetOctave - Target octave to center voicings around
+   * @param spreadPreference - -1 (close) to 1 (wide), 0 = neutral
    */
   const solvePresetVoicings = useCallback(
-    (selectedSlots: string[], targetOctave: Octave): boolean => {
+    (selectedSlots: string[], targetOctave: Octave, spreadPreference: number = 0): boolean => {
       if (!selectedSlots || selectedSlots.length < 2) {
         return false;
       }
@@ -287,9 +291,10 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
       // Extract preset data for the solver
       const presetData = presetsToSolve.map((p) => p.preset);
 
-      // Run the solver
+      // Run the solver with spread preference
       const solvedVoicings = solveChordVoicings(presetData, {
         targetOctave,
+        spreadPreference,
       });
 
       if (!solvedVoicings || solvedVoicings.length !== presetsToSolve.length) {

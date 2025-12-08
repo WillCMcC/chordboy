@@ -44,7 +44,13 @@ export function buildChord(
   let quality: ChordQuality = "major"; // Default quality
 
   // Determine basic chord quality (triad)
-  if (modifiers.includes("minor")) {
+  // Half-diminished (m7b5) - the ii chord in minor ii-V-i
+  if (modifiers.includes("half-dim")) {
+    quality = "minor"; // Quality is minor for naming purposes
+    intervals.push(INTERVALS.MINOR_THIRD);
+    intervals.push(INTERVALS.DIMINISHED_FIFTH);
+    intervals.push(INTERVALS.MINOR_SEVENTH); // Automatically includes m7
+  } else if (modifiers.includes("minor")) {
     quality = "minor";
     intervals.push(INTERVALS.MINOR_THIRD);
     intervals.push(INTERVALS.PERFECT_FIFTH);

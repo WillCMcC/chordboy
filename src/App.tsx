@@ -72,6 +72,10 @@ function App() {
     setStrumEnabled,
     setStrumSpread,
     setStrumDirection,
+    triggerMode,
+    setTriggerMode,
+    glideTime,
+    setGlideTime,
     inputs: midiInputs,
     selectedInput,
     selectInput,
@@ -341,6 +345,10 @@ function App() {
             onStrumEnabledChange={setStrumEnabled}
             onStrumSpreadChange={setStrumSpread}
             onStrumDirectionChange={setStrumDirection}
+            triggerMode={triggerMode}
+            onTriggerModeChange={setTriggerMode}
+            glideTime={glideTime}
+            onGlideTimeChange={setGlideTime}
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
           />
@@ -422,6 +430,10 @@ function App() {
             onStrumEnabledChange={setStrumEnabled}
             onStrumSpreadChange={setStrumSpread}
             onStrumDirectionChange={setStrumDirection}
+            triggerMode={triggerMode}
+            onTriggerModeChange={setTriggerMode}
+            glideTime={glideTime}
+            onGlideTimeChange={setGlideTime}
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
           />

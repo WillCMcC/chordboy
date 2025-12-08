@@ -37,6 +37,9 @@ Organized by finger position:
 - `P` = sus4
 - `/` = flat5 (b5)
 
+**Half-Diminished:**
+- `N` = half-dim (m7♭5) - the ii chord in minor ii-V-i
+
 **Alterations (brackets area):**
 - `[` = sharp9 (#9)
 - `]` = flat9 (b9)
@@ -48,7 +51,7 @@ Organized by finger position:
 | Key | Function |
 |-----|----------|
 | Left Shift | Cycle inversion |
-| Right Shift | Cycle voicing style (Close → Drop 2 → Drop 3 → Rootless A → Rootless B → Shell → Quartal) |
+| Right Shift | Cycle voicing style (Close → Drop 2 → Drop 3 → Rootless A → Rootless B → Shell → Quartal → Upper Struct) |
 | Arrow Left/Right | Octave down/up |
 | Arrow Up/Down | Spread amount |
 | Space | Save to next available preset slot |
@@ -63,7 +66,8 @@ Organized by finger position:
 | Rootless A | Bill Evans Type A: 3-5-7-9 (3rd on bottom, root omitted) |
 | Rootless B | Bill Evans Type B: 7-9-3-5 (7th on bottom, root omitted) |
 | Shell | Bud Powell style: root + 3rd + 7th only |
-| Quartal | McCoy Tyner style: stacked 4ths ("So What" voicing for minor chords) |
+| Quartal | McCoy Tyner style: stacked 4ths ("So What" for minor, 7th-based for dominants) |
+| Upper Struct | Upper structure triad: major triad a m3 above root for altered dominants (e.g., Eb/C7 = C7#9#5) |
 
 ## Preset Controls
 

@@ -73,12 +73,16 @@ export type AlterationType =
   | "sharp11"
   | "flat13";
 
+/** Half-diminished (m7b5) - common enough to warrant its own modifier */
+export type HalfDimType = "half-dim";
+
 /** All possible modifier types */
 export type ModifierType =
   | ChordQuality
   | SeventhType
   | ExtensionType
-  | AlterationType;
+  | AlterationType
+  | HalfDimType;
 
 // ============================================================================
 // Chord Types
@@ -128,6 +132,7 @@ export type DropType = "none" | "drop2" | "drop3" | "drop24";
  * drop2     - True drop 2: 2nd note from top dropped an octave
  * drop3     - True drop 3: 3rd note from top dropped an octave
  * drop24    - Drop 2 and 4: both dropped an octave
+ * upper-struct - Upper structure triad: major triad m3 above root for altered dominants
  */
 export type VoicingStyle =
   | "close"
@@ -137,7 +142,8 @@ export type VoicingStyle =
   | "quartal"
   | "drop2"
   | "drop3"
-  | "drop24";
+  | "drop24"
+  | "upper-struct";
 
 /** Array of voicing styles for cycling */
 export const VOICING_STYLES: VoicingStyle[] = [
@@ -148,6 +154,7 @@ export const VOICING_STYLES: VoicingStyle[] = [
   "rootless-b",
   "shell",
   "quartal",
+  "upper-struct",
 ];
 
 /** Human-readable labels for voicing styles */
@@ -160,6 +167,7 @@ export const VOICING_STYLE_LABELS: Record<VoicingStyle, string> = {
   "drop2": "Drop 2",
   "drop3": "Drop 3",
   "drop24": "Drop 2+4",
+  "upper-struct": "Upper Struct",
 };
 
 /** Voicing state for a chord */

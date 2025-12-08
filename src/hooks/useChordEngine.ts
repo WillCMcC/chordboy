@@ -65,7 +65,7 @@ export interface UseChordEngineReturn {
   saveCurrentChordToSlot: (slotNumber: string) => boolean;
   recallPresetFromSlot: (slotNumber: string) => boolean;
   stopRecallingPreset: () => void;
-  solvePresets: (selectedSlots: string[]) => boolean;
+  solvePresets: (selectedSlots: string[], spreadPreference?: number) => boolean;
   getChordNotesFromPreset: (slotNumber: string) => MIDINote[] | null;
 
   // Octave controls
@@ -547,10 +547,12 @@ export function useChordEngine(
 
   /**
    * Solve voice leading for selected preset slots.
+   * @param selectedSlots - Array of slot IDs in progression order
+   * @param spreadPreference - -1 (close) to 1 (wide), 0 = neutral
    */
   const solvePresets = useCallback(
-    (selectedSlots: string[]): boolean => {
-      return solvePresetVoicings(selectedSlots, octave);
+    (selectedSlots: string[], spreadPreference: number = 0): boolean => {
+      return solvePresetVoicings(selectedSlots, octave, spreadPreference);
     },
     [solvePresetVoicings, octave]
   );

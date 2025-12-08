@@ -21,7 +21,7 @@ interface PresetsPanelProps {
   /** Callback to clear a preset slot */
   onClearPreset: (slot: string) => void;
   /** Callback to solve voicings for selected presets, returns true on success */
-  onSolvePresets: (slots: string[]) => boolean;
+  onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
 }
 
 /**
@@ -37,6 +37,9 @@ export function PresetsPanel({
 
   /** Whether multi-select mode is active */
   const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
+
+  /** Spread preference for solver: -1 (close) to 1 (wide) */
+  const [spreadPreference, setSpreadPreference] = useState<number>(0);
 
   /**
    * Toggle a preset's selection state.
@@ -55,13 +58,13 @@ export function PresetsPanel({
    */
   const handleSolveChords = useCallback((): void => {
     if (selectedPresets.length >= 2) {
-      const success = onSolvePresets(selectedPresets);
+      const success = onSolvePresets(selectedPresets, spreadPreference);
       if (success) {
         setSelectedPresets([]);
         setIsSelectMode(false);
       }
     }
-  }, [selectedPresets, onSolvePresets]);
+  }, [selectedPresets, onSolvePresets, spreadPreference]);
 
   /**
    * Cancel selection mode and clear selections.
@@ -101,6 +104,22 @@ export function PresetsPanel({
                   : selectedPresets.length}{" "}
                 chords
               </span>
+              <div className="spread-slider-container">
+                <label className="spread-label">
+                  <span className="spread-label-text">
+                    {spreadPreference < -0.3 ? "Close" : spreadPreference > 0.3 ? "Wide" : "Balanced"}
+                  </span>
+                  <input
+                    type="range"
+                    min="-1"
+                    max="1"
+                    step="0.1"
+                    value={spreadPreference}
+                    onChange={(e) => setSpreadPreference(parseFloat(e.target.value))}
+                    className="spread-slider"
+                  />
+                </label>
+              </div>
               <button
                 onClick={handleSolveChords}
                 className="solve-btn"

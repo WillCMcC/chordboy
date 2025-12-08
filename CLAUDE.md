@@ -10,6 +10,16 @@ npm run build    # Production build
 npm run test:run # Run tests once
 ```
 
+## Deployment
+
+Deploys to CapRover app `cb` at chordboy.com.
+
+```bash
+npm run deploy   # Build and deploy to CapRover
+```
+
+Requires one-time CapRover CLI login: `caprover login` (URL: https://captain.3218i.com, Name: 3218i)
+
 ## Project Structure
 
 ```

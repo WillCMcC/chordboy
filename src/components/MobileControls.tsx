@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import type { Dispatch, SetStateAction, PointerEvent, TouchEvent, MouseEvent } from "react";
 import type { Preset, StrumDirection, NoteName } from "../types";
+import type { TriggerMode } from "../hooks/useMIDI";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 import { TransportControls } from "./TransportControls";
 import "./MobileControls.css";
@@ -60,7 +61,7 @@ interface MobileControlsProps {
   /** Callback to toggle keyboard visibility */
   onToggleKeyboard: () => void;
   /** Callback to solve voice leading for selected presets */
-  onSolvePresets: (slots: string[]) => boolean;
+  onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
   // Transport props
   bpm: number;
   isPlaying: boolean;
@@ -83,6 +84,10 @@ interface MobileControlsProps {
   onStrumEnabledChange: (enabled: boolean) => void;
   onStrumSpreadChange: (spread: number) => void;
   onStrumDirectionChange: (direction: StrumDirection) => void;
+  triggerMode: TriggerMode;
+  onTriggerModeChange: (mode: TriggerMode) => void;
+  glideTime: number;
+  onGlideTimeChange: (time: number) => void;
   sequencerEnabled: boolean;
   onOpenSequencer: () => void;
 }
@@ -130,12 +135,17 @@ export function MobileControls({
   onStrumEnabledChange,
   onStrumSpreadChange,
   onStrumDirectionChange,
+  triggerMode,
+  onTriggerModeChange,
+  glideTime,
+  onGlideTimeChange,
   sequencerEnabled,
   onOpenSequencer,
 }: MobileControlsProps) {
   const [clearMode, setClearMode] = useState<boolean>(false);
   const [solveMode, setSolveMode] = useState<boolean>(false);
   const [selectedForSolve, setSelectedForSolve] = useState<string[]>([]);
+  const [spreadPreference, setSpreadPreference] = useState<number>(0);
 
   // Track touch/pointer state for preset swipe-to-lock gesture
   const presetTouchRef = useRef<PresetTouchState>({
@@ -217,10 +227,11 @@ export function MobileControls({
   // Execute solve
   const handleSolve = (): void => {
     if (selectedForSolve.length >= 2 && onSolvePresets) {
-      const success = onSolvePresets(selectedForSolve);
+      const success = onSolvePresets(selectedForSolve, spreadPreference);
       if (success) {
         setSelectedForSolve([]);
         setSolveMode(false);
+        setSpreadPreference(0); // Reset for next solve
       }
     }
   };
@@ -361,6 +372,10 @@ export function MobileControls({
           onStrumEnabledChange={onStrumEnabledChange}
           onStrumSpreadChange={onStrumSpreadChange}
           onStrumDirectionChange={onStrumDirectionChange}
+          triggerMode={triggerMode}
+          onTriggerModeChange={onTriggerModeChange}
+          glideTime={glideTime}
+          onGlideTimeChange={onGlideTimeChange}
           sequencerEnabled={sequencerEnabled}
           onOpenSequencer={onOpenSequencer}
         />
@@ -371,7 +386,21 @@ export function MobileControls({
           <span className="mobile-controls-label">Presets</span>
           <div style={{ display: "flex", gap: "0.4rem" }}>
             {solveMode ? (
-              <>
+              <div className="mobile-solve-controls">
+                <div className="mobile-spread-control">
+                  <span className="mobile-spread-label">
+                    {spreadPreference < -0.3 ? "Close" : spreadPreference > 0.3 ? "Wide" : "Bal"}
+                  </span>
+                  <input
+                    type="range"
+                    min="-1"
+                    max="1"
+                    step="0.1"
+                    value={spreadPreference}
+                    onChange={(e) => setSpreadPreference(parseFloat(e.target.value))}
+                    className="mobile-spread-slider"
+                  />
+                </div>
                 <button
                   className="control-btn"
                   style={{ flex: 0, backgroundColor: "#4a148c" }}
@@ -387,7 +416,7 @@ export function MobileControls({
                 >
                   Cancel
                 </button>
-              </>
+              </div>
             ) : (
               <>
                 <button

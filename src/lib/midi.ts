@@ -253,3 +253,62 @@ export function sendMIDIContinue(output: MIDIOutput | null | undefined): void {
     console.error("Failed to send MIDI Continue:", error);
   }
 }
+
+/**
+ * Send MIDI Pitch Bend message
+ * @param output - The MIDI output device
+ * @param channel - MIDI channel (0-15)
+ * @param value - Pitch bend value (0-16383, 8192 = center/no bend)
+ *
+ * Pitch bend range is typically +/- 2 semitones by default.
+ * value 0 = max bend down, 8192 = center, 16383 = max bend up
+ */
+export function sendPitchBend(
+  output: MIDIOutput | null | undefined,
+  channel: MIDIChannel = 0,
+  value: number = 8192
+): void {
+  if (!output) return;
+
+  // Clamp to valid range
+  const clamped = Math.max(0, Math.min(16383, Math.round(value)));
+
+  // MIDI Pitch Bend: 0xE0 + channel
+  const status = 0xe0 + channel;
+  const lsb = clamped & 0x7f; // Lower 7 bits
+  const msb = (clamped >> 7) & 0x7f; // Upper 7 bits
+
+  try {
+    output.send([status, lsb, msb]);
+  } catch (error) {
+    console.error("Failed to send Pitch Bend:", error);
+  }
+}
+
+/**
+ * Convert semitones to pitch bend value.
+ * Assumes standard +/- 2 semitone range (can be changed via RPN).
+ *
+ * @param semitones - Number of semitones to bend (-2 to +2 for standard range)
+ * @param range - Pitch bend range in semitones (default: 2)
+ * @returns Pitch bend value (0-16383)
+ */
+export function semitonesToPitchBend(semitones: number, range: number = 2): number {
+  // Center is 8192, full range is 0-16383
+  // So +range semitones = 16383, -range semitones = 0
+  const normalized = semitones / range; // -1 to +1
+  const clamped = Math.max(-1, Math.min(1, normalized));
+  return Math.round(8192 + clamped * 8191);
+}
+
+/**
+ * Reset pitch bend to center (no bend)
+ * @param output - The MIDI output device
+ * @param channel - MIDI channel (0-15)
+ */
+export function resetPitchBend(
+  output: MIDIOutput | null | undefined,
+  channel: MIDIChannel = 0
+): void {
+  sendPitchBend(output, channel, 8192);
+}
