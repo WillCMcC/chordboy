@@ -21,6 +21,7 @@ import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
 import { useMIDI } from "./hooks/useMIDI";
+import { useGraceNotes } from "./hooks/useGraceNotes";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
 import { useWakeLock } from "./hooks/useWakeLock";
@@ -145,6 +146,12 @@ function App() {
     solvePresets,
     getChordNotesFromPreset,
   } = useChordEngine(allPressedKeys, { isMobile });
+
+  // Enable grace notes when holding preset keys (ghjkl = single notes, yuiop = pairs, vbnm,. = intervals)
+  useGraceNotes({
+    currentChordNotes: currentChord?.notes ?? null,
+    enabled: !isMobile, // Only on desktop
+  });
 
   /**
    * Retrigger a preset's chord notes (for sequencer retrig mode).

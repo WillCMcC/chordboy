@@ -61,6 +61,7 @@ import type {
   MIDIOutputInfo,
   MIDIInputInfo,
   ChordChangedEvent,
+  GraceNotePayload,
 } from "../types";
 import type { ClockCallbacks } from "./useTransport";
 
@@ -795,6 +796,32 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     if (isConnected || bleConnected) {
       stopAllNotes();
     }
+  });
+
+  // Subscribe to grace note events - re-articulate specific notes without changing chord state
+  useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
+    if (!(isConnected || bleConnected) || !event.notes.length) return;
+
+    // Grace notes play slightly softer for musical expression
+    const graceVelocity = Math.max(1, Math.round(velocity * 0.85)) as MIDIVelocity;
+
+    // Re-articulate the grace notes: note-off then note-on
+    event.notes.forEach((note) => {
+      if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+    });
+    if (bleConnected && bleCharacteristicRef.current) {
+      sendBLEChordOff(bleCharacteristicRef.current, channel, event.notes);
+    }
+
+    // Small delay for clear re-articulation
+    setTimeout(() => {
+      event.notes.forEach((note) => {
+        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
+      });
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLEChordOn(bleCharacteristicRef.current, channel, event.notes, graceVelocity);
+      }
+    }, 5);
   });
 
   // Auto-connect on mount

@@ -388,6 +388,16 @@ export interface KeysAllUpPayload {
   // Empty payload
 }
 
+/** Grace note event payload - retrigger subset of notes while holding preset */
+export interface GraceNotePayload {
+  /** MIDI notes to retrigger */
+  notes: MIDINote[];
+  /** Which note indices from the chord (for UI feedback) */
+  indices: number[];
+  /** Type of grace note pattern */
+  pattern: "single" | "pair" | "interval" | "full";
+}
+
 /** Map of event types to their payloads */
 export interface AppEventMap {
   "chord:changed": ChordChangedPayload;
@@ -397,6 +407,7 @@ export interface AppEventMap {
   "preset:recalled": PresetRecalledPayload;
   "preset:cleared": PresetClearedPayload;
   "keys:allUp": KeysAllUpPayload;
+  "grace:note": GraceNotePayload;
 }
 
 /** App event type (union of all event names) */
