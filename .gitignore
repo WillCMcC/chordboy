@@ -8,6 +8,12 @@ build/
 # Caprover deployment
 caprover-deploy/
 *.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+*.dmg
+*.pkg
 
 # Environment variables
 .env
