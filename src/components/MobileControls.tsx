@@ -420,8 +420,8 @@ export function MobileControls({
             ) : (
               <>
                 <button
-                  className="control-btn"
-                  style={{ flex: 0, backgroundColor: "#1a237e" }}
+                  className="control-btn solve-mode-btn"
+                  style={{ flex: 0 }}
                   onClick={() => setSolveMode(true)}
                 >
                   Solve...
@@ -457,7 +457,7 @@ export function MobileControls({
                   backgroundColor: isSelectedForSolve
                     ? "#1a237e"
                     : isActive
-                      ? "var(--accent-color)"
+                      ? "#8b5cf6"
                       : isSaved
                         ? "#4a148c"
                         : "",
@@ -466,7 +466,7 @@ export function MobileControls({
                     : isActive
                       ? "white"
                       : isSaved
-                        ? "var(--accent-color)"
+                        ? "#7c3aed"
                         : "",
                 }}
                 onTouchStart={(e: TouchEvent<HTMLButtonElement>) => {

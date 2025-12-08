@@ -119,6 +119,18 @@
   font-weight: 700;
 }
 
+/* Solve mode button - matches desktop styling */
+.mobile-controls .solve-mode-btn {
+  background: transparent;
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.mobile-controls .solve-mode-btn:active {
+  background: var(--accent-primary);
+  color: white;
+}
+
 /* Mobile solve controls container */
 .mobile-solve-controls {
   display: flex;
@@ -187,12 +199,12 @@
 
 /* Held state - when user drags down to lock a preset */
 .mobile-btn.held {
-  background: var(--accent-gradient) !important;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
   color: white;
   border-color: white !important;
   box-shadow:
-    0 0 20px var(--accent-glow),
-    0 0 32px rgba(99, 102, 241, 0.25);
+    0 0 20px rgba(139, 92, 246, 0.5),
+    0 0 32px rgba(139, 92, 246, 0.25);
   animation: held-pulse 1.4s ease-in-out infinite;
 }
 
@@ -200,13 +212,13 @@
   0%,
   100% {
     box-shadow:
-      0 0 20px var(--accent-glow),
-      0 0 32px rgba(99, 102, 241, 0.25);
+      0 0 20px rgba(139, 92, 246, 0.5),
+      0 0 32px rgba(139, 92, 246, 0.25);
   }
   50% {
     box-shadow:
-      0 0 28px var(--accent-glow),
-      0 0 44px rgba(99, 102, 241, 0.35);
+      0 0 28px rgba(139, 92, 246, 0.6),
+      0 0 44px rgba(139, 92, 246, 0.35);
   }
 }
 
@@ -250,6 +262,17 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Preset buttons use purple shades instead of blue */
+.presets-section .mobile-btn.active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+}
+
+.presets-section .mobile-btn.saved {
+  background: #4a148c;
+  border-color: #7c3aed;
 }
 
 .root-grid {
