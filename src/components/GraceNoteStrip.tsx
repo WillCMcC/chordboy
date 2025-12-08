@@ -6,7 +6,7 @@
  * @module components/GraceNoteStrip
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { appEvents } from "../lib/eventBus";
 import { MIDIToNote } from "../lib/chordTheory";
 import type { MIDINote } from "../types";
@@ -43,21 +43,29 @@ function getNoteNameOnly(midiNote: MIDINote): string {
 /**
  * Touch interface for grace notes on mobile.
  * Displays each note in the chord as a touchable button.
+ * Uses non-passive touch listeners to allow preventDefault() for proper sustain behavior.
  */
 export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
   // Track active touches to prevent duplicate triggers
   const activeTouchesRef = useRef<Set<number>>(new Set());
+  // Refs for button elements to attach non-passive listeners
+  const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const allButtonRef = useRef<HTMLButtonElement>(null);
+  // Store notes in a ref to access in event listeners without stale closures
+  const notesRef = useRef<MIDINote[] | null>(notes);
+  notesRef.current = notes;
 
   /**
    * Emit a grace note event for specific note indices.
    */
   const emitGraceNote = useCallback(
     (indices: number[], pattern: "single" | "full") => {
-      if (!notes?.length) return;
+      const currentNotes = notesRef.current;
+      if (!currentNotes?.length) return;
 
       const selectedNotes = indices
-        .filter((i) => i >= 0 && i < notes.length)
-        .map((i) => notes[i]);
+        .filter((i) => i >= 0 && i < currentNotes.length)
+        .map((i) => currentNotes[i]);
 
       if (selectedNotes.length > 0) {
         appEvents.emit("grace:note", {
@@ -67,50 +75,77 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
         });
       }
     },
-    [notes]
-  );
-
-  /**
-   * Handle touch start on a note button.
-   */
-  const handleTouchStart = useCallback(
-    (index: number, e: React.TouchEvent) => {
-      // Track this touch
-      const touch = e.changedTouches[0];
-      if (touch && !activeTouchesRef.current.has(touch.identifier)) {
-        activeTouchesRef.current.add(touch.identifier);
-        emitGraceNote([index], "single");
-      }
-    },
-    [emitGraceNote]
+    []
   );
 
   /**
    * Handle touch end to clear tracking.
    */
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
     const touch = e.changedTouches[0];
     if (touch) {
       activeTouchesRef.current.delete(touch.identifier);
     }
   }, []);
 
-  /**
-   * Handle "ALL" button touch.
-   */
-  const handleAllTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (!notes?.length) return;
+  // Set up non-passive touch listeners on note buttons
+  useEffect(() => {
+    const buttons = buttonRefs.current;
+    const handlers = new Map<HTMLButtonElement, (e: TouchEvent) => void>();
+
+    buttons.forEach((button, index) => {
+      const handler = (e: TouchEvent) => {
+        e.preventDefault(); // Prevent default to maintain chord sustain
+        const touch = e.changedTouches[0];
+        if (touch && !activeTouchesRef.current.has(touch.identifier)) {
+          activeTouchesRef.current.add(touch.identifier);
+          emitGraceNote([index], "single");
+        }
+      };
+
+      handlers.set(button, handler);
+      button.addEventListener("touchstart", handler, { passive: false });
+      button.addEventListener("touchend", handleTouchEnd);
+      button.addEventListener("touchcancel", handleTouchEnd);
+    });
+
+    return () => {
+      handlers.forEach((handler, button) => {
+        button.removeEventListener("touchstart", handler);
+        button.removeEventListener("touchend", handleTouchEnd);
+        button.removeEventListener("touchcancel", handleTouchEnd);
+      });
+    };
+  }, [notes?.length, emitGraceNote, handleTouchEnd]);
+
+  // Set up non-passive touch listener on ALL button
+  useEffect(() => {
+    const allButton = allButtonRef.current;
+    if (!allButton) return;
+
+    const handleAllTouchStart = (e: TouchEvent) => {
+      e.preventDefault(); // Prevent default to maintain chord sustain
+      const currentNotes = notesRef.current;
+      if (!currentNotes?.length) return;
 
       const touch = e.changedTouches[0];
       if (touch && !activeTouchesRef.current.has(touch.identifier)) {
         activeTouchesRef.current.add(touch.identifier);
-        const allIndices = notes.map((_, i) => i);
+        const allIndices = currentNotes.map((_, i) => i);
         emitGraceNote(allIndices, "full");
       }
-    },
-    [notes, emitGraceNote]
-  );
+    };
+
+    allButton.addEventListener("touchstart", handleAllTouchStart, { passive: false });
+    allButton.addEventListener("touchend", handleTouchEnd);
+    allButton.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      allButton.removeEventListener("touchstart", handleAllTouchStart);
+      allButton.removeEventListener("touchend", handleTouchEnd);
+      allButton.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [emitGraceNote, handleTouchEnd]);
 
   // Don't render if no chord
   if (!notes?.length) {
@@ -128,9 +163,10 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
             <button
               key={`${note}-${index}`}
               className="grace-note-btn"
-              onTouchStart={(e) => handleTouchStart(index, e)}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
+              ref={(el) => {
+                if (el) buttonRefs.current.set(index, el);
+                else buttonRefs.current.delete(index);
+              }}
             >
               <span className="note-name">{noteName}</span>
               <span className="note-position">{interval}</span>
@@ -141,9 +177,7 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
         {/* ALL button to retrigger full chord */}
         <button
           className="grace-note-btn grace-note-all"
-          onTouchStart={handleAllTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
+          ref={allButtonRef}
         >
           <span className="note-name">ALL</span>
           <span className="note-position">♪</span>

@@ -78,18 +78,19 @@ export async function connectToBLEMidiDevice(
       const server = await device.gatt.connect();
 
       // Delay before service discovery - Android needs time after GATT connect
-      await delay(attempt === 1 ? 500 : 800);
+      // Use longer delays as Android BLE stack can take 800-1200ms to populate services
+      await delay(attempt === 1 ? 800 : 1000 + attempt * 200);
 
       // Try service discovery with retries - Android sometimes needs multiple attempts
       let service: BluetoothRemoteGATTService | undefined;
-      for (let serviceAttempt = 1; serviceAttempt <= 3; serviceAttempt++) {
+      for (let serviceAttempt = 1; serviceAttempt <= 5; serviceAttempt++) {
         try {
           service = await server.getPrimaryService(BLE_MIDI_SERVICE_UUID);
           break;
         } catch (serviceErr) {
-          if (serviceAttempt === 3) throw serviceErr;
+          if (serviceAttempt === 5) throw serviceErr;
           console.log(`Service discovery attempt ${serviceAttempt} failed, retrying...`);
-          await delay(500 * serviceAttempt);
+          await delay(400 * serviceAttempt); // 400, 800, 1200, 1600ms
         }
       }
 
@@ -115,13 +116,15 @@ export async function connectToBLEMidiDevice(
       lastError = err as Error;
       console.warn(`BLE MIDI connection attempt ${attempt} failed:`, lastError.message);
 
-      // Disconnect if partially connected
+      // Disconnect if partially connected and allow BLE stack to reset
       if (device.gatt?.connected) {
         try {
           device.gatt.disconnect();
         } catch (_disconnectErr) {
           // Ignore disconnect errors
         }
+        // Wait for BLE stack to fully release the connection
+        await delay(300);
       }
 
       // Exponential backoff before retry (skip delay on last attempt)
