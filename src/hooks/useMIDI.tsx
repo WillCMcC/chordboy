@@ -68,6 +68,9 @@ import type { ClockCallbacks } from "./useTransport";
 /** Delay in ms between note-off and note-on for clear re-articulation */
 const REARTICULATION_DELAY_MS = 5;
 
+/** Shorter delay for grace notes - enables faster jamming while still allowing clean articulation */
+const GRACE_NOTE_DELAY_MS = 2;
+
 /** Trigger mode options: new (smart diff), all (retrigger), glide (pitch bend) */
 export type TriggerMode = "new" | "all" | "glide";
 
@@ -189,8 +192,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
   const currentNotesRef = useRef<MIDINote[]>(currentNotes);
 
-  // Track pending grace note timeout to prevent choking on rapid taps
-  const graceNoteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track pending grace note timeouts PER NOTE to allow rapid different-note taps
+  // Using a Map keyed by note number ensures tapping note A doesn't cancel note B's pending on
+  const graceNoteTimeoutsRef = useRef<Map<MIDINote, ReturnType<typeof setTimeout>>>(new Map());
 
   // Keep ref updated
   useEffect(() => {
@@ -814,36 +818,40 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   });
 
   // Subscribe to grace note events - re-articulate specific notes without changing chord state
+  // Uses per-note timeout tracking so rapid taps of different notes don't cancel each other
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
     if (!(isConnected || bleConnected) || !event.notes.length) return;
-
-    // Cancel any pending grace note to prevent choking on rapid taps
-    if (graceNoteTimeoutRef.current) {
-      clearTimeout(graceNoteTimeoutRef.current);
-      graceNoteTimeoutRef.current = null;
-    }
 
     // Grace notes play slightly softer for musical expression
     const graceVelocity = Math.max(1, Math.round(velocity * 0.85)) as MIDIVelocity;
 
-    // Re-articulate the grace notes: note-off then note-on
+    // Process each note independently - this allows rapid taps of different notes
     event.notes.forEach((note) => {
-      if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-    });
-    if (bleConnected && bleCharacteristicRef.current) {
-      sendBLEChordOff(bleCharacteristicRef.current, channel, event.notes);
-    }
-
-    // Small delay for clear re-articulation
-    graceNoteTimeoutRef.current = setTimeout(() => {
-      graceNoteTimeoutRef.current = null;
-      event.notes.forEach((note) => {
-        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
-      });
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLEChordOn(bleCharacteristicRef.current, channel, event.notes, graceVelocity);
+      // Cancel any pending timeout for THIS SPECIFIC NOTE only
+      // This prevents double-triggering the same note, but doesn't affect other notes
+      const existingTimeout = graceNoteTimeoutsRef.current.get(note);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        graceNoteTimeoutsRef.current.delete(note);
       }
-    }, REARTICULATION_DELAY_MS);
+
+      // Send note-off immediately
+      if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
+      }
+
+      // Schedule note-on after brief delay for clean rearticulation
+      const timeout = setTimeout(() => {
+        graceNoteTimeoutsRef.current.delete(note);
+        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
+        if (bleConnected && bleCharacteristicRef.current) {
+          sendBLENoteOn(bleCharacteristicRef.current, channel, note, graceVelocity);
+        }
+      }, GRACE_NOTE_DELAY_MS);
+
+      graceNoteTimeoutsRef.current.set(note, timeout);
+    });
   });
 
   // Auto-connect on mount

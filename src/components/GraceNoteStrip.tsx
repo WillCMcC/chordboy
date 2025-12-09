@@ -80,10 +80,11 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
 
   /**
    * Handle touch end to clear tracking.
+   * Processes ALL changed touches, not just the first, for proper multi-touch cleanup.
    */
   const handleTouchEnd = useCallback((e: TouchEvent) => {
-    const touch = e.changedTouches[0];
-    if (touch) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
       activeTouchesRef.current.delete(touch.identifier);
     }
   }, []);
@@ -96,10 +97,13 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
     buttons.forEach((button, index) => {
       const handler = (e: TouchEvent) => {
         e.preventDefault(); // Prevent default to maintain chord sustain
-        const touch = e.changedTouches[0];
-        if (touch && !activeTouchesRef.current.has(touch.identifier)) {
-          activeTouchesRef.current.add(touch.identifier);
-          emitGraceNote([index], "single");
+        // Process ALL touches for multi-touch support (e.g., tapping two notes with two fingers)
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i];
+          if (!activeTouchesRef.current.has(touch.identifier)) {
+            activeTouchesRef.current.add(touch.identifier);
+            emitGraceNote([index], "single");
+          }
         }
       };
 
@@ -128,11 +132,14 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
       const currentNotes = notesRef.current;
       if (!currentNotes?.length) return;
 
-      const touch = e.changedTouches[0];
-      if (touch && !activeTouchesRef.current.has(touch.identifier)) {
-        activeTouchesRef.current.add(touch.identifier);
-        const allIndices = currentNotes.map((_, i) => i);
-        emitGraceNote(allIndices, "full");
+      // Process ALL touches for multi-touch support
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (!activeTouchesRef.current.has(touch.identifier)) {
+          activeTouchesRef.current.add(touch.identifier);
+          const allIndices = currentNotes.map((_, idx) => idx);
+          emitGraceNote(allIndices, "full");
+        }
       }
     };
 
