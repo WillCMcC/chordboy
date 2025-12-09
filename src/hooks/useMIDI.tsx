@@ -68,8 +68,13 @@ import type { ClockCallbacks } from "./useTransport";
 /** Delay in ms between note-off and note-on for clear re-articulation */
 const REARTICULATION_DELAY_MS = 5;
 
-/** Shorter delay for grace notes - enables faster jamming while still allowing clean articulation */
-const GRACE_NOTE_DELAY_MS = 2;
+/**
+ * Delay for grace notes - balances responsiveness with BLE reliability.
+ * Too short (<10ms): BLE may not perceive the gap, notes won't rearticulate clearly
+ * Too long (>50ms): Feels sluggish for rapid jamming
+ * 20ms is the sweet spot for BLE MIDI latency characteristics
+ */
+const GRACE_NOTE_DELAY_MS = 20;
 
 /** Trigger mode options: new (smart diff), all (retrigger), glide (pitch bend) */
 export type TriggerMode = "new" | "all" | "glide";

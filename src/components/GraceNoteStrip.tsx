@@ -46,8 +46,6 @@ function getNoteNameOnly(midiNote: MIDINote): string {
  * Uses non-passive touch listeners to allow preventDefault() for proper sustain behavior.
  */
 export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
-  // Track active touches to prevent duplicate triggers
-  const activeTouchesRef = useRef<Set<number>>(new Set());
   // Refs for button elements to attach non-passive listeners
   const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const allButtonRef = useRef<HTMLButtonElement>(null);
@@ -78,18 +76,9 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
     []
   );
 
-  /**
-   * Handle touch end to clear tracking.
-   * Processes ALL changed touches, not just the first, for proper multi-touch cleanup.
-   */
-  const handleTouchEnd = useCallback((e: TouchEvent) => {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      activeTouchesRef.current.delete(touch.identifier);
-    }
-  }, []);
-
   // Set up non-passive touch listeners on note buttons
+  // IMPORTANT: No touch tracking/gating - every touchstart fires unconditionally
+  // The per-note timeout logic in useMIDI handles deduplication for rapid same-note taps
   useEffect(() => {
     const buttons = buttonRefs.current;
     const handlers = new Map<HTMLButtonElement, (e: TouchEvent) => void>();
@@ -97,30 +86,21 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
     buttons.forEach((button, index) => {
       const handler = (e: TouchEvent) => {
         e.preventDefault(); // Prevent default to maintain chord sustain
-        // Process ALL touches for multi-touch support (e.g., tapping two notes with two fingers)
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          const touch = e.changedTouches[i];
-          if (!activeTouchesRef.current.has(touch.identifier)) {
-            activeTouchesRef.current.add(touch.identifier);
-            emitGraceNote([index], "single");
-          }
-        }
+        // Fire for every touch - don't gate or track identifiers
+        // This ensures rapid taps are never swallowed
+        emitGraceNote([index], "single");
       };
 
       handlers.set(button, handler);
       button.addEventListener("touchstart", handler, { passive: false });
-      button.addEventListener("touchend", handleTouchEnd);
-      button.addEventListener("touchcancel", handleTouchEnd);
     });
 
     return () => {
       handlers.forEach((handler, button) => {
         button.removeEventListener("touchstart", handler);
-        button.removeEventListener("touchend", handleTouchEnd);
-        button.removeEventListener("touchcancel", handleTouchEnd);
       });
     };
-  }, [notes?.length, emitGraceNote, handleTouchEnd]);
+  }, [notes?.length, emitGraceNote]);
 
   // Set up non-passive touch listener on ALL button
   useEffect(() => {
@@ -132,27 +112,17 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
       const currentNotes = notesRef.current;
       if (!currentNotes?.length) return;
 
-      // Process ALL touches for multi-touch support
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (!activeTouchesRef.current.has(touch.identifier)) {
-          activeTouchesRef.current.add(touch.identifier);
-          const allIndices = currentNotes.map((_, idx) => idx);
-          emitGraceNote(allIndices, "full");
-        }
-      }
+      // Fire unconditionally - no touch tracking
+      const allIndices = currentNotes.map((_, idx) => idx);
+      emitGraceNote(allIndices, "full");
     };
 
     allButton.addEventListener("touchstart", handleAllTouchStart, { passive: false });
-    allButton.addEventListener("touchend", handleTouchEnd);
-    allButton.addEventListener("touchcancel", handleTouchEnd);
 
     return () => {
       allButton.removeEventListener("touchstart", handleAllTouchStart);
-      allButton.removeEventListener("touchend", handleTouchEnd);
-      allButton.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, [emitGraceNote, handleTouchEnd]);
+  }, [emitGraceNote]);
 
   // Don't render if no chord
   if (!notes?.length) {
