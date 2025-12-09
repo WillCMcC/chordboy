@@ -830,31 +830,42 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     // Grace notes play slightly softer for musical expression
     const graceVelocity = Math.max(1, Math.round(velocity * 0.85)) as MIDIVelocity;
 
-    // Process each note independently - this allows rapid taps of different notes
+    // 1. Cancel any pending timeouts for notes in this event
     event.notes.forEach((note) => {
-      // Cancel any pending timeout for THIS SPECIFIC NOTE only
-      // This prevents double-triggering the same note, but doesn't affect other notes
       const existingTimeout = graceNoteTimeoutsRef.current.get(note);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
         graceNoteTimeoutsRef.current.delete(note);
       }
+    });
 
-      // Send note-off immediately
+    // 2. Send note-offs - Web MIDI individually, BLE batched for efficiency
+    event.notes.forEach((note) => {
       if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
-      }
+    });
+    if (bleConnected && bleCharacteristicRef.current) {
+      // BLE: batch into single packet to avoid packet dropping
+      sendBLEChordOff(bleCharacteristicRef.current, channel, event.notes);
+    }
 
-      // Schedule note-on after brief delay for clean rearticulation
-      const timeout = setTimeout(() => {
+    // 3. Schedule note-ons with single timeout, BLE batched
+    const timeout = setTimeout(() => {
+      // Clear timeout refs for all notes
+      event.notes.forEach((note) => {
         graceNoteTimeoutsRef.current.delete(note);
+      });
+      // Web MIDI: send individually
+      event.notes.forEach((note) => {
         if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLENoteOn(bleCharacteristicRef.current, channel, note, graceVelocity);
-        }
-      }, GRACE_NOTE_DELAY_MS);
+      });
+      // BLE: batch into single packet
+      if (bleConnected && bleCharacteristicRef.current) {
+        sendBLEChordOn(bleCharacteristicRef.current, channel, event.notes, graceVelocity);
+      }
+    }, GRACE_NOTE_DELAY_MS);
 
+    // Store same timeout ref for all notes (allows cancellation if any note is re-tapped)
+    event.notes.forEach((note) => {
       graceNoteTimeoutsRef.current.set(note, timeout);
     });
   });
