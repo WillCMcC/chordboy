@@ -189,6 +189,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
   const currentNotesRef = useRef<MIDINote[]>(currentNotes);
 
+  // Track pending grace note timeout to prevent choking on rapid taps
+  const graceNoteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Keep ref updated
   useEffect(() => {
     currentNotesRef.current = currentNotes;
@@ -814,6 +817,12 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
     if (!(isConnected || bleConnected) || !event.notes.length) return;
 
+    // Cancel any pending grace note to prevent choking on rapid taps
+    if (graceNoteTimeoutRef.current) {
+      clearTimeout(graceNoteTimeoutRef.current);
+      graceNoteTimeoutRef.current = null;
+    }
+
     // Grace notes play slightly softer for musical expression
     const graceVelocity = Math.max(1, Math.round(velocity * 0.85)) as MIDIVelocity;
 
@@ -826,7 +835,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     }
 
     // Small delay for clear re-articulation
-    setTimeout(() => {
+    graceNoteTimeoutRef.current = setTimeout(() => {
+      graceNoteTimeoutRef.current = null;
       event.notes.forEach((note) => {
         if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
       });

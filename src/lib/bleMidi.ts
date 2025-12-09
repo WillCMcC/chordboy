@@ -34,11 +34,13 @@ export async function scanForBLEMidiDevice(): Promise<BluetoothDevice> {
     throw new Error("Web Bluetooth is not supported in this browser");
   }
 
+  console.log("Scanning for BLE MIDI devices...");
   const device = await navigator.bluetooth.requestDevice({
     filters: [{ services: [BLE_MIDI_SERVICE_UUID] }],
     optionalServices: [BLE_MIDI_SERVICE_UUID],
   });
 
+  console.log(`Selected device: ${device.name || "unnamed"} (${device.id})`);
   return device;
 }
 
@@ -69,27 +71,34 @@ export async function connectToBLEMidiDevice(
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`BLE MIDI connection attempt ${attempt}/${maxRetries}`);
+      console.log(`BLE MIDI connection attempt ${attempt}/${maxRetries} to ${device.name || "unnamed"}`);
 
       if (!device.gatt) {
         throw new Error("Device does not have GATT server");
       }
 
+      console.log("Connecting to GATT server...");
       const server = await device.gatt.connect();
+      console.log(`GATT connected: ${server.connected}`);
 
       // Delay before service discovery - Android needs time after GATT connect
       // Use longer delays as Android BLE stack can take 800-1200ms to populate services
-      await delay(attempt === 1 ? 800 : 1000 + attempt * 200);
+      const serviceDelay = attempt === 1 ? 800 : 1000 + attempt * 200;
+      console.log(`Waiting ${serviceDelay}ms before service discovery...`);
+      await delay(serviceDelay);
 
       // Try service discovery with retries - Android sometimes needs multiple attempts
       let service: BluetoothRemoteGATTService | undefined;
+      console.log("Starting service discovery...");
       for (let serviceAttempt = 1; serviceAttempt <= 5; serviceAttempt++) {
         try {
           service = await server.getPrimaryService(BLE_MIDI_SERVICE_UUID);
+          console.log("MIDI service found!");
           break;
         } catch (serviceErr) {
+          const errMsg = (serviceErr as Error).message;
+          console.log(`Service discovery attempt ${serviceAttempt}/5 failed: ${errMsg}`);
           if (serviceAttempt === 5) throw serviceErr;
-          console.log(`Service discovery attempt ${serviceAttempt} failed, retrying...`);
           await delay(400 * serviceAttempt); // 400, 800, 1200, 1600ms
         }
       }
