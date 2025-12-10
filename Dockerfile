@@ -12,6 +12,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Cache bust arg - changes each deploy to force fresh build
+ARG CACHEBUST=1
+
 # Build the application
 RUN npm run build
 
