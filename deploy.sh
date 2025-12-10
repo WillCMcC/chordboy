@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLOUDFLARE_PURGE="$HOME/code/caprover-control/scripts/cloudflare-purge.sh"
+
 source ~/.nvm/nvm.sh
 
 # Build with Node 20 (required by Vite 7)
@@ -9,6 +12,14 @@ npm run build
 
 # Deploy using Node 18 (caprover has compatibility issues with newer Node)
 nvm exec 18 node /Users/will/.nvm/versions/node/v18.20.8/lib/node_modules/caprover/built/commands/caprover.js deploy --default -b master
+
+# Purge Cloudflare cache
+echo ""
+if [[ -x "$CLOUDFLARE_PURGE" ]]; then
+    "$CLOUDFLARE_PURGE" chordboy.com /sw.js /index.html || echo "⚠️  Cache purge failed (continuing anyway)"
+else
+    echo "⚠️  Cloudflare purge script not found, skipping cache purge"
+fi
 
 # Verify deployment
 echo ""
