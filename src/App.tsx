@@ -297,23 +297,25 @@ function App() {
       {/* Synth / MIDI mode selector - fixed at top */}
       <SynthPanel onOpenSettings={() => setShowSettings(true)} />
 
-      {/* Header buttons */}
-      <div className="header-buttons">
-        <button
-          className="header-btn"
-          onClick={() => setShowTutorial(true)}
-          aria-label="Help"
-        >
-          ?
-        </button>
-        <button
-          className="header-btn"
-          onClick={() => setShowSettings(!showSettings)}
-          aria-label="Settings"
-        >
-          ⚙️
-        </button>
-      </div>
+      {/* Header buttons - hidden on mobile */}
+      {!isMobile && (
+        <div className="header-buttons">
+          <button
+            className="header-btn"
+            onClick={() => setShowTutorial(true)}
+            aria-label="Help"
+          >
+            ?
+          </button>
+          <button
+            className="header-btn"
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="Settings"
+          >
+            ⚙️
+          </button>
+        </div>
+      )}
 
       {/* Settings panel */}
       <SettingsPanel
