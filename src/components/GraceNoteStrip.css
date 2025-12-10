@@ -5,24 +5,24 @@
  */
 
 .grace-note-strip {
-  padding: 0 var(--space-4);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--space-3);
   width: 100%;
   box-sizing: border-box;
 }
 
 .grace-note-buttons {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .grace-note-btn {
-  /* Square-ish buttons like mobile-btn */
-  min-width: 56px;
+  /* Flexible sizing - shrink when many notes */
+  min-width: 48px;
+  max-width: 64px;
+  flex: 1 1 56px;
   min-height: 56px;
   aspect-ratio: 1;
   display: flex;
