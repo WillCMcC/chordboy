@@ -8,6 +8,7 @@
   padding: 0 var(--space-3);
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .grace-note-buttons {
@@ -16,14 +17,15 @@
   justify-content: center;
   align-items: center;
   flex-wrap: nowrap;
+  max-width: 100%;
 }
 
 .grace-note-btn {
-  /* Flexible sizing - shrink when many notes */
-  min-width: 48px;
+  /* Flexible sizing - shrink to fit all buttons in one row */
+  min-width: 0;
   max-width: 64px;
-  flex: 1 1 56px;
-  min-height: 56px;
+  flex: 1 1 0;
+  height: 56px;
   aspect-ratio: 1;
   display: flex;
   flex-direction: column;
