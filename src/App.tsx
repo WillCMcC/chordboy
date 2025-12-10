@@ -229,6 +229,15 @@ function App() {
     }, 200);
   });
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (triggeredTimeoutRef.current) {
+        clearTimeout(triggeredTimeoutRef.current);
+      }
+    };
+  }, []);
+
   /**
    * Auto-scroll mobile keyboard to show active notes.
    */

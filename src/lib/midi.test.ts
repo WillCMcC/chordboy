@@ -526,9 +526,9 @@ describe("midi", () => {
       expect(semitonesToPitchBend(2)).toBe(16383);
     });
 
-    it("should return minimum (1) for -2 semitones with default range", () => {
-      // -2 semitones with range 2 = -1 normalized = 8192 - 8191 = 1
-      expect(semitonesToPitchBend(-2)).toBe(1);
+    it("should return minimum (0) for -2 semitones with default range", () => {
+      // -2 semitones with range 2 = -1 normalized = 8192 - 8192 = 0
+      expect(semitonesToPitchBend(-2)).toBe(0);
     });
 
     it("should calculate correct value for +1 semitone", () => {
@@ -543,7 +543,7 @@ describe("midi", () => {
       const result = semitonesToPitchBend(-1);
       expect(result).toBeLessThan(8192);
       expect(result).toBeGreaterThan(0);
-      expect(result).toBe(4097); // 8192 + (-0.5) * 8191 = 4096.5 -> 4097 (rounded)
+      expect(result).toBe(4096); // 8192 + (-0.5) * 8192 = 4096
     });
 
     it("should work with custom pitch bend range", () => {
@@ -559,15 +559,15 @@ describe("midi", () => {
       // +5 semitones with range 2 should clamp to max
       expect(semitonesToPitchBend(5, 2)).toBe(16383);
 
-      // -5 semitones with range 2 should clamp to min
-      expect(semitonesToPitchBend(-5, 2)).toBe(1);
+      // -5 semitones with range 2 should clamp to min (0)
+      expect(semitonesToPitchBend(-5, 2)).toBe(0);
     });
 
     it("should handle fractional semitones", () => {
       // 0.5 semitone = quarter tone
       const result = semitonesToPitchBend(0.5);
       expect(result).toBeGreaterThan(8192);
-      expect(result).toBe(10240); // 8192 + 0.25 * 8191 = 10239.75 -> 10240
+      expect(result).toBe(10240); // 8192 + 0.25 * 8191 = 10239.75 -> 10240 (positive uses 8191)
     });
   });
 

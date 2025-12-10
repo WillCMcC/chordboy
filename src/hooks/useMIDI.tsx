@@ -25,48 +25,42 @@ import {
   getMIDIInputs,
   sendNoteOn,
   sendNoteOff,
-  sendPanic,
-  isMIDISupported,
   sendMIDIClock,
   sendMIDIStart,
   sendMIDIStop,
-  sendPitchBend,
-  semitonesToPitchBend,
-  resetPitchBend,
+  isMIDISupported,
   MIDI_CLOCK,
   MIDI_START,
   MIDI_STOP,
   MIDI_CONTINUE,
 } from "../lib/midi";
 import {
-  isBLESupported,
-  scanForBLEMidiDevice,
-  connectToBLEMidiDevice,
-  disconnectBLEMidiDevice,
-  sendBLENoteOn,
-  sendBLENoteOff,
-  sendBLEPanic,
   sendBLEChordOn,
   sendBLEChordOff,
-  addBLEMidiListener,
 } from "../lib/bleMidi";
-import { getHumanizeOffsets, createHumanizeManager } from "../lib/humanize";
-import { getStrumOffsets, STRUM_UP } from "../lib/strum";
+import { STRUM_UP } from "../lib/strum";
 import type {
   MIDINote,
   MIDIChannel,
   MIDIVelocity,
   StrumDirection,
-  HumanizeManager,
   MIDIOutputInfo,
   MIDIInputInfo,
   ChordChangedEvent,
   GraceNotePayload,
 } from "../types";
 import type { ClockCallbacks } from "./useTransport";
+import { useMIDIPlayback } from "./useMIDIPlayback";
+import { useMIDIExpression } from "./useMIDIExpression";
+import { useBLEMidi } from "./useBLEMidi";
 
-/** Delay in ms between note-off and note-on for clear re-articulation */
-const REARTICULATION_DELAY_MS = 5;
+/**
+ * Delay for grace notes - balances responsiveness with BLE reliability.
+ * Too short (<10ms): BLE may not perceive the gap, notes won't rearticulate clearly
+ * Too long (>50ms): Feels sluggish for rapid jamming
+ * 20ms is the sweet spot for BLE MIDI latency characteristics
+ */
+const GRACE_NOTE_DELAY_MS = 20;
 
 /** Check if MIDI output should be enabled based on audio mode setting */
 function isMidiOutputEnabled(): boolean {
@@ -82,14 +76,6 @@ function isMidiOutputEnabled(): boolean {
   }
   return true; // Default to MIDI enabled
 }
-
-/**
- * Delay for grace notes - balances responsiveness with BLE reliability.
- * Too short (<10ms): BLE may not perceive the gap, notes won't rearticulate clearly
- * Too long (>50ms): Feels sluggish for rapid jamming
- * 20ms is the sweet spot for BLE MIDI latency characteristics
- */
-const GRACE_NOTE_DELAY_MS = 20;
 
 /** Trigger mode options: new (smart diff), all (retrigger), glide (pitch bend) */
 export type TriggerMode = "new" | "all" | "glide";
@@ -179,18 +165,6 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // BLE MIDI state
-  const [bleSupported] = useState<boolean>(() => isBLESupported());
-  const [bleDevice, setBleDevice] = useState<BluetoothDevice | null>(null);
-  const [bleConnected, setBleConnected] = useState<boolean>(false);
-  const [bleConnecting, setBleConnecting] = useState<boolean>(false);
-  const [bleError, setBleError] = useState<string | null>(null);
-  const [bleSyncEnabled, setBleSyncEnabled] = useState<boolean>(false);
-  const bleServerRef = useRef<BluetoothRemoteGATTServer | null>(null);
-  const bleCharacteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const bleSyncCleanupRef = useRef<(() => void) | null>(null);
-  const bleDisconnectHandlerRef = useRef<(() => void) | null>(null);
-
   // Playback settings
   const [channel, setChannel] = useState<MIDIChannel>(0);
   const [velocity, setVelocity] = useState<MIDIVelocity>(80);
@@ -200,7 +174,6 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [strumEnabled, setStrumEnabled] = useState<boolean>(false);
   const [strumSpread, setStrumSpread] = useState<number>(50);
   const [strumDirection, setStrumDirection] = useState<StrumDirection>(STRUM_UP);
-  const strumLastDirectionRef = useRef<StrumDirection>(STRUM_UP);
 
   // Trigger mode: "new" = only new notes, "all" = retrigger entire chord, "glide" = pitch bend transition
   const [triggerMode, setTriggerMode] = useState<TriggerMode>("new");
@@ -221,16 +194,16 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     currentNotesRef.current = currentNotes;
   }, [currentNotes]);
 
-  // Humanization timeout manager
-  const humanizeManager = useRef<HumanizeManager>(createHumanizeManager());
-
-  // Glide animation state
-  const glideAnimationRef = useRef<number | null>(null);
-
   // MIDI clock callbacks (set by useTransport)
-  const onMidiClockRef = useRef<(() => void) | null>(null);
-  const onMidiStartRef = useRef<(() => void) | null>(null);
-  const onMidiStopRef = useRef<(() => void) | null>(null);
+  const clockCallbacksRef = useRef<{
+    onClock: (() => void) | null;
+    onStart: (() => void) | null;
+    onStop: (() => void) | null;
+  }>({
+    onClock: null,
+    onStart: null,
+    onStop: null,
+  });
 
   // Refs for onstatechange handler to avoid stale closures
   const selectedOutputIdRef = useRef<string | null>(null);
@@ -239,6 +212,41 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   // Keep refs in sync with state
   selectedOutputIdRef.current = selectedOutput?.id ?? null;
   selectedInputIdRef.current = selectedInput?.id ?? null;
+
+  // BLE MIDI hook
+  const ble = useBLEMidi(clockCallbacksRef);
+
+  // MIDI Playback hook
+  const playback = useMIDIPlayback(
+    {
+      selectedOutput,
+      bleConnected: ble.bleConnected,
+      bleCharacteristic: ble.bleCharacteristic,
+      channel,
+      velocity,
+      humanize,
+      strumEnabled,
+      strumSpread,
+      strumDirection,
+    },
+    currentNotesRef,
+    setCurrentNotes
+  );
+
+  // MIDI Expression hook (glide)
+  const expression = useMIDIExpression(
+    {
+      selectedOutput,
+      bleConnected: ble.bleConnected,
+      bleCharacteristic: ble.bleCharacteristic,
+      channel,
+      velocity,
+      glideTime,
+    },
+    currentNotesRef,
+    setCurrentNotes,
+    playback.playChord
+  );
 
   /**
    * Connect to MIDI and enumerate devices.
@@ -338,7 +346,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(null);
-        setBleSyncEnabled(false);
+        ble.disableBLESync();
         return;
       }
 
@@ -348,7 +356,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(null);
-        setBleSyncEnabled(true);
+        ble.enableBLESync();
         return;
       }
 
@@ -359,83 +367,20 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
           selectedInput.onmidimessage = null;
         }
         setSelectedInput(input.input);
-        setBleSyncEnabled(false);
+        ble.disableBLESync();
       }
     },
-    [inputs, selectedInput]
+    [inputs, selectedInput, ble]
   );
 
   /**
    * Set MIDI clock callbacks (called by useTransport).
    */
-  const setClockCallbacks = useCallback(({ onClock, onStart, onStop }: ClockCallbacks): void => {
-    onMidiClockRef.current = onClock;
-    onMidiStartRef.current = onStart;
-    onMidiStopRef.current = onStop;
+  const setClockCallbacks = useCallback((callbacks: ClockCallbacks): void => {
+    clockCallbacksRef.current.onClock = callbacks.onClock;
+    clockCallbacksRef.current.onStart = callbacks.onStart;
+    clockCallbacksRef.current.onStop = callbacks.onStop;
   }, []);
-
-  /**
-   * Scan for and connect to a BLE MIDI device.
-   */
-  const connectBLE = useCallback(async (): Promise<void> => {
-    if (!bleSupported) {
-      setBleError("Bluetooth is not supported in this browser");
-      return;
-    }
-
-    setBleConnecting(true);
-    setBleError(null);
-
-    try {
-      const device = await scanForBLEMidiDevice();
-      setBleDevice(device);
-
-      const { server, characteristic } = await connectToBLEMidiDevice(device);
-      bleServerRef.current = server;
-      bleCharacteristicRef.current = characteristic;
-      setBleConnected(true);
-
-      // Listen for disconnection AFTER successful connection
-      // Store handler in ref for cleanup
-      const disconnectHandler = (): void => {
-        setBleConnected(false);
-        bleServerRef.current = null;
-        bleCharacteristicRef.current = null;
-      };
-      bleDisconnectHandlerRef.current = disconnectHandler;
-      device.addEventListener("gattserverdisconnected", disconnectHandler);
-    } catch (err) {
-      const error = err as Error & { name?: string };
-      if (error.name !== "NotFoundError") {
-        // NotFoundError means user cancelled the picker
-        setBleError(error.message || error.toString() || "Connection failed");
-        console.error("BLE MIDI connection error:", err);
-      }
-      setBleDevice(null);
-      setBleConnected(false);
-    } finally {
-      setBleConnecting(false);
-    }
-  }, [bleSupported]);
-
-  /**
-   * Disconnect from the current BLE MIDI device.
-   */
-  const disconnectBLE = useCallback((): void => {
-    // Clean up disconnect listener before disconnecting
-    if (bleDevice && bleDisconnectHandlerRef.current) {
-      bleDevice.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
-      bleDisconnectHandlerRef.current = null;
-    }
-    if (bleServerRef.current) {
-      disconnectBLEMidiDevice(bleServerRef.current);
-    }
-    bleServerRef.current = null;
-    bleCharacteristicRef.current = null;
-    setBleDevice(null);
-    setBleConnected(false);
-    setBleError(null);
-  }, [bleDevice]);
 
   /**
    * Handle incoming MIDI messages on selected input.
@@ -448,16 +393,16 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
       switch (status) {
         case MIDI_CLOCK:
-          onMidiClockRef.current?.();
+          clockCallbacksRef.current.onClock?.();
           break;
         case MIDI_START:
-          onMidiStartRef.current?.();
+          clockCallbacksRef.current.onStart?.();
           break;
         case MIDI_STOP:
-          onMidiStopRef.current?.();
+          clockCallbacksRef.current.onStop?.();
           break;
         case MIDI_CONTINUE:
-          onMidiStartRef.current?.();
+          clockCallbacksRef.current.onStart?.();
           break;
       }
     };
@@ -468,351 +413,6 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     };
   }, [selectedInput]);
 
-  /**
-   * Handle incoming MIDI messages from BLE device when BLE sync is enabled.
-   */
-  useEffect(() => {
-    // Clean up any existing listener
-    if (bleSyncCleanupRef.current) {
-      bleSyncCleanupRef.current();
-      bleSyncCleanupRef.current = null;
-    }
-
-    if (!bleSyncEnabled || !bleConnected || !bleCharacteristicRef.current) {
-      return;
-    }
-
-    const handleBleMessage = (msg: number[]): void => {
-      const [status] = msg;
-
-      switch (status) {
-        case MIDI_CLOCK:
-          onMidiClockRef.current?.();
-          break;
-        case MIDI_START:
-          onMidiStartRef.current?.();
-          break;
-        case MIDI_STOP:
-          onMidiStopRef.current?.();
-          break;
-        case MIDI_CONTINUE:
-          onMidiStartRef.current?.();
-          break;
-      }
-    };
-
-    bleSyncCleanupRef.current = addBLEMidiListener(
-      bleCharacteristicRef.current,
-      handleBleMessage
-    );
-
-    return () => {
-      if (bleSyncCleanupRef.current) {
-        bleSyncCleanupRef.current();
-        bleSyncCleanupRef.current = null;
-      }
-    };
-  }, [bleSyncEnabled, bleConnected]);
-
-  /**
-   * Play a single note.
-   */
-  const playNote = useCallback(
-    (note: MIDINote, vel: MIDIVelocity = velocity): void => {
-      if (selectedOutput) {
-        sendNoteOn(selectedOutput, channel, note, vel);
-      }
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
-      }
-      if (selectedOutput || bleConnected) {
-        setCurrentNotes((prev) => [...prev, note]);
-      }
-    },
-    [selectedOutput, bleConnected, channel, velocity]
-  );
-
-  /**
-   * Stop a single note.
-   */
-  const stopNote = useCallback(
-    (note: MIDINote): void => {
-      if (selectedOutput) {
-        sendNoteOff(selectedOutput, channel, note);
-      }
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLENoteOff(bleCharacteristicRef.current, channel, note);
-      }
-      setCurrentNotes((prev) => prev.filter((n) => n !== note));
-    },
-    [selectedOutput, bleConnected, channel]
-  );
-
-  /**
-   * Play a chord with smart diffing.
-   * Only stops notes being removed, only starts new notes.
-   * Supports humanization for staggered timing.
-   */
-  const playChord = useCallback(
-    (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
-      const hasOutput = selectedOutput || bleConnected;
-      if (!hasOutput || !notes?.length) return;
-
-      humanizeManager.current.clear();
-
-      const currentNotesSnapshot = currentNotesRef.current;
-      const newNotesSet = new Set(notes);
-      const currentNotesSet = new Set(currentNotesSnapshot);
-
-      // Stop removed notes immediately
-      const notesToStop = currentNotesSnapshot.filter((n) => !newNotesSet.has(n));
-      if (notesToStop.length > 0) {
-        notesToStop.forEach((note) => {
-          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-        });
-        // BLE: batch all note-offs into single packet
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLEChordOff(bleCharacteristicRef.current, channel, notesToStop);
-        }
-      }
-
-      // Start new notes with optional strum or humanization
-      const notesToStart = notes.filter((n) => !currentNotesSet.has(n));
-
-      if (notesToStart.length > 0) {
-        if (strumEnabled && strumSpread > 0 && notesToStart.length > 1) {
-          // Strum: evenly-spaced delays based on note pitch order
-          const { offsets, nextDirection } = getStrumOffsets(
-            notesToStart,
-            strumSpread,
-            strumDirection,
-            strumLastDirectionRef.current
-          );
-          strumLastDirectionRef.current = nextDirection;
-          notesToStart.forEach((note, i) => {
-            humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-              if (bleConnected && bleCharacteristicRef.current) {
-                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
-              }
-            }, offsets[i]);
-          });
-        } else if (humanize > 0 && notesToStart.length > 1) {
-          // Humanization: stagger notes (works for Web MIDI, less ideal for BLE)
-          const offsets = getHumanizeOffsets(notesToStart.length, humanize);
-          notesToStart.forEach((note, i) => {
-            humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-              if (bleConnected && bleCharacteristicRef.current) {
-                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
-              }
-            }, offsets[i]);
-          });
-        } else {
-          // No humanization: send all notes together
-          notesToStart.forEach((note) => {
-            if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-          });
-          // BLE: batch all note-ons into single packet
-          if (bleConnected && bleCharacteristicRef.current) {
-            sendBLEChordOn(bleCharacteristicRef.current, channel, notesToStart, vel);
-          }
-        }
-      }
-
-      setCurrentNotes(notes);
-    },
-    [selectedOutput, bleConnected, channel, velocity, humanize, strumEnabled, strumSpread, strumDirection]
-  );
-
-  /**
-   * Retrigger a chord - forces all notes to stop and restart.
-   * Used by sequencer in retrig mode for clear re-articulation.
-   */
-  const retriggerChord = useCallback(
-    (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
-      const hasOutput = selectedOutput || bleConnected;
-      if (!hasOutput || !notes?.length) return;
-
-      humanizeManager.current.clear();
-
-      // Stop all current notes
-      const currentNotesVal = currentNotesRef.current;
-      if (currentNotesVal.length > 0) {
-        currentNotesVal.forEach((note) => {
-          if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-        });
-        if (bleConnected && bleCharacteristicRef.current) {
-          sendBLEChordOff(bleCharacteristicRef.current, channel, currentNotesVal);
-        }
-      }
-
-      // Small delay for clear re-articulation
-      setTimeout(() => {
-        if (strumEnabled && strumSpread > 0 && notes.length > 1) {
-          // Strum: evenly-spaced delays based on note pitch order
-          const { offsets, nextDirection } = getStrumOffsets(
-            notes,
-            strumSpread,
-            strumDirection,
-            strumLastDirectionRef.current
-          );
-          strumLastDirectionRef.current = nextDirection;
-          notes.forEach((note, i) => {
-            humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-              if (bleConnected && bleCharacteristicRef.current) {
-                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
-              }
-            }, offsets[i]);
-          });
-        } else if (humanize > 0 && notes.length > 1) {
-          const offsets = getHumanizeOffsets(notes.length, humanize);
-          notes.forEach((note, i) => {
-            humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-              if (bleConnected && bleCharacteristicRef.current) {
-                sendBLENoteOn(bleCharacteristicRef.current, channel, note, vel);
-              }
-            }, offsets[i]);
-          });
-        } else {
-          notes.forEach((note) => {
-            if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-          });
-          if (bleConnected && bleCharacteristicRef.current) {
-            sendBLEChordOn(bleCharacteristicRef.current, channel, notes, vel);
-          }
-        }
-
-        setCurrentNotes(notes);
-      }, REARTICULATION_DELAY_MS);
-    },
-    [selectedOutput, bleConnected, channel, velocity, humanize, strumEnabled, strumSpread, strumDirection]
-  );
-
-  /**
-   * Play a chord with pitch bend glide effect.
-   * Starts new notes with pitch offset and slides them to target pitch.
-   * This creates a portamento-like effect where notes "slide in".
-   */
-  const playChordWithGlide = useCallback(
-    (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
-      const hasOutput = selectedOutput || bleConnected;
-      if (!hasOutput || !notes?.length) return;
-
-      // Cancel any existing glide animation
-      if (glideAnimationRef.current) {
-        cancelAnimationFrame(glideAnimationRef.current);
-        glideAnimationRef.current = null;
-      }
-
-      humanizeManager.current.clear();
-
-      const currentNotesSnapshot = currentNotesRef.current;
-
-      // If no current notes, just play normally
-      if (currentNotesSnapshot.length === 0) {
-        playChord(notes, vel);
-        return;
-      }
-
-      // Calculate average pitch of current and new chords
-      const currentAvg = currentNotesSnapshot.reduce((a, b) => a + b, 0) / currentNotesSnapshot.length;
-      const newAvg = notes.reduce((a, b) => a + b, 0) / notes.length;
-      const pitchDiff = currentAvg - newAvg; // Note: reversed - we start FROM old pitch
-
-      // Ensure minimum bend of 1 semitone for audible effect
-      // Use the direction of pitch movement, but enforce minimum magnitude
-      const minBend = 1.0;
-      const direction = pitchDiff >= 0 ? 1 : -1;
-      const magnitude = Math.max(minBend, Math.abs(pitchDiff));
-
-      // Clamp to max +/- 2 semitones (standard pitch bend range)
-      const startBendSemitones = Math.min(2, magnitude) * direction;
-
-      // Stop old notes immediately
-      currentNotesSnapshot.forEach((note) => {
-        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-      });
-
-      // Set initial pitch bend (offset from where old notes were)
-      const startBendValue = semitonesToPitchBend(startBendSemitones);
-      if (selectedOutput) {
-        sendPitchBend(selectedOutput, channel, startBendValue);
-      }
-
-      // Start new notes (they'll sound at the bent pitch initially)
-      notes.forEach((note) => {
-        if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
-      });
-      setCurrentNotes(notes);
-
-      // Animate pitch bend from offset back to center
-      const startTime = performance.now();
-      const duration = glideTime;
-
-      const animate = (): void => {
-        const elapsed = performance.now() - startTime;
-        const progress = Math.min(1, elapsed / duration);
-
-        // Ease out: starts fast, slows at the end for smooth landing
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-
-        // Interpolate from start bend toward center (0)
-        const currentBend = startBendSemitones * (1 - easeOut);
-        const bendValue = semitonesToPitchBend(currentBend);
-
-        if (selectedOutput) {
-          sendPitchBend(selectedOutput, channel, bendValue);
-        }
-
-        if (progress < 1) {
-          glideAnimationRef.current = requestAnimationFrame(animate);
-        } else {
-          // Glide complete: ensure pitch bend is exactly centered
-          glideAnimationRef.current = null;
-          if (selectedOutput) {
-            resetPitchBend(selectedOutput, channel);
-          }
-        }
-      };
-
-      glideAnimationRef.current = requestAnimationFrame(animate);
-    },
-    [selectedOutput, bleConnected, channel, velocity, glideTime, playChord]
-  );
-
-  /**
-   * Stop all currently playing notes.
-   */
-  const stopAllNotes = useCallback((): void => {
-    humanizeManager.current.clear();
-    const notes = currentNotesRef.current;
-    if (notes.length > 0) {
-      notes.forEach((note) => {
-        if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
-      });
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLEChordOff(bleCharacteristicRef.current, channel, notes);
-      }
-    }
-    setCurrentNotes([]);
-  }, [selectedOutput, bleConnected, channel]);
-
-  /**
-   * MIDI panic - stop all notes on all channels.
-   */
-  const panic = useCallback((): void => {
-    if (selectedOutput) {
-      sendPanic(selectedOutput);
-    }
-    if (bleConnected && bleCharacteristicRef.current) {
-      sendBLEPanic(bleCharacteristicRef.current);
-    }
-    setCurrentNotes([]);
-  }, [selectedOutput, bleConnected]);
-
   // Subscribe to chord events from useChordEngine
   // This replaces the useEffect in App.jsx that watched currentChord
   // Note: useEventSubscription uses a ref pattern, so no useCallback needed
@@ -820,16 +420,16 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     // Check if MIDI output is enabled (not in synth-only mode)
     if (!isMidiOutputEnabled()) return;
 
-    if (isConnected || bleConnected) {
+    if (isConnected || ble.bleConnected) {
       // Determine trigger behavior:
       // - Mobile (event.retrigger=true) always retriggers
       // - Desktop respects user's triggerMode setting
       if (event.retrigger || triggerMode === "all") {
-        retriggerChord(event.notes);
+        playback.retriggerChord(event.notes);
       } else if (triggerMode === "glide") {
-        playChordWithGlide(event.notes);
+        expression.playChordWithGlide(event.notes);
       } else {
-        playChord(event.notes);
+        playback.playChord(event.notes);
       }
     }
   });
@@ -838,8 +438,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     // Check if MIDI output is enabled (not in synth-only mode)
     if (!isMidiOutputEnabled()) return;
 
-    if (isConnected || bleConnected) {
-      stopAllNotes();
+    if (isConnected || ble.bleConnected) {
+      playback.stopAllNotes();
     }
   });
 
@@ -848,7 +448,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
     // Check if MIDI output is enabled (not in synth-only mode)
     if (!isMidiOutputEnabled()) return;
-    if (!(isConnected || bleConnected) || !event.notes.length) return;
+    if (!(isConnected || ble.bleConnected) || !event.notes.length) return;
 
     // Grace notes play slightly softer for musical expression
     const graceVelocity = Math.max(1, Math.round(velocity * 0.85)) as MIDIVelocity;
@@ -866,9 +466,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     event.notes.forEach((note) => {
       if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
     });
-    if (bleConnected && bleCharacteristicRef.current) {
+    if (ble.bleConnected && ble.bleCharacteristic) {
       // BLE: batch into single packet to avoid packet dropping
-      sendBLEChordOff(bleCharacteristicRef.current, channel, event.notes);
+      sendBLEChordOff(ble.bleCharacteristic, channel, event.notes);
     }
 
     // 3. Schedule note-ons with single timeout, BLE batched
@@ -882,8 +482,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
         if (selectedOutput) sendNoteOn(selectedOutput, channel, note, graceVelocity);
       });
       // BLE: batch into single packet
-      if (bleConnected && bleCharacteristicRef.current) {
-        sendBLEChordOn(bleCharacteristicRef.current, channel, event.notes, graceVelocity);
+      if (ble.bleConnected && ble.bleCharacteristic) {
+        sendBLEChordOn(ble.bleCharacteristic, channel, event.notes, graceVelocity);
       }
     }, GRACE_NOTE_DELAY_MS);
 
@@ -900,24 +500,23 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
   // Refs for cleanup to avoid stale closures
   const selectedOutputRef = useRef<MIDIOutput | null>(selectedOutput);
-  const bleConnectedRef = useRef<boolean>(bleConnected);
-  const bleDeviceRef = useRef<BluetoothDevice | null>(bleDevice);
   const channelRef = useRef<MIDIChannel>(channel);
 
   // Keep refs in sync
   selectedOutputRef.current = selectedOutput;
-  bleConnectedRef.current = bleConnected;
-  bleDeviceRef.current = bleDevice;
   channelRef.current = channel;
 
-  // Cleanup on unmount and page refresh
+  // Refs for cleanup functions to avoid re-running cleanup on every render
+  const playbackRef = useRef(playback);
+  const expressionRef = useRef(expression);
+  playbackRef.current = playback;
+  expressionRef.current = expression;
+
+  // Cleanup on unmount and page refresh - only runs once on unmount
   useEffect(() => {
     const handleBeforeUnload = (): void => {
       if (selectedOutputRef.current) {
-        sendPanic(selectedOutputRef.current);
-      }
-      if (bleConnectedRef.current && bleCharacteristicRef.current) {
-        sendBLEPanic(bleCharacteristicRef.current);
+        playbackRef.current.panic();
       }
     };
 
@@ -925,22 +524,25 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      // Clean up BLE disconnect listener
-      if (bleDeviceRef.current && bleDisconnectHandlerRef.current) {
-        bleDeviceRef.current.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
-        bleDisconnectHandlerRef.current = null;
-      }
+      // Clean up grace note timeouts
+      graceNoteTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      graceNoteTimeoutsRef.current.clear();
+      // Clean up expression (glide animation)
+      expressionRef.current.cancelGlide();
+      // Clean up humanize manager
+      playbackRef.current.clearHumanizeManager();
+      // Stop all notes
       const notes = currentNotesRef.current;
       if (notes.length > 0) {
         notes.forEach((note) => {
           if (selectedOutputRef.current) sendNoteOff(selectedOutputRef.current, channelRef.current, note);
         });
-        if (bleConnectedRef.current && bleCharacteristicRef.current) {
-          sendBLEChordOff(bleCharacteristicRef.current, channelRef.current, notes);
+        if (ble.bleConnected && ble.bleCharacteristic) {
+          sendBLEChordOff(ble.bleCharacteristic, channelRef.current, notes);
         }
       }
     };
-  }, []);
+  }, [ble.bleConnected, ble.bleCharacteristic]);
 
   const value: MIDIContextValue = {
     // State
@@ -949,7 +551,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     inputs,
     selectedOutput,
     selectedInput,
-    isConnected: isConnected || bleConnected,
+    isConnected: isConnected || ble.bleConnected,
     error,
     isLoading,
     channel,
@@ -963,26 +565,26 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     glideTime,
 
     // BLE State
-    bleSupported,
-    bleDevice,
-    bleConnected,
-    bleConnecting,
-    bleError,
-    bleSyncEnabled,
+    bleSupported: ble.bleSupported,
+    bleDevice: ble.bleDevice,
+    bleConnected: ble.bleConnected,
+    bleConnecting: ble.bleConnecting,
+    bleError: ble.bleError,
+    bleSyncEnabled: ble.bleSyncEnabled,
 
     // Actions
     connectMIDI,
     selectOutput,
     selectInput,
     setClockCallbacks,
-    connectBLE,
-    disconnectBLE,
-    playNote,
-    stopNote,
-    playChord,
-    retriggerChord,
-    stopAllNotes,
-    panic,
+    connectBLE: ble.connectBLE,
+    disconnectBLE: ble.disconnectBLE,
+    playNote: playback.playNote,
+    stopNote: playback.stopNote,
+    playChord: playback.playChord,
+    retriggerChord: playback.retriggerChord,
+    stopAllNotes: playback.stopAllNotes,
+    panic: playback.panic,
     setChannel,
     setVelocity,
     setHumanize,

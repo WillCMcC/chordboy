@@ -266,7 +266,7 @@ function generateVoicingsWithOctaveShifts(
   ) {
     const shiftedPreset: Preset = {
       ...preset,
-      octave: Math.max(1, Math.min(7, preset.octave + octaveShift)),
+      octave: Math.max(-1, Math.min(9, preset.octave + octaveShift)) as Octave,
     };
 
     const { voicings, chord } = generateAllVoicings(
@@ -429,7 +429,7 @@ export function solveChordVoicings(
       spreadAmount: voicing.spreadAmount,
       droppedNotes: voicing.droppedNotes,
       voicingStyle: voicing.voicingStyle,
-      octave: voicing.octave!,
+      octave: voicing.octave ?? presets[i].octave,
     };
     currentVoicing = parent[i][currentVoicing];
   }

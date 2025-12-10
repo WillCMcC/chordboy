@@ -28,6 +28,7 @@ import {
   type ADSREnvelope,
 } from "../lib/synthPresets";
 import type { MIDINote, ChordChangedEvent, GraceNotePayload, StrumDirection, HumanizeManager } from "../types";
+import type { TriggerMode } from "./useMIDI";
 
 /** Audio mode - MIDI only, Synth only, or both */
 export type AudioMode = "midi" | "synth" | "both";
@@ -155,6 +156,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Refs for latest values (to avoid stale closures in event subscriptions)
   const isEnabledRef = useRef(false);
   const isInitializedRef = useRef(false);
+  const triggerModeRef = useRef<TriggerMode>(triggerMode);
 
   // Get current preset
   const currentPreset = getPresetById(currentPresetId) ?? synthPresets[0];
@@ -165,6 +167,10 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Keep refs in sync with state (for event subscription closures)
   isEnabledRef.current = isEnabled;
   isInitializedRef.current = isInitialized;
+
+  useEffect(() => {
+    triggerModeRef.current = triggerMode;
+  }, [triggerMode]);
 
   // Save settings on change
   useEffect(() => {
@@ -513,12 +519,12 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Subscribe to chord events (use refs for latest values)
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
     if (isEnabledRef.current && isInitializedRef.current && synthRef.current) {
-      if (triggerMode === "glide") {
+      if (triggerModeRef.current === "glide") {
         // Use glide mode - smooth transition between chords
         playChordWithGlide(event.notes);
       } else {
         // Determine if we should retrigger all notes
-        const shouldRetrigger = event.retrigger || triggerMode === "all";
+        const shouldRetrigger = event.retrigger || triggerModeRef.current === "all";
         playChord(event.notes, 100, shouldRetrigger);
       }
     }
@@ -549,6 +555,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      humanizeManagerRef.current.clear();
       disposeCurrentSynth();
       if (volumeNodeRef.current) {
         volumeNodeRef.current.dispose();

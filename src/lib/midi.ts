@@ -298,7 +298,10 @@ export function semitonesToPitchBend(semitones: number, range: number = 2): numb
   // So +range semitones = 16383, -range semitones = 0
   const normalized = semitones / range; // -1 to +1
   const clamped = Math.max(-1, Math.min(1, normalized));
-  return Math.round(8192 + clamped * 8191);
+  // Note: MIDI pitch bend is asymmetric - 8192 above center, 8191 below
+  // This means full bend down = 0, full bend up = 16383 (not 16384)
+  const multiplier = clamped >= 0 ? 8191 : 8192;
+  return Math.round(8192 + clamped * multiplier);
 }
 
 /**

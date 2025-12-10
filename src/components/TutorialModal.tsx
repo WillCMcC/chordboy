@@ -221,10 +221,8 @@ export function TutorialModal({
         setCurrentStep(nextStep);
       }
     }, 2100);
-  }, [isOpen, conditionMet, stepCompleted, currentStep, steps, isMobile]);
 
-  // Cleanup timers on unmount or when step changes
-  useEffect(() => {
+    // Cleanup timers when effect re-runs or component unmounts
     return () => {
       if (advanceTimerRef.current) {
         clearTimeout(advanceTimerRef.current);
@@ -235,7 +233,7 @@ export function TutorialModal({
         progressTimerRef.current = null;
       }
     };
-  }, [currentStep]);
+  }, [isOpen, conditionMet, stepCompleted, currentStep, steps, isMobile]);
 
   // Reset step completion state when step changes
   useEffect(() => {
