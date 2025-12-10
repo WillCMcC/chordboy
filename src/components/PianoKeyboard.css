@@ -2,17 +2,18 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: var(--space-8) var(--space-10);
+  padding: var(--space-4) var(--space-6);
   background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
   border-radius: var(--radius-xl);
   box-shadow:
     var(--shadow-xl),
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 0 80px rgba(0, 0, 0, 0.4);
-  margin: var(--space-4) auto;
+  margin: 0 auto;
   max-width: fit-content;
   border: 1px solid var(--glass-border);
   position: relative;
+  flex-shrink: 0;
 }
 
 .piano-keyboard::before {

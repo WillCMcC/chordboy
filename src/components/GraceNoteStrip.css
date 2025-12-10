@@ -8,12 +8,16 @@
   padding: 0 var(--space-4);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .grace-note-buttons {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .grace-note-btn {
