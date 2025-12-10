@@ -68,6 +68,21 @@ import type { ClockCallbacks } from "./useTransport";
 /** Delay in ms between note-off and note-on for clear re-articulation */
 const REARTICULATION_DELAY_MS = 5;
 
+/** Check if MIDI output should be enabled based on audio mode setting */
+function isMidiOutputEnabled(): boolean {
+  try {
+    const settings = localStorage.getItem("chordboy-synth-settings");
+    if (settings) {
+      const parsed = JSON.parse(settings);
+      // MIDI is enabled in "midi" or "both" mode, disabled in "synth" only mode
+      return parsed.audioMode !== "synth";
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return true; // Default to MIDI enabled
+}
+
 /**
  * Delay for grace notes - balances responsiveness with BLE reliability.
  * Too short (<10ms): BLE may not perceive the gap, notes won't rearticulate clearly
@@ -802,6 +817,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   // This replaces the useEffect in App.jsx that watched currentChord
   // Note: useEventSubscription uses a ref pattern, so no useCallback needed
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
+    // Check if MIDI output is enabled (not in synth-only mode)
+    if (!isMidiOutputEnabled()) return;
+
     if (isConnected || bleConnected) {
       // Determine trigger behavior:
       // - Mobile (event.retrigger=true) always retriggers
@@ -817,6 +835,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   });
 
   useEventSubscription(appEvents, "chord:cleared", () => {
+    // Check if MIDI output is enabled (not in synth-only mode)
+    if (!isMidiOutputEnabled()) return;
+
     if (isConnected || bleConnected) {
       stopAllNotes();
     }
@@ -825,6 +846,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   // Subscribe to grace note events - re-articulate specific notes without changing chord state
   // Uses per-note timeout tracking so rapid taps of different notes don't cancel each other
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
+    // Check if MIDI output is enabled (not in synth-only mode)
+    if (!isMidiOutputEnabled()) return;
     if (!(isConnected || bleConnected) || !event.notes.length) return;
 
     // Grace notes play slightly softer for musical expression

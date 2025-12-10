@@ -18,6 +18,7 @@ import { PresetsPanel } from "./components/PresetsPanel";
 import { ChordDisplay } from "./components/ChordDisplay";
 import { TutorialModal } from "./components/TutorialModal";
 import { GraceNoteStrip } from "./components/GraceNoteStrip";
+import { SynthPanel } from "./components/SynthPanel";
 import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
@@ -283,6 +284,9 @@ function App() {
 
   return (
     <div className="app">
+      {/* Synth / MIDI mode selector - fixed at top */}
+      <SynthPanel onOpenSettings={() => setShowSettings(true)} />
+
       {/* Header buttons */}
       <div className="header-buttons">
         <button

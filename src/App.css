@@ -178,9 +178,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-12) var(--space-8);
-  gap: var(--space-8);
-  margin-top: var(--space-8);
+  justify-content: center;
+  padding: var(--space-6) var(--space-8);
+  padding-top: 80px; /* Space for fixed synth panel */
+  gap: var(--space-6);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Chord Display Wrapper - contains the glow */
@@ -636,14 +639,14 @@
   .header-buttons {
     top: var(--space-2);
     right: var(--space-2);
+    z-index: 101; /* Above synth panel */
   }
 
   .main {
-    padding: var(--space-4) var(--space-4);
-    padding-top: var(--space-10); /* Tighter top spacing */
-    gap: var(--space-4);
-    margin-top: 0;
-    justify-content: flex-start; /* Align to top instead of center */
+    padding: var(--space-3) var(--space-3);
+    gap: var(--space-3);
+    margin-top: 0; /* No top margin on mobile - synth panel is inline */
+    justify-content: flex-start;
   }
 
   .chord-display-wrapper {
