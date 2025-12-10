@@ -137,6 +137,7 @@ function App() {
     clearPreset,
     cycleInversion,
     cycleSpread,
+    cycleVoicingStyle,
     changeOctave,
     saveCurrentChordToSlot,
     recallPresetFromSlot,
@@ -438,10 +439,12 @@ function App() {
             onInversionChange={cycleInversion}
             onSpreadChange={cycleSpread}
             onOctaveChange={changeOctave}
+            onVoicingStyleChange={cycleVoicingStyle}
             currentSettings={{
               inversionIndex,
               spreadAmount,
               octave,
+              voicingStyle,
             }}
             savedPresets={savedPresets}
             onSavePreset={saveCurrentChordToSlot}

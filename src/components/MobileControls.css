@@ -328,6 +328,18 @@
   background: var(--secondary-bg);
 }
 
+/* Voicing style button - more prominent since it's a key feature */
+.voicing-style-btn {
+  background: linear-gradient(135deg, #4a148c 0%, #311b92 100%);
+  color: white;
+  border-color: rgba(139, 92, 246, 0.4);
+  font-weight: 700;
+}
+
+.voicing-style-btn:active {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
 .control-btn:disabled {
   opacity: 0.5;
   border-color: transparent;

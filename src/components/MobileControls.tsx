@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import type { Dispatch, SetStateAction, PointerEvent, TouchEvent, MouseEvent } from "react";
-import type { Preset, StrumDirection, NoteName, MIDIInputInfoDisplay } from "../types";
+import type { Preset, StrumDirection, NoteName, MIDIInputInfoDisplay, VoicingStyle } from "../types";
+import { VOICING_STYLE_LABELS } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
 import { TransportControls } from "./TransportControls";
@@ -14,6 +15,7 @@ interface VoicingSettings {
   inversionIndex: number;
   spreadAmount: number;
   octave: number;
+  voicingStyle: VoicingStyle;
 }
 
 /** Touch tracking state for preset swipe-to-lock gesture */
@@ -36,6 +38,8 @@ interface MobileControlsProps {
   onSpreadChange: () => void;
   /** Callback to shift octave (+1 or -1) */
   onOctaveChange: (delta: number) => void;
+  /** Callback to cycle voicing style */
+  onVoicingStyleChange: () => void;
   /** Current voicing settings */
   currentSettings: VoicingSettings;
   /** Map of saved presets by slot number */
@@ -97,6 +101,7 @@ export function MobileControls({
   onInversionChange,
   onSpreadChange,
   onOctaveChange,
+  onVoicingStyleChange,
   currentSettings,
   savedPresets,
   onSavePreset,
@@ -514,6 +519,11 @@ export function MobileControls({
 
       <div className="mobile-controls-section">
         <span className="mobile-controls-label">Voicing</span>
+        <div className="control-buttons">
+          <button className="control-btn voicing-style-btn" onClick={onVoicingStyleChange}>
+            Style: {VOICING_STYLE_LABELS[currentSettings.voicingStyle]}
+          </button>
+        </div>
         <div className="control-buttons">
           <button className="control-btn" onClick={onInversionChange}>
             Inv: {currentSettings.inversionIndex}
