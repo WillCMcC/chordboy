@@ -71,7 +71,7 @@ export interface UsePresetsReturn {
   clearAllPresets: () => void;
   updatePresetVoicing: (slotNumber: string, updates: PresetVoicingUpdates) => void;
   findNextAvailableSlot: () => string | null;
-  solvePresetVoicings: (selectedSlots: string[], targetOctave: Octave) => boolean;
+  solvePresetVoicings: (selectedSlots: string[], targetOctave: Octave, spreadPreference?: number) => boolean;
 
   // State setters for direct manipulation
   setRecalledKeys: Dispatch<SetStateAction<Set<string> | null>>;

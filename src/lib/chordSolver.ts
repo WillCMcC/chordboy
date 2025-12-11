@@ -180,13 +180,11 @@ function calculateVoiceDistance(
  * Generate all possible voicings for a chord, including all voicing styles.
  * @param preset - Preset object with keys, octave, etc.
  * @param allowedStyles - Which voicing styles to include
- * @param useRegisterConstraints - Whether to apply register penalties
  * @returns Array of voicing options with their resulting notes and metadata
  */
 function generateAllVoicings(
   preset: Preset,
-  allowedStyles: VoicingStyle[] = VOICING_STYLES,
-  useRegisterConstraints: boolean = true
+  allowedStyles: VoicingStyle[] = VOICING_STYLES
 ): { voicings: VoicingOption[]; chord: Chord | null } {
   const parsedKeys = parseKeys(preset.keys);
   if (!parsedKeys.root) return { voicings: [], chord: null };
@@ -221,19 +219,12 @@ function generateAllVoicings(
         notes = invertChord(notes, inversion);
         notes = notes.sort((a, b) => a - b);
 
-        // Calculate register penalty if enabled
-        const registerPenalty = useRegisterConstraints
-          ? calculateRegisterPenalty(notes, style)
-          : 0;
-
         voicings.push({
           inversionIndex: inversion,
           spreadAmount: spread,
           droppedNotes: 0, // Legacy field, not used with voicing styles
           voicingStyle: style,
           notes,
-          // Store penalty in a way we can use later
-          // We'll factor this into the DP calculation
         });
       }
     }
@@ -247,14 +238,12 @@ function generateAllVoicings(
  * @param preset - Preset object
  * @param octaveRange - How many octaves up/down to try
  * @param allowedStyles - Which voicing styles to include
- * @param useRegisterConstraints - Whether to apply register penalties
  * @returns Array of voicing options and the base chord data
  */
 function generateVoicingsWithOctaveShifts(
   preset: Preset,
   octaveRange: number = 1,
-  allowedStyles: VoicingStyle[] = VOICING_STYLES,
-  useRegisterConstraints: boolean = true
+  allowedStyles: VoicingStyle[] = VOICING_STYLES
 ): { voicings: VoicingOption[]; chord: Chord | null } {
   const allVoicings: VoicingOption[] = [];
   let baseChord: Chord | null = null;
@@ -271,8 +260,7 @@ function generateVoicingsWithOctaveShifts(
 
     const { voicings, chord } = generateAllVoicings(
       shiftedPreset,
-      allowedStyles,
-      useRegisterConstraints
+      allowedStyles
     );
 
     if (!baseChord && chord) baseChord = chord;
@@ -330,8 +318,7 @@ export function solveChordVoicings(
       return generateVoicingsWithOctaveShifts(
         presetWithTargetOctave,
         1,
-        allowedStyles,
-        useRegisterConstraints
+        allowedStyles
       );
     }
   );

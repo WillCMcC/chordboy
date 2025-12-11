@@ -537,7 +537,7 @@ describe("eventBus", () => {
       bus.emit("preset:saved", {
         slot: 0,
         keys: new Set(["q", "j"]),
-        voicing: { inversion: 0, drop: "none", spread: 0, octave: 0 },
+        voicing: { inversion: 0, drop: "none", spread: 0, octaveShift: 0, voicingStyle: "close" },
       });
 
       expect(presetSavedHandler).toHaveBeenCalledTimes(1);
@@ -546,8 +546,8 @@ describe("eventBus", () => {
       bus.emit("preset:recalled", {
         slot: 0,
         preset: {
-          keys: ["q", "j"],
-          voicing: { inversion: 0, drop: "none", spread: 0, octave: 0 },
+          keys: new Set(["q", "j"]),
+          octave: 4,
         },
       });
 

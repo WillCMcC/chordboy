@@ -362,7 +362,7 @@ export function useChordEngine(
    * Helper to update voicing on the active preset.
    */
   const updateActivePresetVoicing = useCallback(
-    (updates: { octave?: Octave; inversionIndex?: number; droppedNotes?: number; spreadAmount?: number }): void => {
+    (updates: { octave?: Octave; inversionIndex?: number; droppedNotes?: number; spreadAmount?: number; voicingStyle?: VoicingStyle }): void => {
       if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
         updatePresetVoicing(activePresetSlot, updates);
       }

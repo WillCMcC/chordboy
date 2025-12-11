@@ -21,9 +21,9 @@ vi.mock("../lib/dbUtils", () => ({
   initDB: vi.fn(async () => {
     // Return a mock IDBDatabase with promise-based transaction handling
     return {
-      transaction: (stores: string[], mode: string) => {
+      transaction: (_stores: string[], _mode: string) => {
         const transaction = {
-          objectStore: (storeName: string) => {
+          objectStore: (_storeName: string) => {
             return {
               get: (key: string) => {
                 const request = {
@@ -464,12 +464,12 @@ describe("usePresets - Preset Storage Integration", () => {
 
   describe("Voicing style types", () => {
     it("should handle all voicing style values", async () => {
-      const styles: Array<"close" | "drop2" | "drop3" | "spread" | "wide"> = [
+      const styles: Array<"close" | "drop2" | "drop3" | "rootless-a" | "rootless-b"> = [
         "close",
         "drop2",
         "drop3",
-        "spread",
-        "wide",
+        "rootless-a",
+        "rootless-b",
       ];
 
       const presetsMap = new Map<string, Preset>();

@@ -122,7 +122,7 @@ function ADSREnvelope({
     ctx.stroke();
 
     // Draw control points
-    const drawPoint = (x: number, y: number, isActive: boolean, label: string) => {
+    const drawPoint = (x: number, y: number, isActive: boolean, _label: string) => {
       ctx.beginPath();
       ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2);
       ctx.fillStyle = isActive ? "#c4b5fd" : "#8b5cf6";

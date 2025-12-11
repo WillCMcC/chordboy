@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   BLE_MIDI_SERVICE_UUID,
   BLE_MIDI_CHARACTERISTIC_UUID,

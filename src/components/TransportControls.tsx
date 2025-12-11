@@ -141,15 +141,6 @@ export function TransportControls({
     [onHumanizeChange]
   );
 
-  // Handle humanize increment/decrement (for mobile)
-  const adjustHumanize = useCallback(
-    (delta: number): void => {
-      const newValue = Math.max(0, Math.min(100, humanize + delta));
-      onHumanizeChange(newValue);
-    },
-    [humanize, onHumanizeChange]
-  );
-
   // Handle strum toggle
   const handleStrumToggle = useCallback((): void => {
     onStrumEnabledChange(!strumEnabled);
@@ -161,15 +152,6 @@ export function TransportControls({
       onStrumSpreadChange(parseInt(e.target.value, 10));
     },
     [onStrumSpreadChange]
-  );
-
-  // Handle strum spread increment/decrement
-  const adjustStrumSpread = useCallback(
-    (delta: number): void => {
-      const newValue = Math.max(0, Math.min(200, strumSpread + delta));
-      onStrumSpreadChange(newValue);
-    },
-    [strumSpread, onStrumSpreadChange]
   );
 
   // Handle strum direction change
@@ -202,15 +184,6 @@ export function TransportControls({
       onGlideTimeChange(parseInt(e.target.value, 10));
     },
     [onGlideTimeChange]
-  );
-
-  // Handle glide time increment/decrement
-  const adjustGlideTime = useCallback(
-    (delta: number): void => {
-      const newValue = Math.max(20, Math.min(500, glideTime + delta));
-      onGlideTimeChange(newValue);
-    },
-    [glideTime, onGlideTimeChange]
   );
 
   // Trigger mode display helper
