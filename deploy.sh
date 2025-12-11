@@ -4,14 +4,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLOUDFLARE_PURGE="$HOME/code/caprover-control/scripts/cloudflare-purge.sh"
 
+unset npm_config_prefix
 source ~/.nvm/nvm.sh
 
 # Build with Node 20 (required by Vite 7)
 nvm use 20
 npm run build
 
-# Deploy using Node 18 (caprover has compatibility issues with newer Node)
-nvm exec 18 node /Users/will/.nvm/versions/node/v18.20.8/lib/node_modules/caprover/built/commands/caprover.js deploy --default -b master
+# Deploy using caprover (installed on Node 20)
+caprover deploy --default -b master
 
 # Purge Cloudflare cache
 echo ""
