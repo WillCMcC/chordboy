@@ -80,6 +80,8 @@ export interface GraceNotePayload {
   indices: number[];
   /** Type of grace note pattern */
   pattern: "single" | "pair" | "interval" | "full";
+  /** Octave shift applied to the grace notes (0 = no shift, -1 = down, +1 = up) */
+  octaveShift?: number;
 }
 
 // ============================================================================

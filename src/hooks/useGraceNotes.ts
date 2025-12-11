@@ -9,6 +9,11 @@
  * - vbnm,.: Intervals (root+3rd, root+5th, root+7th, 3rd+7th, 5th+root8va)
  * - space: Full chord retrigger
  *
+ * Octave shift modifiers:
+ * - Command (Meta): Shift grace note DOWN one octave (-12 semitones)
+ * - Option (Alt): Shift grace note UP one octave (+12 semitones)
+ * - Both held: No shift (they cancel out)
+ *
  * @module hooks/useGraceNotes
  */
 
@@ -120,12 +125,13 @@ export function useGraceNotes({
    * Handle grace note key press.
    */
   const handleGraceKey = useCallback(
-    (key: string): void => {
+    (key: string, octaveShift: number): void => {
       // Check single note keys (ghjkl)
       if (key in SINGLE_NOTE_KEYS) {
         const index = SINGLE_NOTE_KEYS[key];
         const { notes, validIndices } = selectNotes(index);
-        emitGraceNote({ notes, indices: validIndices, pattern: "single" });
+        const shiftedNotes = notes.map((note) => note + octaveShift);
+        emitGraceNote({ notes: shiftedNotes, indices: validIndices, pattern: "single", octaveShift });
         return;
       }
 
@@ -133,7 +139,8 @@ export function useGraceNotes({
       if (key in PAIR_KEYS) {
         const indices = PAIR_KEYS[key];
         const { notes, validIndices } = selectNotes([...indices]);
-        emitGraceNote({ notes, indices: validIndices, pattern: "pair" });
+        const shiftedNotes = notes.map((note) => note + octaveShift);
+        emitGraceNote({ notes: shiftedNotes, indices: validIndices, pattern: "pair", octaveShift });
         return;
       }
 
@@ -142,7 +149,8 @@ export function useGraceNotes({
         const indices = INTERVAL_KEYS[key];
         const indexArray = Array.isArray(indices) ? indices : [indices];
         const { notes, validIndices } = selectNotes(indexArray);
-        emitGraceNote({ notes, indices: validIndices, pattern: "interval" });
+        const shiftedNotes = notes.map((note) => note + octaveShift);
+        emitGraceNote({ notes: shiftedNotes, indices: validIndices, pattern: "interval", octaveShift });
         return;
       }
 
@@ -151,7 +159,8 @@ export function useGraceNotes({
         const notes = notesRef.current;
         if (notes?.length) {
           const indices = notes.map((_, i) => i);
-          emitGraceNote({ notes: [...notes], indices, pattern: "full" });
+          const shiftedNotes = notes.map((note) => note + octaveShift);
+          emitGraceNote({ notes: shiftedNotes, indices, pattern: "full", octaveShift });
         }
       }
     },
@@ -192,7 +201,15 @@ export function useGraceNotes({
         event.stopImmediatePropagation();
         event.preventDefault();
 
-        handleGraceKey(key);
+        // Calculate octave shift based on modifier keys
+        // Command (Meta) = -12 semitones (down one octave)
+        // Option (Alt) = +12 semitones (up one octave)
+        // Both held = 0 (they cancel out)
+        let octaveShift = 0;
+        if (event.metaKey) octaveShift -= 12;
+        if (event.altKey) octaveShift += 12;
+
+        handleGraceKey(key, octaveShift);
       }
     };
 

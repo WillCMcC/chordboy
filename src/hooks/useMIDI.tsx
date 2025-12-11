@@ -176,7 +176,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [strumDirection, setStrumDirection] = useState<StrumDirection>(STRUM_UP);
 
   // Trigger mode: "new" = only new notes, "all" = retrigger entire chord, "glide" = pitch bend transition
-  const [triggerMode, setTriggerMode] = useState<TriggerMode>("new");
+  const [triggerMode, setTriggerMode] = useState<TriggerMode>("all");
 
   // Glide time for pitch bend transitions (when triggerMode === "glide")
   const [glideTime, setGlideTime] = useState<number>(100); // ms
