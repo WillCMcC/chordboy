@@ -50,13 +50,15 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       "'",
       "\\",
       ";",
+      "-", // Grace note octave down
+      "=", // Grace note octave up
     ].includes(event.key);
 
     if (shouldPreventDefault) {
       event.preventDefault();
     }
 
-    // Ignore modifier/control keys, arrow keys, number keys, and bracket keys - these are handled separately
+    // Ignore modifier/control keys, arrow keys, number keys, and grace note octave keys - these are handled separately
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
@@ -68,8 +70,8 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
-      event.key === "[" || // Grace note octave down modifier
-      event.key === "]" || // Grace note octave up modifier
+      event.key === "-" || // Grace note octave down modifier
+      event.key === "=" || // Grace note octave up modifier
       (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
     if (isControlKey) {
@@ -90,7 +92,7 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
   const handleKeyUp = useCallback((event: KeyboardEvent): void => {
     const key = event.key.toLowerCase();
 
-    // Ignore modifier/control keys, arrow keys, number keys, and bracket keys
+    // Ignore modifier/control keys, arrow keys, number keys, and grace note octave keys
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
@@ -102,8 +104,8 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
-      event.key === "[" || // Grace note octave down modifier
-      event.key === "]" || // Grace note octave up modifier
+      event.key === "-" || // Grace note octave down modifier
+      event.key === "=" || // Grace note octave up modifier
       (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
     if (isControlKey) {

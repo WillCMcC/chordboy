@@ -10,8 +10,8 @@
  * - space: Full chord retrigger
  *
  * Octave shift modifiers:
- * - [ (left bracket): Shift grace note DOWN one octave (-12 semitones)
- * - ] (right bracket): Shift grace note UP one octave (+12 semitones)
+ * - - (minus): Shift grace note DOWN one octave (-12 semitones)
+ * - = (equals): Shift grace note UP one octave (+12 semitones)
  * - Both held: No shift (they cancel out)
  *
  * @module hooks/useGraceNotes
@@ -51,8 +51,8 @@ const INTERVAL_KEYS: Record<string, number[]> = {
 const PRESET_KEYS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 
 // Octave shift modifier keys
-const OCTAVE_DOWN_KEY = "[";
-const OCTAVE_UP_KEY = "]";
+const OCTAVE_DOWN_KEY = "-";
+const OCTAVE_UP_KEY = "=";
 
 /** Options for useGraceNotes */
 export interface UseGraceNotesOptions {
