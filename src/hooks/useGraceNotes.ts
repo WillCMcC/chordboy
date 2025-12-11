@@ -181,14 +181,12 @@ export function useGraceNotes({
     const handleKeyDown = (event: KeyboardEvent): void => {
       const key = event.key;
 
-      // Track octave shift modifier keys
+      // Track octave shift modifier keys (don't return - let event propagate)
       if (key === OCTAVE_DOWN_KEY) {
         octaveDownHeldRef.current = true;
-        return;
       }
       if (key === OCTAVE_UP_KEY) {
         octaveUpHeldRef.current = true;
-        return;
       }
 
       // Track preset key holds
@@ -233,14 +231,12 @@ export function useGraceNotes({
     const handleKeyUp = (event: KeyboardEvent): void => {
       const key = event.key;
 
-      // Track octave shift modifier key releases
+      // Track octave shift modifier key releases (don't return - let event propagate)
       if (key === OCTAVE_DOWN_KEY) {
         octaveDownHeldRef.current = false;
-        return;
       }
       if (key === OCTAVE_UP_KEY) {
         octaveUpHeldRef.current = false;
-        return;
       }
 
       // Clear preset key hold

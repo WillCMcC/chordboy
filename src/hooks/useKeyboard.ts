@@ -56,7 +56,7 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       event.preventDefault();
     }
 
-    // Ignore modifier/control keys, arrow keys, and number keys - these are handled separately
+    // Ignore modifier/control keys, arrow keys, number keys, and bracket keys - these are handled separately
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
@@ -68,6 +68,8 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
+      event.key === "[" || // Grace note octave down modifier
+      event.key === "]" || // Grace note octave up modifier
       (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
     if (isControlKey) {
@@ -88,7 +90,7 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
   const handleKeyUp = useCallback((event: KeyboardEvent): void => {
     const key = event.key.toLowerCase();
 
-    // Ignore modifier/control keys, arrow keys, and number keys
+    // Ignore modifier/control keys, arrow keys, number keys, and bracket keys
     const isControlKey =
       event.key === "Shift" ||
       event.key === "CapsLock" ||
@@ -100,6 +102,8 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       event.key === "ArrowDown" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
+      event.key === "[" || // Grace note octave down modifier
+      event.key === "]" || // Grace note octave up modifier
       (event.key >= "0" && event.key <= "9"); // Filter out number keys
 
     if (isControlKey) {
