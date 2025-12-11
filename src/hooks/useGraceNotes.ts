@@ -10,8 +10,8 @@
  * - space: Full chord retrigger
  *
  * Octave shift modifiers:
- * - Command (Meta): Shift grace note DOWN one octave (-12 semitones)
- * - Option (Alt): Shift grace note UP one octave (+12 semitones)
+ * - [ (left bracket): Shift grace note DOWN one octave (-12 semitones)
+ * - ] (right bracket): Shift grace note UP one octave (+12 semitones)
  * - Both held: No shift (they cancel out)
  *
  * @module hooks/useGraceNotes
@@ -50,6 +50,10 @@ const INTERVAL_KEYS: Record<string, number[]> = {
 // Preset keys (0-9)
 const PRESET_KEYS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 
+// Octave shift modifier keys
+const OCTAVE_DOWN_KEY = "[";
+const OCTAVE_UP_KEY = "]";
+
 /** Options for useGraceNotes */
 export interface UseGraceNotesOptions {
   /** Current chord notes (null if no chord) */
@@ -77,6 +81,9 @@ export function useGraceNotes({
   const heldPresetKeyRef = useRef<string | null>(null);
   // Track which grace note keys are currently pressed (to prevent repeat triggers)
   const activeGraceKeysRef = useRef<Set<string>>(new Set());
+  // Track octave shift modifier keys
+  const octaveDownHeldRef = useRef<boolean>(false);
+  const octaveUpHeldRef = useRef<boolean>(false);
   // Store current chord notes in ref to avoid stale closures
   const notesRef = useRef<MIDINote[] | null>(null);
 
@@ -174,6 +181,16 @@ export function useGraceNotes({
     const handleKeyDown = (event: KeyboardEvent): void => {
       const key = event.key;
 
+      // Track octave shift modifier keys
+      if (key === OCTAVE_DOWN_KEY) {
+        octaveDownHeldRef.current = true;
+        return;
+      }
+      if (key === OCTAVE_UP_KEY) {
+        octaveUpHeldRef.current = true;
+        return;
+      }
+
       // Track preset key holds
       if (PRESET_KEYS.has(key)) {
         heldPresetKeyRef.current = key;
@@ -201,13 +218,13 @@ export function useGraceNotes({
         event.stopImmediatePropagation();
         event.preventDefault();
 
-        // Calculate octave shift based on modifier keys
-        // Command (Meta) = -12 semitones (down one octave)
-        // Option (Alt) = +12 semitones (up one octave)
+        // Calculate octave shift based on bracket keys
+        // [ = -12 semitones (down one octave)
+        // ] = +12 semitones (up one octave)
         // Both held = 0 (they cancel out)
         let octaveShift = 0;
-        if (event.metaKey) octaveShift -= 12;
-        if (event.altKey) octaveShift += 12;
+        if (octaveDownHeldRef.current) octaveShift -= 12;
+        if (octaveUpHeldRef.current) octaveShift += 12;
 
         handleGraceKey(key, octaveShift);
       }
@@ -215,6 +232,16 @@ export function useGraceNotes({
 
     const handleKeyUp = (event: KeyboardEvent): void => {
       const key = event.key;
+
+      // Track octave shift modifier key releases
+      if (key === OCTAVE_DOWN_KEY) {
+        octaveDownHeldRef.current = false;
+        return;
+      }
+      if (key === OCTAVE_UP_KEY) {
+        octaveUpHeldRef.current = false;
+        return;
+      }
 
       // Clear preset key hold
       if (PRESET_KEYS.has(key)) {
