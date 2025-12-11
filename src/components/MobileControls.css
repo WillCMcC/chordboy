@@ -50,6 +50,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .mobile-controls-section {
@@ -63,11 +65,19 @@
 }
 
 .mobile-controls-label {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
+}
+
+/* Standalone section headers (no buttons beside them) */
+.mobile-controls-section > .mobile-controls-label:first-child {
+  display: block;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .mobile-grid {

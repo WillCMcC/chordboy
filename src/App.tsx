@@ -7,7 +7,12 @@
  */
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import type { MIDINote, StrumDirection, GraceNotePayload, MIDIInputInfoDisplay } from "./types";
+import type {
+  MIDINote,
+  StrumDirection,
+  GraceNotePayload,
+  MIDIInputInfoDisplay,
+} from "./types";
 import type { VoicedChord } from "./hooks/useChordEngine";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
@@ -163,7 +168,7 @@ function App() {
         retriggerChord(notes);
       }
     },
-    [getChordNotesFromPreset, retriggerChord]
+    [getChordNotesFromPreset, retriggerChord],
   );
 
   /**
@@ -289,8 +294,34 @@ function App() {
 
   // Filter and map midiInputs to display type (handles null names safely)
   const typedMidiInputs: MIDIInputInfoDisplay[] = midiInputs
-    .filter((input): input is typeof input & { name: string } => input.name !== null)
+    .filter(
+      (input): input is typeof input & { name: string } => input.name !== null,
+    )
     .map(({ id, name }) => ({ id, name }));
+
+  // Find the next available preset slot for floating save button
+  const nextAvailableSlot = useMemo((): string | null => {
+    const slots = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+    for (const slot of slots) {
+      if (!savedPresets.has(slot)) {
+        return slot;
+      }
+    }
+    return null;
+  }, [savedPresets]);
+
+  // Handle floating save button tap
+  const handleFloatingSave = useCallback((): void => {
+    if (nextAvailableSlot) {
+      const success = saveCurrentChordToSlot(nextAvailableSlot);
+      if (success) {
+        // Provide haptic feedback
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }
+    }
+  }, [nextAvailableSlot, saveCurrentChordToSlot]);
 
   return (
     <div className="app">
@@ -361,9 +392,23 @@ function App() {
           showHints={!isMobile}
         />
 
-        {/* Grace note strip for mobile - tap to re-articulate individual notes */}
-        {isMobile && currentChord && (
+        {/* Grace note strip OR piano keyboard for mobile */}
+        {isMobile && !showMobileKeyboard && currentChord && (
           <GraceNoteStrip notes={currentChord.notes} />
+        )}
+
+        {/* Mobile piano keyboard - replaces grace notes when visible */}
+        {isMobile && showMobileKeyboard && (
+          <div className="mobile-keyboard-inline" ref={mobileKeyboardRef}>
+            <PianoKeyboard
+              activeNotes={currentChord ? currentChord.notes : []}
+              triggeredNotes={triggeredNotes}
+              startOctave={2}
+              endOctave={6}
+              isMobile={true}
+              getNoteColor={getNoteColor}
+            />
+          </div>
         )}
 
         {/* Transport controls - desktop only, mobile is inside MobileControls */}
@@ -419,20 +464,6 @@ function App() {
           />
         )}
 
-        {/* Mobile piano keyboard */}
-        {isMobile && showMobileKeyboard && (
-          <div className="mobile-keyboard-container" ref={mobileKeyboardRef}>
-            <PianoKeyboard
-              activeNotes={currentChord ? currentChord.notes : []}
-              triggeredNotes={triggeredNotes}
-              startOctave={2}
-              endOctave={6}
-              isMobile={true}
-              getNoteColor={getNoteColor}
-            />
-          </div>
-        )}
-
         {/* Mobile controls */}
         {isMobile && (
           <MobileControls
@@ -486,6 +517,17 @@ function App() {
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
           />
+        )}
+
+        {/* Floating save preset button for mobile - outside MobileControls to avoid clipping */}
+        {isMobile && currentChord && nextAvailableSlot && (
+          <button
+            className="floating-save-btn"
+            onClick={handleFloatingSave}
+            aria-label={`Save to preset ${nextAvailableSlot}`}
+          >
+            Save to {nextAvailableSlot}
+          </button>
         )}
       </main>
 

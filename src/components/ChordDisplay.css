@@ -85,6 +85,28 @@
   color: var(--text-primary);
 }
 
+/* Compact mode for mobile keyboard header */
+.chord-display-wrapper.compact {
+  margin: 0;
+}
+
+.chord-display-wrapper.compact .aurora-glow {
+  inset: -10px;
+  filter: blur(15px);
+}
+
+.chord-display-wrapper.compact .chord-display {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--glass-bg-solid);
+}
+
+.chord-display-wrapper.compact .chord-name {
+  font-size: 1.5rem;
+  margin: 0;
+  min-height: auto;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .chord-display {

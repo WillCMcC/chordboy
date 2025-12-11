@@ -1,6 +1,18 @@
 import { useMemo, useState, useRef, useCallback } from "react";
-import type { Dispatch, SetStateAction, PointerEvent, TouchEvent, MouseEvent } from "react";
-import type { Preset, StrumDirection, NoteName, MIDIInputInfoDisplay, VoicingStyle } from "../types";
+import type {
+  Dispatch,
+  SetStateAction,
+  PointerEvent,
+  TouchEvent,
+  MouseEvent,
+} from "react";
+import type {
+  Preset,
+  StrumDirection,
+  NoteName,
+  MIDIInputInfoDisplay,
+  VoicingStyle,
+} from "../types";
 import { VOICING_STYLE_LABELS } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
@@ -177,34 +189,40 @@ export function MobileControls({
   }, []);
 
   // Handle root key tap - radio behavior (only one root at a time)
-  const handleRootTap = useCallback((key: string): void => {
-    const rootKeys = Object.keys(LEFT_HAND_KEYS);
-    setMobileKeys((prev) => {
-      const next = new Set(prev);
-      // If this root is already selected, deselect it
-      if (prev.has(key)) {
-        next.delete(key);
-      } else {
-        // Remove any other root keys (radio behavior) and add this one
-        rootKeys.forEach((k) => next.delete(k));
-        next.add(key);
-      }
-      return next;
-    });
-  }, [setMobileKeys]);
+  const handleRootTap = useCallback(
+    (key: string): void => {
+      const rootKeys = Object.keys(LEFT_HAND_KEYS);
+      setMobileKeys((prev) => {
+        const next = new Set(prev);
+        // If this root is already selected, deselect it
+        if (prev.has(key)) {
+          next.delete(key);
+        } else {
+          // Remove any other root keys (radio behavior) and add this one
+          rootKeys.forEach((k) => next.delete(k));
+          next.add(key);
+        }
+        return next;
+      });
+    },
+    [setMobileKeys],
+  );
 
   // Handle modifier key tap - toggle behavior
-  const handleModifierTap = useCallback((key: string): void => {
-    setMobileKeys((prev) => {
-      const next = new Set(prev);
-      if (prev.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, [setMobileKeys]);
+  const handleModifierTap = useCallback(
+    (key: string): void => {
+      setMobileKeys((prev) => {
+        const next = new Set(prev);
+        if (prev.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+        }
+        return next;
+      });
+    },
+    [setMobileKeys],
+  );
 
   // Clear all keys
   const clearAll = useCallback((): void => {
@@ -241,88 +259,104 @@ export function MobileControls({
     setSolveMode(false);
   };
 
-  const handlePresetDown = useCallback((slot: number, clientX: number, clientY: number): void => {
-    const slotStr = slot.toString();
+  const handlePresetDown = useCallback(
+    (slot: number, clientX: number, clientY: number): void => {
+      const slotStr = slot.toString();
 
-    if (clearMode) {
-      onClearPreset(slotStr);
-      setClearMode(false);
-      return;
-    }
+      if (clearMode) {
+        onClearPreset(slotStr);
+        setClearMode(false);
+        return;
+      }
 
-    // In solve mode, toggle selection instead of playing
-    if (solveMode) {
+      // In solve mode, toggle selection instead of playing
+      if (solveMode) {
+        if (savedPresets.has(slotStr)) {
+          toggleSolveSelection(slot);
+        }
+        return;
+      }
+
+      // If this preset is already held (locked), tap to release
+      if (heldPreset === slotStr) {
+        setHeldPreset(null);
+        onStopRecall();
+        presetTouchRef.current = {
+          activeSlot: null,
+          startX: 0,
+          startY: 0,
+          isHeld: false,
+        };
+        return;
+      }
+
+      // If another preset is held, release it first (stop its playback)
+      if (heldPreset !== null) {
+        setHeldPreset(null);
+        onStopRecall();
+      }
+
+      // Initialize touch tracking
+      presetTouchRef.current = {
+        activeSlot: slotStr,
+        startX: clientX,
+        startY: clientY,
+        isHeld: false,
+      };
+
       if (savedPresets.has(slotStr)) {
-        toggleSolveSelection(slot);
-      }
-      return;
-    }
-
-    // If this preset is already held (locked), tap to release
-    if (heldPreset === slotStr) {
-      setHeldPreset(null);
-      onStopRecall();
-      presetTouchRef.current = {
-        activeSlot: null,
-        startX: 0,
-        startY: 0,
-        isHeld: false,
-      };
-      return;
-    }
-
-    // If another preset is held, release it first (stop its playback)
-    if (heldPreset !== null) {
-      setHeldPreset(null);
-      onStopRecall();
-    }
-
-    // Initialize touch tracking
-    presetTouchRef.current = {
-      activeSlot: slotStr,
-      startX: clientX,
-      startY: clientY,
-      isHeld: false,
-    };
-
-    if (savedPresets.has(slotStr)) {
-      // Clear mobile keys so preset plays alone
-      clearAll();
-      onRecallPreset(slotStr);
-    } else {
-      // Try to save (no hold behavior for saving)
-      const success = onSavePreset(slotStr);
-      if (success) {
+        // Clear mobile keys so preset plays alone
         clearAll();
+        onRecallPreset(slotStr);
+      } else {
+        // Try to save (no hold behavior for saving)
+        const success = onSavePreset(slotStr);
+        if (success) {
+          clearAll();
+        }
+        // Reset tracking since save doesn't need hold behavior
+        presetTouchRef.current = {
+          activeSlot: null,
+          startX: 0,
+          startY: 0,
+          isHeld: false,
+        };
       }
-      // Reset tracking since save doesn't need hold behavior
-      presetTouchRef.current = {
-        activeSlot: null,
-        startX: 0,
-        startY: 0,
-        isHeld: false,
-      };
-    }
-  }, [clearMode, solveMode, savedPresets, heldPreset, onClearPreset, onRecallPreset, onSavePreset, onStopRecall, clearAll]);
+    },
+    [
+      clearMode,
+      solveMode,
+      savedPresets,
+      heldPreset,
+      onClearPreset,
+      onRecallPreset,
+      onSavePreset,
+      onStopRecall,
+      clearAll,
+    ],
+  );
 
-  const handlePresetMove = useCallback((clientX: number, clientY: number): void => {
-    const touch = presetTouchRef.current;
-    if (touch.activeSlot === null || touch.isHeld) return;
+  const handlePresetMove = useCallback(
+    (clientX: number, clientY: number): void => {
+      const touch = presetTouchRef.current;
+      if (touch.activeSlot === null || touch.isHeld) return;
 
-    const deltaX = Math.abs(clientX - touch.startX);
-    const deltaY = Math.abs(clientY - touch.startY);
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      const deltaX = Math.abs(clientX - touch.startX);
+      const deltaY = Math.abs(clientY - touch.startY);
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // If swiped past threshold, lock the preset
-    if (distance > SWIPE_LOCK_THRESHOLD) {
-      touch.isHeld = true;
-      setHeldPreset(touch.activeSlot);
-      // Haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
+      // If swiped past threshold, lock the preset
+      if (distance > SWIPE_LOCK_THRESHOLD) {
+        touch.isHeld = true;
+        setHeldPreset(touch.activeSlot);
+        // Haptic feedback
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
       }
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handlePresetUp = useCallback((): void => {
     const touch = presetTouchRef.current;
@@ -343,7 +377,6 @@ export function MobileControls({
       isHeld: false,
     };
   }, [heldPreset, onStopRecall]);
-
 
   return (
     <div className="mobile-controls">
@@ -388,7 +421,11 @@ export function MobileControls({
               <div className="mobile-solve-controls">
                 <div className="mobile-spread-control">
                   <span className="mobile-spread-label">
-                    {spreadPreference < -0.3 ? "Close" : spreadPreference > 0.3 ? "Wide" : "Bal"}
+                    {spreadPreference < -0.3
+                      ? "Close"
+                      : spreadPreference > 0.3
+                        ? "Wide"
+                        : "Bal"}
                   </span>
                   <input
                     type="range"
@@ -396,7 +433,9 @@ export function MobileControls({
                     max="1"
                     step="0.1"
                     value={spreadPreference}
-                    onChange={(e) => setSpreadPreference(parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      setSpreadPreference(parseFloat(e.target.value))
+                    }
                     className="mobile-spread-slider"
                   />
                 </div>
@@ -427,7 +466,10 @@ export function MobileControls({
                 </button>
                 <button
                   className={`control-btn ${clearMode ? "active" : ""}`}
-                  style={{ flex: 0, backgroundColor: clearMode ? "#d32f2f" : "" }}
+                  style={{
+                    flex: 0,
+                    backgroundColor: clearMode ? "#d32f2f" : "",
+                  }}
                   onClick={() => setClearMode(!clearMode)}
                 >
                   {clearMode ? "Cancel" : "Clear..."}
@@ -520,7 +562,10 @@ export function MobileControls({
       <div className="mobile-controls-section">
         <span className="mobile-controls-label">Voicing</span>
         <div className="control-buttons">
-          <button className="control-btn voicing-style-btn" onClick={onVoicingStyleChange}>
+          <button
+            className="control-btn voicing-style-btn"
+            onClick={onVoicingStyleChange}
+          >
             Style: {VOICING_STYLE_LABELS[currentSettings.voicingStyle]}
           </button>
         </div>

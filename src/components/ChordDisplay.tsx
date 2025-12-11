@@ -36,6 +36,8 @@ interface ChordDisplayProps {
   voicingStyle: VoicingStyle;
   /** Whether to show keyboard hints */
   showHints?: boolean;
+  /** Compact mode for mobile keyboard header */
+  compact?: boolean;
 }
 
 /** Custom CSS properties for aurora gradient */
@@ -54,6 +56,7 @@ export function ChordDisplay({
   spreadAmount,
   voicingStyle,
   showHints = true,
+  compact = false,
 }: ChordDisplayProps) {
   const hasChord = !!displayChord;
   const gradient = currentChord
@@ -68,7 +71,7 @@ export function ChordDisplay({
     : {};
 
   return (
-    <div className="chord-display-wrapper">
+    <div className={`chord-display-wrapper ${compact ? "compact" : ""}`}>
       {/* Aurora glow layer */}
       <div
         className={`aurora-glow ${currentChord ? "active" : ""}`}
@@ -80,30 +83,25 @@ export function ChordDisplay({
           {hasChord ? displayChord.name : "Press keys to play chords"}
         </p>
 
-        <div
-          className="chord-info"
-          style={{ opacity: hasChord ? 1 : 0 }}
-        >
-          <p>
-            <strong>Notes:</strong>{" "}
-            {hasChord ? displayChord.notes.join(", ") : "C, E, G"}{" "}
-            <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
-            {octave}
-          </p>
-          <p>
-            <strong>Voicing:</strong> {VOICING_STYLE_LABELS[voicingStyle]}{" "}
-            <span style={{ opacity: 0.5 }}>|</span>{" "}
-            <strong>Inv:</strong> {inversionIndex}{" "}
-            <span style={{ opacity: 0.5 }}>|</span>{" "}
-            <strong>Spread:</strong> {spreadAmount}
-          </p>
-        </div>
+        {!compact && (
+          <div className="chord-info" style={{ opacity: hasChord ? 1 : 0 }}>
+            <p>
+              <strong>Notes:</strong>{" "}
+              {hasChord ? displayChord.notes.join(", ") : "C, E, G"}{" "}
+              <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
+              {octave}
+            </p>
+            <p>
+              <strong>Voicing:</strong> {VOICING_STYLE_LABELS[voicingStyle]}{" "}
+              <span style={{ opacity: 0.5 }}>|</span> <strong>Inv:</strong>{" "}
+              {inversionIndex} <span style={{ opacity: 0.5 }}>|</span>{" "}
+              <strong>Spread:</strong> {spreadAmount}
+            </p>
+          </div>
+        )}
 
         {showHints && (
-          <div
-            className="keyboard-hints"
-            style={{ opacity: hasChord ? 1 : 0 }}
-          >
+          <div className="keyboard-hints" style={{ opacity: hasChord ? 1 : 0 }}>
             <span className="keyboard-hint">
               <kbd>L-Shift</kbd> Inversion
             </span>

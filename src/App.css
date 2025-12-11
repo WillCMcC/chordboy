@@ -543,30 +543,27 @@
   border: 1.5px dashed var(--border-color);
 }
 
-/* Mobile keyboard container - positioned at top of viewport */
-.mobile-keyboard-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 90;
-  background: linear-gradient(
-    to bottom,
-    var(--secondary-bg) 0%,
-    var(--primary-bg) 100%
-  );
-  border-bottom: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lg);
+/* Mobile keyboard inline - replaces grace notes area */
+.mobile-keyboard-inline {
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: var(--space-2) 0;
   scroll-behavior: smooth;
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  margin: var(--space-2) 0;
+  flex: 1;
+  min-height: 100px;
+  max-height: 140px;
+  display: flex;
+  align-items: center;
 }
 
-.mobile-keyboard-container .piano-keyboard {
+.mobile-keyboard-inline .piano-keyboard {
   margin: 0;
-  padding: var(--space-2);
+  padding: var(--space-1);
   background: transparent;
   box-shadow: none;
   border-radius: 0;
@@ -575,44 +572,23 @@
   justify-content: flex-start;
 }
 
-.mobile-keyboard-container .piano-container {
+.mobile-keyboard-inline .piano-container {
   position: relative;
   display: inline-block;
 }
 
-.mobile-keyboard-container .white-keys {
+.mobile-keyboard-inline .white-keys {
   display: flex;
   position: relative;
   z-index: 1;
 }
 
-.mobile-keyboard-container .black-keys {
+.mobile-keyboard-inline .black-keys {
   position: absolute;
   top: 0;
   left: 0;
-  height: 60px;
+  height: 50px;
   z-index: 2;
-}
-
-.mobile-keyboard-container::before,
-.mobile-keyboard-container::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  width: 32px;
-  height: 115px;
-  pointer-events: none;
-  z-index: 91;
-}
-
-.mobile-keyboard-container::before {
-  left: 0;
-  background: linear-gradient(to right, var(--secondary-bg), transparent);
-}
-
-.mobile-keyboard-container::after {
-  right: 0;
-  background: linear-gradient(to left, var(--secondary-bg), transparent);
 }
 
 /* Animations */
@@ -765,5 +741,45 @@
     66% {
       transform: translate(-48%, -52%) scale(1.2);
     }
+  }
+}
+
+/* Floating save preset button for mobile */
+.floating-save-btn {
+  position: fixed;
+  bottom: calc(55dvh - 16px);
+  z-index: 110;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    0 4px 20px rgba(139, 92, 246, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: floatIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-save-btn:active {
+  transform: scale(0.95);
+  box-shadow:
+    0 2px 12px rgba(139, 92, 246, 0.4),
+    0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
