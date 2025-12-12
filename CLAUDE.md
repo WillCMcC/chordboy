@@ -65,8 +65,3 @@ See `agent_docs/` for in-depth reference when working on specific areas:
 - `chord-building.md` - Chord construction pipeline, voicing transforms
 - `midi-integration.md` - MIDI/BLE setup, clock sync, humanization
 - `testing.md` - Test patterns and coverage
-
-## Rules
-
-- Do not run dev server or watch-mode tests
-- Do not create commits unless asked

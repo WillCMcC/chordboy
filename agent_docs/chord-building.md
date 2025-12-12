@@ -7,7 +7,7 @@ parseKeys(pressedKeys) → { root, modifiers }
         ↓
 buildChord(root, modifiers, { octave }) → { root, quality, intervals, notes }
         ↓
-applyProgressiveDrop(notes, dropCount)
+applyVoicingStyle(chord, style) (jazzVoicings.ts)
         ↓
 applySpread(notes, spreadAmount)
         ↓
@@ -22,8 +22,10 @@ Final MIDI note array
 - `src/lib/chordBuilder.ts` - Builds chord structure from root + modifiers
 - `src/lib/chordTheory.ts` - INTERVALS constant, note-to-MIDI conversion
 - `src/lib/chordNamer.ts` - Generates display names (e.g., "Cmaj7#11")
-- `src/lib/voicingTransforms.ts` - Drop and spread voicing helpers
-- `src/types/index.ts` - Type definitions for `Chord`, `VoicedChord`, `Interval`, etc.
+- `src/lib/jazzVoicings.ts` - Jazz voicing style implementations (Bill Evans, Bud Powell, McCoy Tyner)
+- `src/lib/voicingTransforms.ts` - Generic transforms (drop, spread, inversion)
+- `src/lib/chordSolver.ts` - Voice leading optimization across progressions
+- `src/types/music.ts` - Type definitions for `Chord`, `VoicedChord`, `Interval`, etc.
 
 ## Chord Building Logic
 
@@ -31,7 +33,7 @@ See `buildChord()` in `src/lib/chordBuilder.ts`:
 
 1. Start with root (UNISON interval)
 2. Add triad based on quality modifier:
-   - **half-dim**: m3 + dim5 + m7 (complete m7♭5 chord) - the ii chord in minor ii-V-i
+   - **half-dim**: m3 + dim5 + m7 (complete m7b5 chord) - the ii chord in minor ii-V-i
    - major: M3 + P5 (default)
    - minor: m3 + P5
    - diminished: m3 + dim5
@@ -43,20 +45,36 @@ See `buildChord()` in `src/lib/chordBuilder.ts`:
 6. Dedupe and sort intervals
 7. Convert to MIDI notes via `buildNotesFromIntervals()`
 
-## Voicing Transforms
+## Voicing Styles
 
-**Progressive Drop** (`applyProgressiveDrop` in voicingTransforms.ts):
-- Drops highest notes down an octave
-- dropCount=1: drop highest note
-- dropCount=2: drop two highest notes
+`src/lib/jazzVoicings.ts` - Jazz-specific voicing implementations:
+
+| Style | Description | Inspiration |
+|-------|-------------|-------------|
+| `close` | Standard close position voicing | Default |
+| `drop2` | 2nd note from top dropped an octave | Barry Harris |
+| `drop3` | 3rd note from top dropped an octave | Big band section writing |
+| `drop24` | 2nd and 4th notes dropped | Guitar/piano spread |
+| `rootless-a` | 3-5-7-9 (3rd on bottom, root omitted) | Bill Evans Type A |
+| `rootless-b` | 7-9-3-5 (7th on bottom, root omitted) | Bill Evans Type B |
+| `shell` | Root + 3rd + 7th only | Bud Powell |
+| `quartal` | Stacked 4ths ("So What" for minor) | McCoy Tyner |
+| `upper-struct` | Major triad above root for altered dominants | Modern jazz |
+
+## Generic Transforms
+
+`src/lib/voicingTransforms.ts`:
 
 **Spread** (`applySpread`):
 - Spreads notes across octaves
 - spreadAmount 0-3
 
-**Inversion** (`invertChord` in chordBuilder.ts):
+**Inversion** (`invertChord`):
 - Moves lowest notes up an octave
 - inversionIndex=1: first inversion, etc.
+
+**MIDI Clamping** (`clampMIDI`):
+- Ensures notes stay within 0-127 range
 
 ## Voice Leading Solver
 
@@ -66,9 +84,7 @@ Optimizes voicings across a chord progression to minimize voice movement. Used b
 
 ### Jazz-Aware Features
 
-The solver includes sophisticated jazz voice leading awareness:
-
-1. **7th→3rd Resolution Weighting**: Rewards voicings where the 7th of one chord resolves smoothly (by half/whole step) to the 3rd of the next chord. This is the defining motion of ii-V-I progressions.
+1. **7th→3rd Resolution Weighting**: Rewards voicings where the 7th of one chord resolves smoothly (by half/whole step) to the 3rd of the next chord.
 
 2. **Register Constraints**: Each voicing style has optimal register ranges:
    - Rootless voicings: C3-G5 (ideal around middle C)
@@ -76,7 +92,7 @@ The solver includes sophisticated jazz voice leading awareness:
    - Quartal voicings: C3-G5
    - Upper structure: E3-C6 (higher register for clarity)
 
-3. **All Voicing Style Combinations**: The solver considers all 8 voicing styles × inversions × spreads × octave shifts, finding the optimal combination for smooth voice leading.
+3. **All Combinations**: Considers all voicing styles × inversions × spreads × octave shifts.
 
 ### Solver Options
 
@@ -89,11 +105,6 @@ interface SolverOptions {
   spreadPreference?: number;       // -1 (close) to 1 (wide), 0 = neutral
 }
 ```
-
-**Spread Preference**: Controls whether the solver favors close or wide voicings:
-- `-1`: Strongly prefer close voicings (minimal spread)
-- `0`: Neutral (default) - just minimizes voice movement
-- `1`: Strongly prefer wide voicings (drop voicings, spread chords)
 
 ## Intervals Reference
 
@@ -113,6 +124,13 @@ const INTERVALS = {
   MAJOR_SIXTH: 9,
   MINOR_SEVENTH: 10,
   MAJOR_SEVENTH: 11,
-  // ... extensions at octave+
+  // Extensions at octave+
+  FLAT_NINTH: 13,
+  NINTH: 14,
+  SHARP_NINTH: 15,
+  ELEVENTH: 17,
+  SHARP_ELEVENTH: 18,
+  FLAT_THIRTEENTH: 20,
+  THIRTEENTH: 21,
 } as const;
 ```

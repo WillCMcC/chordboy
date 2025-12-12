@@ -18,12 +18,20 @@ src/lib/
   chordTheory.test.ts
   chordBuilder.test.ts
   chordNamer.test.ts
+  chordSolver.test.ts
   voicingTransforms.test.ts
   keyboardMappings.test.ts
   parseKeys.test.ts
   pianoLayout.test.ts
   sequencerLogic.test.ts
   tutorialLogic.test.ts
+  midi.test.ts
+  bleMidi.test.ts
+  eventBus.test.ts
+
+src/hooks/
+  useChordEngine.test.ts
+  usePresets.test.ts
 ```
 
 ## Test Patterns
@@ -46,20 +54,31 @@ describe("functionName", () => {
 
 ## What's Tested
 
-**Core chord logic is well tested:**
+**Core chord logic:**
 - Interval calculations (chordTheory)
 - Chord building from root + modifiers (chordBuilder)
 - Chord naming/display (chordNamer)
+- Voice leading solver (chordSolver)
 - Voicing transforms (voicingTransforms)
 - Keyboard mappings (keyboardMappings)
 - Key parsing (parseKeys)
+
+**Infrastructure:**
+- Event bus pub/sub (eventBus)
+- MIDI protocol functions (midi)
+- BLE MIDI protocol (bleMidi)
+- Piano layout calculations (pianoLayout)
+
+**App logic:**
 - Sequencer step logic (sequencerLogic)
 - Tutorial conditions (tutorialLogic)
+- Chord engine hook (useChordEngine)
+- Presets hook (usePresets)
 
 **Not tested (UI/integration):**
-- React hooks
-- Components
-- MIDI I/O
+- React components
+- MIDI I/O hardware interaction
+- BLE device connection
 
 ## Adding Tests
 

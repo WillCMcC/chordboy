@@ -11,32 +11,49 @@ main.tsx
         ├── PresetsPanel (desktop)
         ├── PianoKeyboard
         ├── MobileControls (mobile)
+        │   └── GraceNoteStrip
         ├── SettingsPanel
+        ├── SynthPanel
         ├── TutorialModal
         └── SequencerModal
 ```
 
 ## Hook Responsibilities
 
+### Core Hooks
+
 | Hook | Purpose | Key Exports |
 |------|---------|-------------|
-| `useKeyboard` | Captures key events, tracks pressed keys | `pressedKeys`, `clearKeys` |
+| `useKeyboard` | Captures key events, tracks pressed keys | `pressedKeys`, `clearKeys`, `isKeyPressed` |
 | `useChordEngine` | Orchestrates chord building, voicing, presets | `currentChord`, voicing controls, preset actions |
-| `useMIDI` | MIDI connection, note playback, BLE support | `playChord`, `stopAllNotes`, connection state |
+| `useMIDI` | MIDI connection context, device management | `outputs`, `inputs`, connection state, `selectOutput` |
+| `useMIDIPlayback` | Note playback engine with diffing | `playChord`, `retriggerChord`, `stopAllNotes`, `panic` |
 | `usePresets` | Preset storage with IndexedDB persistence | `savePreset`, `recallPreset`, `solvePresetVoicings` |
 | `useTransport` | BPM, playback, sequencer, MIDI clock sync | `toggle`, `setBpm`, sequencer state |
-| `useVoicingKeyboard` | Keyboard shortcuts for voicing controls | (internal to useChordEngine) |
+| `useGraceNotes` | Grace note re-articulation during preset playback | (internal, captures g/h/j/k/l keys) |
+
+### Supporting Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useBLEMidi` | Bluetooth LE MIDI device scanning/connection |
+| `useMIDIExpression` | Pitch bend and CC message handling |
+| `useToneSynth` | Built-in Web Audio synthesis via Tone.js |
+| `useVoicingKeyboard` | Keyboard shortcuts for voicing controls |
+| `useEventSubscription` | Helper for subscribing to appEvents |
+| `usePersistence` | Generic IndexedDB async storage pattern |
+| `useStateContainer` | Ref container pattern for stable callbacks |
+| `useIsMobile` | Media query detection |
+| `useWakeLock` | Screen wake lock management |
+| `usePWAInstall` | Progressive Web App installation prompts |
 
 ## Type System
 
-Centralized TypeScript types in `src/types/index.ts`:
+Centralized TypeScript types in `src/types/`:
 
-- **Music Theory**: `NoteName`, `MIDINote`, `Interval`, `ChordQuality`, `ModifierType`
-- **Chord Types**: `Chord`, `VoicedChord`, `VoicingState`
-- **Preset Types**: `Preset`, `SerializedPreset`
-- **Sequencer Types**: `StepAction`, `SequencerState`, `StrumDirection`
-- **MIDI Types**: `MIDIOutputDevice`, `MIDIInputDevice`
-- **Event Types**: `AppEventMap` with typed event payloads
+- **music.ts**: `NoteName`, `MIDINote`, `Interval`, `ChordQuality`, `ModifierType`, `Chord`, `VoicedChord`, `Preset`, `VoicingStyle`, `SequencerState`, `StepAction`
+- **midi.ts**: `MIDIOutputDevice`, `MIDIInputDevice`, `BLEMIDIConnection`
+- **events.ts**: `AppEventMap` with typed event payloads
 
 ## Event Bus Pattern
 
@@ -59,6 +76,7 @@ useEventSubscription(appEvents, "chord:changed", (event) => {
 - `voicing:changed` - Voicing parameters updated
 - `preset:saved`, `preset:recalled`, `preset:cleared`
 - `keys:allUp` - All keys released
+- `grace:note` - Re-trigger subset of notes with octave shift
 
 ## State Flow
 
@@ -69,18 +87,20 @@ User Input → useKeyboard.pressedKeys
                     ↓
             useChordEngine.baseChord (buildChord)
                     ↓
-            useChordEngine.currentChord (with voicing transforms)
+            applyVoicingStyle (jazzVoicings.ts)
+                    ↓
+            applySpread + invertChord (voicingTransforms.ts)
                     ↓
             appEvents.emit("chord:changed")
                     ↓
-            useMIDI subscriber → playChord/retriggerChord
+            useMIDI subscriber → useMIDIPlayback.playChord
 ```
 
 ## Mobile vs Desktop
 
 `useIsMobile()` detects viewport. Key differences:
 - Mobile uses `retrigger: true` for full chord re-articulation
-- Mobile has `MobileControls` component with touch interface
+- Mobile has `MobileControls` component with touch interface and `GraceNoteStrip`
 - Desktop has separate `TransportControls` and `PresetsPanel`
 
 ## Clock Worker
@@ -89,6 +109,7 @@ User Input → useKeyboard.pressedKeys
 - Runs in background thread (avoids throttling when tab inactive)
 - Receives: `start`, `stop`, `setBpm` messages
 - Sends: `pulse` messages at 24 PPQN (standard MIDI clock rate)
+- Uses `performance.now()` with drift compensation
 
 ## Persistence
 
@@ -96,4 +117,4 @@ User Input → useKeyboard.pressedKeys
 - **Sequencer**: IndexedDB via `src/lib/sequencerStorage.ts`
 - **Settings**: localStorage (wake lock, tutorial seen)
 
-Uses `useAsyncStorage` hook for load-on-mount + debounced save-on-change pattern.
+Uses `usePersistence` hook for load-on-mount + debounced save-on-change pattern.

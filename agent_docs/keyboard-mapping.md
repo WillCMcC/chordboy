@@ -38,7 +38,7 @@ Organized by finger position:
 - `/` = flat5 (b5)
 
 **Half-Diminished:**
-- `N` = half-dim (m7♭5) - the ii chord in minor ii-V-i
+- `N` = half-dim (m7b5) - the ii chord in minor ii-V-i
 
 **Alterations (brackets area):**
 - `[` = sharp9 (#9)
@@ -76,6 +76,39 @@ Organized by finger position:
 | 0-9 | Save current chord (if playing) or recall preset |
 
 Presets store: keys, octave, inversion, spread, voicingStyle.
+
+## Grace Note Keys
+
+While holding a preset key (0-9), these keys re-articulate specific notes:
+
+**Single Notes (g/h/j/k/l):**
+- `G` = 1st note of chord
+- `H` = 2nd note
+- `J` = 3rd note
+- `K` = 4th note
+- `L` = 5th note
+
+**Consecutive Pairs (y/u/i/o/p):**
+- `Y` = notes 1-2
+- `U` = notes 2-3
+- `I` = notes 3-4
+- `O` = notes 4-5
+- `P` = notes 5-6
+
+**Harmonic Intervals (v/b/n/m/,/.):**
+- `V` = notes 1 & 3
+- `B` = notes 2 & 4
+- `N` = notes 1 & 4
+- `M` = notes 2 & 5
+- `,` = notes 1 & 5
+- `.` = notes 3 & 5
+
+**Full Chord:**
+- `Space` = re-articulate entire chord
+
+**Octave Shift (while grace noting):**
+- `-` = shift grace notes down one octave
+- `=` = shift grace notes up one octave
 
 ## Helper Functions
 
