@@ -6,13 +6,14 @@
 /** Database name for ChordBoy storage */
 export const DB_NAME = "ChordBoyDB";
 
-/** Current database version (v2 adds sequencer store) */
-export const DB_VERSION = 2;
+/** Current database version (v3 adds patches store) */
+export const DB_VERSION = 3;
 
 /** Object store names */
 export const STORE_NAMES = {
   PRESETS: "presets",
   SEQUENCER: "sequencer",
+  PATCHES: "patches",
 } as const;
 
 /**
@@ -46,6 +47,11 @@ export function initDB(): Promise<IDBDatabase> {
       // Create sequencer store (added in v2)
       if (!db.objectStoreNames.contains(STORE_NAMES.SEQUENCER)) {
         db.createObjectStore(STORE_NAMES.SEQUENCER);
+      }
+
+      // Create patches store (added in v3)
+      if (!db.objectStoreNames.contains(STORE_NAMES.PATCHES)) {
+        db.createObjectStore(STORE_NAMES.PATCHES);
       }
     };
   });

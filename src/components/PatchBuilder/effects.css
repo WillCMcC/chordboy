@@ -1,0 +1,291 @@
+/**
+ * Effects Section Styles
+ * Styling for reorderable effects chain with per-effect controls
+ */
+
+/* ===== Main Container ===== */
+.effects-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.effects-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.effects-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ===== Add Effect Button & Menu ===== */
+.add-effect-container {
+  position: relative;
+}
+
+.add-effect-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+}
+
+.add-effect-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.add-effect-btn:active {
+  transform: translateY(0);
+}
+
+.effect-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  min-width: 180px;
+  background: rgba(26, 22, 37, 0.98);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  padding: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.effect-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.effect-menu-item:hover {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.effect-menu-item:active {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+/* ===== Effects List ===== */
+.effects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.effects-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  border-radius: 6px;
+}
+
+/* ===== Effect Panel ===== */
+.effect-panel {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.15s ease;
+}
+
+.effect-panel:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.effect-panel.disabled {
+  opacity: 0.6;
+}
+
+.effect-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.effect-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.effect-move-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.effect-move-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: #a78bfa;
+}
+
+.effect-move-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.effect-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 4px;
+  color: #f87171;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.effect-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+  transform: scale(1.05);
+}
+
+.effect-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== Effect Controls ===== */
+.effect-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: start;
+}
+
+.effect-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  flex: 1;
+  align-items: start;
+}
+
+/* ===== Responsive Layout ===== */
+@media (max-width: 768px) {
+  .effects-section {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .effects-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-effect-container {
+    width: 100%;
+  }
+
+  .add-effect-btn {
+    width: 100%;
+  }
+
+  .effect-menu {
+    left: 0;
+    right: 0;
+  }
+
+  .effect-controls {
+    flex-direction: column;
+  }
+
+  .effect-params {
+    width: 100%;
+  }
+}
+
+/* ===== Touch Feedback ===== */
+@media (hover: none) and (pointer: coarse) {
+  .add-effect-btn:active {
+    transform: scale(0.98);
+  }
+
+  .effect-menu-item:active {
+    transform: scale(0.98);
+  }
+
+  .effect-move-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .effect-delete-btn:active {
+    transform: scale(0.9);
+  }
+}
+
+/* ===== Scrollbar for Effect Menu ===== */
+.effect-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.effect-menu::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.effect-menu::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+}
+
+.effect-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}

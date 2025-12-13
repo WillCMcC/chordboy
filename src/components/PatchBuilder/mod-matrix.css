@@ -1,0 +1,284 @@
+/**
+ * Modulation Matrix Section Styles
+ * Styling for LFO controls and modulation routing matrix
+ */
+
+/* ===== Main Container ===== */
+.mod-matrix-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.mod-matrix-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ===== LFO Panels ===== */
+.lfo-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.lfo-panel {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.lfo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.lfo-sync-btn {
+  padding: 10px 16px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 44px;
+}
+
+.lfo-sync-btn:hover:not(.disabled) {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.lfo-sync-btn.active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: #8b5cf6;
+  color: white;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
+}
+
+.lfo-sync-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== Routings Section ===== */
+.routings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.routings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.routings-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.add-routing-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+}
+
+.add-routing-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.add-routing-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.add-routing-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Routings List ===== */
+.routings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.routings-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  border-radius: 6px;
+}
+
+.routings-max-notice {
+  padding: 8px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 6px;
+}
+
+/* ===== Routing Row ===== */
+.routing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.routing-row:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.routing-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  color: #a78bfa;
+}
+
+.routing-toggle:hover {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.routing-toggle.active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: #8b5cf6;
+  color: white;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
+}
+
+.routing-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  flex: 1;
+  align-items: start;
+}
+
+.routing-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  color: #f87171;
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.routing-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: rgba(220, 38, 38, 0.5);
+  color: #fca5a5;
+  transform: scale(1.05);
+}
+
+.routing-delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* ===== Responsive Layout ===== */
+@media (max-width: 1024px) {
+  .lfo-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .routing-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .mod-matrix-section {
+    padding: 12px;
+    gap: 16px;
+  }
+
+  .routings-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-routing-btn {
+    width: 100%;
+  }
+}
+
+/* ===== Touch Feedback ===== */
+@media (hover: none) and (pointer: coarse) {
+  .lfo-sync-btn:active:not(.disabled) {
+    transform: scale(0.98);
+  }
+
+  .add-routing-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .routing-toggle:active {
+    transform: scale(0.95);
+  }
+
+  .routing-delete-btn:active {
+    transform: scale(0.9);
+  }
+}

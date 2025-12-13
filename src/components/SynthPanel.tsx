@@ -12,6 +12,7 @@ import { useEventSubscription } from "../hooks/useEventSubscription";
 import { appEvents } from "../lib/eventBus";
 import type { ADSREnvelope } from "../lib/synthPresets";
 import type { ChordChangedEvent } from "../types";
+import { PatchBuilderModal } from "./PatchBuilder";
 import "./SynthPanel.css";
 
 /**
@@ -327,6 +328,14 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
     selectPreset,
     setEnvelope,
     setVolume,
+    isCustomPatch,
+    customPatchId,
+    selectCustomPatch,
+    openPatchBuilder,
+    closePatchBuilder,
+    isPatchBuilderOpen,
+    editingPatchId,
+    customPatches,
   } = useToneSynth();
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -381,6 +390,20 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
     });
     return categories;
   }, [presets]);
+
+  // Handle preset change (including custom patches)
+  const handlePresetChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = e.target.value;
+      if (value.startsWith("custom:")) {
+        const patchId = value.replace("custom:", "");
+        selectCustomPatch(patchId);
+      } else {
+        selectPreset(value);
+      }
+    },
+    [selectCustomPatch, selectPreset]
+  );
 
   return (
     <div className={`synth-panel ${isExpanded ? "expanded" : ""} ${isMobile ? "mobile" : ""}`}>
@@ -446,10 +469,11 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
 
             {/* Preset selector */}
             <select
-              value={currentPreset.id}
-              onChange={(e) => selectPreset(e.target.value)}
+              value={isCustomPatch ? `custom:${customPatchId}` : currentPreset.id}
+              onChange={handlePresetChange}
               className="preset-select-compact"
             >
+              {/* Factory presets by category */}
               {Object.entries(presetsByCategory).map(([category, categoryPresets]) => (
                 <optgroup key={category} label={category.toUpperCase()}>
                   {categoryPresets.map((preset) => (
@@ -459,7 +483,29 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
                   ))}
                 </optgroup>
               ))}
+
+              {/* Custom patches */}
+              {customPatches.patchLibrary.filter((p) => !p.isFactory).length > 0 && (
+                <optgroup label="CUSTOM">
+                  {customPatches.patchLibrary
+                    .filter((p) => !p.isFactory)
+                    .map((patch) => (
+                      <option key={`custom:${patch.id}`} value={`custom:${patch.id}`}>
+                        {patch.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
+
+            {/* Edit/New patch button */}
+            <button
+              className="edit-patch-btn"
+              onClick={() => openPatchBuilder(isCustomPatch ? customPatchId : null)}
+              title={isCustomPatch ? "Edit patch" : "Create custom patch"}
+            >
+              {isCustomPatch ? "Edit" : "+ New"}
+            </button>
 
             {/* Volume */}
             <VolumeControl volume={volume} onChange={setVolume} />
@@ -494,6 +540,18 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
           <span className="pull-bar" />
         </div>
       )}
+
+      {/* Patch Builder Modal */}
+      <PatchBuilderModal
+        isOpen={isPatchBuilderOpen}
+        onClose={closePatchBuilder}
+        patchId={editingPatchId}
+        onSave={(patch) => {
+          customPatches.savePatch(patch);
+          selectCustomPatch(patch.id);
+          closePatchBuilder();
+        }}
+      />
     </div>
   );
 }

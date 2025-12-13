@@ -29,6 +29,8 @@ import {
 } from "../lib/synthPresets";
 import type { MIDINote, ChordChangedEvent, GraceNotePayload, StrumDirection, HumanizeManager } from "../types";
 import type { TriggerMode } from "./useMIDI";
+import { CustomSynthEngine } from "../lib/customSynthEngine";
+import { useCustomPatches } from "./useCustomPatches";
 
 /** Audio mode - MIDI only, Synth only, or both */
 export type AudioMode = "midi" | "synth" | "both";
@@ -50,6 +52,24 @@ export interface ToneSynthContextValue {
   volume: number;
   /** Available presets */
   presets: SynthPreset[];
+
+  // Custom patch support
+  /** Whether currently using a custom patch */
+  isCustomPatch: boolean;
+  /** ID of currently selected custom patch */
+  customPatchId: string | null;
+  /** Select a custom patch by ID */
+  selectCustomPatch: (patchId: string) => void;
+  /** Open the patch builder (with optional patch to edit) */
+  openPatchBuilder: (patchId?: string | null) => void;
+  /** Close the patch builder */
+  closePatchBuilder: () => void;
+  /** Whether the patch builder is open */
+  isPatchBuilderOpen: boolean;
+  /** ID of the patch being edited (null if creating new) */
+  editingPatchId: string | null;
+  /** Custom patches hook (exposed for UI) */
+  customPatches: ReturnType<typeof useCustomPatches>;
 
   // Actions
   /** Initialize the audio context (requires user gesture) */
@@ -141,11 +161,23 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   );
   const [volume, setVolumeState] = useState(savedSettings.volume ?? 0.7);
 
+  // Custom patch state
+  const [isCustomPatch, setIsCustomPatch] = useState(false);
+  const [customPatchId, setCustomPatchId] = useState<string | null>(null);
+  const [isPatchBuilderOpen, setIsPatchBuilderOpen] = useState(false);
+  const [editingPatchId, setEditingPatchId] = useState<string | null>(null);
+
   // Refs for synth and effects
   const synthRef = useRef<Tone.PolySynth | null>(null);
   const effectsRef = useRef<Tone.ToneAudioNode[]>([]);
   const currentNotesRef = useRef<Set<string>>(new Set());
   const volumeNodeRef = useRef<Tone.Volume | null>(null);
+
+  // Custom synth engine ref
+  const customSynthRef = useRef<CustomSynthEngine | null>(null);
+
+  // Use the custom patches hook
+  const customPatches = useCustomPatches();
 
   // Humanization manager for scheduling notes
   const humanizeManagerRef = useRef<HumanizeManager>(createHumanizeManager());
@@ -156,6 +188,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Refs for latest values (to avoid stale closures in event subscriptions)
   const isEnabledRef = useRef(false);
   const isInitializedRef = useRef(false);
+  const isPatchBuilderOpenRef = useRef(false);
   const triggerModeRef = useRef<TriggerMode>(triggerMode);
 
   // Get current preset
@@ -167,6 +200,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Keep refs in sync with state (for event subscription closures)
   isEnabledRef.current = isEnabled;
   isInitializedRef.current = isInitialized;
+  isPatchBuilderOpenRef.current = isPatchBuilderOpen;
 
   useEffect(() => {
     triggerModeRef.current = triggerMode;
@@ -296,10 +330,70 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   const selectPreset = useCallback((presetId: string) => {
     const preset = getPresetById(presetId);
     if (preset) {
+      // Dispose custom synth if active
+      if (customSynthRef.current) {
+        customSynthRef.current.dispose();
+        customSynthRef.current = null;
+      }
+
+      setIsCustomPatch(false);
+      setCustomPatchId(null);
       setCurrentPresetId(presetId);
       // Reset envelope to preset default
       setEnvelopeState(preset.defaultEnvelope);
     }
+  }, []);
+
+  /**
+   * Select a custom patch by ID
+   */
+  const selectCustomPatch = useCallback(
+    (patchId: string) => {
+      const patch = customPatches.getPatch(patchId);
+      if (!patch) {
+        console.warn(`Custom patch not found: ${patchId}`);
+        return;
+      }
+
+      // Initialize audio context if needed (block until ready)
+      if (!isInitialized) {
+        console.error("Audio context not initialized. Cannot load custom patch.");
+        return;
+      }
+
+      // Dispose existing custom synth
+      if (customSynthRef.current) {
+        customSynthRef.current.dispose();
+        customSynthRef.current = null;
+      }
+
+      // Dispose existing factory synth
+      disposeCurrentSynth();
+
+      // Create new custom synth engine
+      // Note: CustomSynthEngine manages its own output chain and connects to destination
+      customSynthRef.current = new CustomSynthEngine(patch);
+
+      setCustomPatchId(patchId);
+      setIsCustomPatch(true);
+    },
+    [customPatches, isInitialized, disposeCurrentSynth]
+  );
+
+  /**
+   * Open the patch builder
+   */
+  const openPatchBuilder = useCallback((patchId?: string | null) => {
+    setEditingPatchId(patchId ?? null);
+    setIsPatchBuilderOpen(true);
+  }, []);
+
+  /**
+   * Close the patch builder
+   */
+  const closePatchBuilder = useCallback(() => {
+    setIsPatchBuilderOpen(false);
+    setEditingPatchId(null);
   }, []);
 
   /**
@@ -321,20 +415,26 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
    */
   const playNote = useCallback(
     (note: MIDINote, velocity = 100) => {
-      if (!isEnabled || !synthRef.current || !isInitialized) return;
+      if (!isEnabled || !isInitialized) return;
 
-      const freq = midiToFreq(note);
-      const noteKey = note.toString();
+      if (isCustomPatch && customSynthRef.current) {
+        // Use custom synth engine
+        customSynthRef.current.triggerAttack(note, midiVelocityToTone(velocity));
+      } else if (synthRef.current) {
+        // Use factory PolySynth
+        const freq = midiToFreq(note);
+        const noteKey = note.toString();
 
-      // Stop if already playing
-      if (currentNotesRef.current.has(noteKey)) {
-        synthRef.current.triggerRelease(freq, Tone.now());
+        // Stop if already playing
+        if (currentNotesRef.current.has(noteKey)) {
+          synthRef.current.triggerRelease(freq, Tone.now());
+        }
+
+        currentNotesRef.current.add(noteKey);
+        synthRef.current.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
       }
-
-      currentNotesRef.current.add(noteKey);
-      synthRef.current.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
     },
-    [isEnabled, isInitialized]
+    [isEnabled, isInitialized, isCustomPatch]
   );
 
   /**
@@ -342,15 +442,21 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
    */
   const stopNote = useCallback(
     (note: MIDINote) => {
-      if (!synthRef.current || !isInitialized) return;
+      if (!isInitialized) return;
 
-      const freq = midiToFreq(note);
-      const noteKey = note.toString();
+      if (isCustomPatch && customSynthRef.current) {
+        // Use custom synth engine
+        customSynthRef.current.triggerRelease(note);
+      } else if (synthRef.current) {
+        // Use factory PolySynth
+        const freq = midiToFreq(note);
+        const noteKey = note.toString();
 
-      currentNotesRef.current.delete(noteKey);
-      synthRef.current.triggerRelease(freq, Tone.now());
+        currentNotesRef.current.delete(noteKey);
+        synthRef.current.triggerRelease(freq, Tone.now());
+      }
     },
-    [isInitialized]
+    [isInitialized, isCustomPatch]
   );
 
   /**
@@ -358,74 +464,109 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
    */
   const playChord = useCallback(
     (notes: MIDINote[], velocity = 100, retrigger = false) => {
-      if (!isEnabled || !synthRef.current || !isInitialized) return;
+      if (!isEnabled || !isInitialized) return;
 
       // Clear any pending humanized notes
       humanizeManagerRef.current.clear();
 
-      const newNotesSet = new Set(notes.map((n) => n.toString()));
-      const currentSet = currentNotesRef.current;
+      if (isCustomPatch && customSynthRef.current) {
+        // Use custom synth engine - simpler approach
+        const newNotesSet = new Set(notes.map((n) => n.toString()));
+        const currentSet = currentNotesRef.current;
 
-      // Stop notes that are no longer in the chord
-      currentSet.forEach((noteKey) => {
-        if (!newNotesSet.has(noteKey)) {
-          const freq = midiToFreq(parseInt(noteKey, 10) as MIDINote);
-          synthRef.current?.triggerRelease(freq, Tone.now());
+        // Stop notes that are no longer in the chord
+        currentSet.forEach((noteKey) => {
+          if (!newNotesSet.has(noteKey)) {
+            customSynthRef.current?.triggerRelease(parseInt(noteKey, 10) as MIDINote);
+          }
+        });
+
+        // Determine which notes to start
+        const notesToStart = retrigger
+          ? notes // Retrigger all notes
+          : notes.filter((n) => !currentSet.has(n.toString())); // Only new notes
+
+        if (notesToStart.length > 0) {
+          // If retriggering, stop current notes first
+          if (retrigger) {
+            currentSet.forEach((noteKey) => {
+              customSynthRef.current?.triggerRelease(parseInt(noteKey, 10) as MIDINote);
+            });
+          }
+
+          // Play notes (expression support for custom synth would require enhancement)
+          notesToStart.forEach((note) => {
+            customSynthRef.current?.triggerAttack(note, midiVelocityToTone(velocity));
+          });
         }
-      });
 
-      // Determine which notes to start
-      const notesToStart = retrigger
-        ? notes // Retrigger all notes
-        : notes.filter((n) => !currentSet.has(n.toString())); // Only new notes
+        currentNotesRef.current = newNotesSet;
+      } else if (synthRef.current) {
+        // Use factory PolySynth with full expression support
+        const newNotesSet = new Set(notes.map((n) => n.toString()));
+        const currentSet = currentNotesRef.current;
 
-      if (notesToStart.length > 0) {
-        // If retriggering, stop current notes first
-        if (retrigger) {
-          currentSet.forEach((noteKey) => {
+        // Stop notes that are no longer in the chord
+        currentSet.forEach((noteKey) => {
+          if (!newNotesSet.has(noteKey)) {
             const freq = midiToFreq(parseInt(noteKey, 10) as MIDINote);
             synthRef.current?.triggerRelease(freq, Tone.now());
-          });
-        }
+          }
+        });
 
-        if (strumEnabled && strumSpread > 0 && notesToStart.length > 1) {
-          // Strum: evenly-spaced delays based on note pitch order
-          const { offsets, nextDirection } = getStrumOffsets(
-            notesToStart,
-            strumSpread,
-            strumDirection,
-            strumLastDirectionRef.current
-          );
-          strumLastDirectionRef.current = nextDirection;
+        // Determine which notes to start
+        const notesToStart = retrigger
+          ? notes // Retrigger all notes
+          : notes.filter((n) => !currentSet.has(n.toString())); // Only new notes
 
-          notesToStart.forEach((note, i) => {
-            humanizeManagerRef.current.schedule(() => {
+        if (notesToStart.length > 0) {
+          // If retriggering, stop current notes first
+          if (retrigger) {
+            currentSet.forEach((noteKey) => {
+              const freq = midiToFreq(parseInt(noteKey, 10) as MIDINote);
+              synthRef.current?.triggerRelease(freq, Tone.now());
+            });
+          }
+
+          if (strumEnabled && strumSpread > 0 && notesToStart.length > 1) {
+            // Strum: evenly-spaced delays based on note pitch order
+            const { offsets, nextDirection } = getStrumOffsets(
+              notesToStart,
+              strumSpread,
+              strumDirection,
+              strumLastDirectionRef.current
+            );
+            strumLastDirectionRef.current = nextDirection;
+
+            notesToStart.forEach((note, i) => {
+              humanizeManagerRef.current.schedule(() => {
+                const freq = midiToFreq(note);
+                synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
+              }, offsets[i]);
+            });
+          } else if (humanize > 0 && notesToStart.length > 1) {
+            // Humanization: stagger notes with random timing
+            const offsets = getHumanizeOffsets(notesToStart.length, humanize);
+
+            notesToStart.forEach((note, i) => {
+              humanizeManagerRef.current.schedule(() => {
+                const freq = midiToFreq(note);
+                synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
+              }, offsets[i]);
+            });
+          } else {
+            // No expression: play all notes immediately
+            notesToStart.forEach((note) => {
               const freq = midiToFreq(note);
               synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
-            }, offsets[i]);
-          });
-        } else if (humanize > 0 && notesToStart.length > 1) {
-          // Humanization: stagger notes with random timing
-          const offsets = getHumanizeOffsets(notesToStart.length, humanize);
-
-          notesToStart.forEach((note, i) => {
-            humanizeManagerRef.current.schedule(() => {
-              const freq = midiToFreq(note);
-              synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
-            }, offsets[i]);
-          });
-        } else {
-          // No expression: play all notes immediately
-          notesToStart.forEach((note) => {
-            const freq = midiToFreq(note);
-            synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(velocity));
-          });
+            });
+          }
         }
+
+        currentNotesRef.current = newNotesSet;
       }
-
-      currentNotesRef.current = newNotesSet;
     },
-    [isEnabled, isInitialized, strumEnabled, strumSpread, strumDirection, humanize]
+    [isEnabled, isInitialized, isCustomPatch, strumEnabled, strumSpread, strumDirection, humanize]
   );
 
   /**
@@ -510,14 +651,21 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     // Clear any pending humanized notes
     humanizeManagerRef.current.clear();
 
-    if (!synthRef.current || !isInitialized) return;
+    if (!isInitialized) return;
 
-    synthRef.current.releaseAll(Tone.now());
+    if (isCustomPatch && customSynthRef.current) {
+      customSynthRef.current.releaseAll();
+    } else if (synthRef.current) {
+      synthRef.current.releaseAll(Tone.now());
+    }
+
     currentNotesRef.current.clear();
-  }, [isInitialized]);
+  }, [isInitialized, isCustomPatch]);
 
   // Subscribe to chord events (use refs for latest values)
+  // Skip playback when patch builder is open (it has its own preview synth)
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
+    if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
     if (isEnabledRef.current && isInitializedRef.current && synthRef.current) {
       if (triggerModeRef.current === "glide") {
         // Use glide mode - smooth transition between chords
@@ -531,6 +679,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   });
 
   useEventSubscription(appEvents, "chord:cleared", () => {
+    if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
     if (isEnabledRef.current && isInitializedRef.current) {
       stopAllNotes();
     }
@@ -538,6 +687,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
 
   // Subscribe to grace note events
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
+    if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
     if (!isEnabledRef.current || !isInitializedRef.current || !synthRef.current) return;
 
     // Grace notes: quick release and re-attack
@@ -552,11 +702,34 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     });
   });
 
+  // Update custom synth when patch is modified
+  // Use a ref to track last patch update to avoid unnecessary rebuilds
+  const lastPatchUpdateRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (isCustomPatch && customPatchId && customSynthRef.current && isInitialized) {
+      const patch = customPatches.getPatch(customPatchId);
+      if (patch && patch.updatedAt > lastPatchUpdateRef.current) {
+        // Update the synth engine with the new patch
+        customSynthRef.current.updatePatch(patch);
+        lastPatchUpdateRef.current = patch.updatedAt;
+      }
+    }
+  }, [customPatches.patches, customPatchId, isCustomPatch, isInitialized, customPatches]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       humanizeManagerRef.current.clear();
+
+      // Dispose custom synth first (before factory synth)
+      if (customSynthRef.current) {
+        customSynthRef.current.dispose();
+        customSynthRef.current = null;
+      }
+
       disposeCurrentSynth();
+
       if (volumeNodeRef.current) {
         volumeNodeRef.current.dispose();
         volumeNodeRef.current = null;
@@ -572,6 +745,16 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     envelope,
     volume,
     presets: synthPresets,
+
+    // Custom patch support
+    isCustomPatch,
+    customPatchId,
+    selectCustomPatch,
+    openPatchBuilder,
+    closePatchBuilder,
+    isPatchBuilderOpen,
+    editingPatchId,
+    customPatches,
 
     initialize,
     setAudioMode,

@@ -1,0 +1,288 @@
+/**
+ * PatchBuilder Section Styles
+ * Styling for oscillator, filter, and envelope sections
+ */
+
+/* ===== Common Section Layout ===== */
+.oscillator-section,
+.filter-section {
+  margin-bottom: 16px;
+}
+
+.oscillator-controls,
+.filter-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.control-row {
+  width: 100%;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 16px;
+  justify-items: center;
+  margin-top: 8px;
+}
+
+/* ===== Oscillator Section ===== */
+.oscillator-section .control-grid {
+  padding-top: 8px;
+}
+
+/* ===== Filter Section - Visual Editor ===== */
+.filter-visual-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.filter-type-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-type-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-type-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.filter-type-btn.active {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.filter-type-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.filter-type-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 8px;
+}
+
+.rolloff-selector {
+  display: flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.rolloff-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rolloff-btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rolloff-btn.active {
+  background: rgba(249, 115, 22, 0.3);
+  color: #f97316;
+}
+
+.rolloff-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.filter-canvas {
+  width: 100%;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 8px;
+  touch-action: none;
+  transition: border-color 0.15s ease;
+}
+
+.filter-canvas:hover {
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+.filter-value-display {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.filter-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.filter-value-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-value-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: #f97316;
+  font-weight: 500;
+}
+
+.filter-knobs {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-section .envelope-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+/* ===== Envelope Editor ===== */
+.envelope-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.envelope-editor.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.envelope-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.envelope-canvas {
+  width: 100%;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;
+  transition: border-color 0.15s ease;
+}
+
+.envelope-canvas:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.envelope-editor.disabled .envelope-canvas {
+  cursor: not-allowed;
+  border-color: rgba(100, 100, 100, 0.25);
+}
+
+.envelope-labels {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.envelope-param-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: rgba(139, 92, 246, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  min-width: 60px;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.envelope-octaves {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+/* ===== Responsive Layout ===== */
+@media (max-width: 768px) {
+  .control-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 20px;
+  }
+
+  .envelope-canvas {
+    height: 140px;
+  }
+
+  .envelope-labels {
+    flex-wrap: wrap;
+  }
+
+  .envelope-param-label {
+    font-size: 12px;
+    padding: 5px 10px;
+    min-width: 70px;
+  }
+}
+
+/* ===== Touch Optimizations ===== */
+@media (hover: none) and (pointer: coarse) {
+  .envelope-canvas {
+    height: 160px;
+  }
+
+  .control-grid {
+    gap: 24px;
+  }
+}
+
+/* ===== Section Dividers ===== */
+.filter-controls > .control-row + .control-row {
+  margin-top: 8px;
+}
+
+/* ===== Animation ===== */
+.envelope-canvas {
+  transition: border-color 0.15s ease;
+}
+
+.envelope-editor .knob-control {
+  transition: opacity 0.2s ease;
+}
