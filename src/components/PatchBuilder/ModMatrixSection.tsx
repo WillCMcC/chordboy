@@ -150,6 +150,7 @@ function RoutingRow({
           bipolar={true}
           onChange={(amount) => onChange({ ...routing, amount })}
           disabled={!routing.enabled}
+          formatValue={(v) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`}
         />
       </div>
       <button

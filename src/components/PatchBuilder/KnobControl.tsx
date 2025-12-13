@@ -11,6 +11,8 @@ interface KnobControlProps {
   unit?: string;
   bipolar?: boolean;
   disabled?: boolean;
+  /** Custom value formatter for display */
+  formatValue?: (value: number) => string;
 }
 
 /**
@@ -30,6 +32,7 @@ export function KnobControl({
   unit = '',
   bipolar = false,
   disabled = false,
+  formatValue,
 }: KnobControlProps) {
   const knobRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -132,7 +135,11 @@ export function KnobControl({
   }, []);
 
   const angle = valueToAngle(value);
-  const displayValue = unit ? `${value.toFixed(step < 1 ? 1 : 0)}${unit}` : value.toFixed(step < 1 ? 1 : 0);
+  const displayValue = formatValue
+    ? formatValue(value)
+    : unit
+      ? `${value.toFixed(step < 1 ? 1 : 0)}${unit}`
+      : value.toFixed(step < 1 ? 1 : 0);
 
   return (
     <div className={`knob-control ${bipolar ? 'bipolar' : ''} ${disabled ? 'disabled' : ''}`}>

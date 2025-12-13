@@ -96,10 +96,10 @@ class CustomVoice {
     this.osc2.connect(this.mixer.b);
     this.mixer.connect(this.filter);
 
-    // NOTE: Filter modulation signals (filterFreqMod, filterResMod) are NOT connected here.
-    // They are connected dynamically by CustomSynthEngine.applyModulationRoutings() only
-    // when there are active modulation routings. This prevents 0-valued signals from
-    // interfering with the filter's base frequency/resonance.
+    // NOTE: Filter mod signals (filterFreqMod, filterResMod) are NOT connected here.
+    // They are connected on-demand by VoicePool.connectFilterMod() only when there
+    // are active modulation routings targeting the filter. This prevents 0-valued
+    // signals from interfering with the filter's base frequency.
 
     // Connect filter envelope only if filter enabled AND envelope amount is non-zero
     if (patch.filter.enabled && patch.filter.envelopeAmount !== 0) {
@@ -298,8 +298,7 @@ class CustomVoice {
   }
 
   /**
-   * Connect filter modulation signals to this voice's filter
-   * Called when modulation routings are applied
+   * Connect filter modulation signals (called on-demand when filter routings exist)
    */
   connectFilterMod(): void {
     if (this.filterFreqMod) {
@@ -361,6 +360,7 @@ class VoicePool {
   private voices: CustomVoice[] = [];
   private activeNotes = new Map<number, CustomVoice>();
   private readonly maxVoices = 8;
+  private filterModConnected = false;
 
   // Shared filter modulation signals (engine-level targets)
   // Use "number" type for frequency offset (not "frequency" which has special 0Hz handling)
@@ -391,13 +391,15 @@ class VoicePool {
   }
 
   /**
-   * Connect filter modulation signals to all voices
-   * Called when modulation routings that target filter are applied
+   * Connect filter modulation signals to all voices (called on-demand when filter routings exist)
+   * Only connects once per voice pool lifecycle
    */
-  connectFilterModToVoices(): void {
+  connectFilterMod(): void {
+    if (this.filterModConnected) return;
     for (const voice of this.voices) {
       voice.connectFilterMod();
     }
+    this.filterModConnected = true;
   }
 
   /**
@@ -516,6 +518,7 @@ class VoicePool {
     this.dispose();
     this.voices = [];
     this.activeNotes.clear(); // Clear tracking state
+    this.filterModConnected = false; // Reset so filter mod can be reconnected if needed
     this.patch = patch;
     this.createVoices();
   }
@@ -691,6 +694,21 @@ class ModulationManager {
       existing.dispose();
     }
     this.modConnections.set(id, node);
+  }
+
+  /**
+   * Clear all modulation connections (for re-applying routings)
+   */
+  clearModConnections(): void {
+    for (const node of this.modConnections.values()) {
+      try {
+        node.disconnect();
+        node.dispose();
+      } catch {
+        // Ignore errors
+      }
+    }
+    this.modConnections.clear();
   }
 
   /**
@@ -1069,14 +1087,6 @@ export class CustomSynthEngine {
    * Connects mod sources to engine-level destinations (lfo rates, filter freq, master volume)
    */
   private applyModulationRoutings(): void {
-    // Check if any routings target filter - if so, connect the filter mod signals to voices
-    const hasFilterRouting = this.patch.modMatrix.routings.some(
-      r => r.enabled && r.amount !== 0 && (r.destination === "filter_freq" || r.destination === "filter_res")
-    );
-    if (hasFilterRouting) {
-      this.voicePool.connectFilterModToVoices();
-    }
-
     for (const routing of this.patch.modMatrix.routings) {
       if (!routing.enabled || routing.amount === 0) continue;
 
@@ -1095,9 +1105,13 @@ export class CustomSynthEngine {
           target = this.modManager.getModTarget(routing.destination);
           break;
         case "filter_freq":
+          // Connect filter mod signals to voices on-demand (only when routing exists)
+          this.voicePool.connectFilterMod();
           target = this.voicePool.getFilterFrequencyParam();
           break;
         case "filter_res":
+          // Connect filter mod signals to voices on-demand (only when routing exists)
+          this.voicePool.connectFilterMod();
           target = this.voicePool.getFilterResonanceParam();
           break;
         case "amp_volume":
@@ -1118,11 +1132,11 @@ export class CustomSynthEngine {
 
       switch (routing.destination) {
         case "filter_freq": {
-          // Filter frequency modulation: scale to ±2000 Hz range
+          // Filter frequency modulation: scale to ±4000 Hz range at 100%
           // LFO typically outputs 0-1, so center it around 0 (-0.5 to +0.5)
           // then scale by amount and frequency range
           const center = new Tone.Add(-0.5);
-          const scale = new Tone.Multiply(routing.amount * 4000); // ±2000 Hz at full amount
+          const scale = new Tone.Multiply(routing.amount * 8000); // ±4000 Hz at full amount
           source.connect(center);
           center.connect(scale);
           scaledSource = scale;
@@ -1133,10 +1147,10 @@ export class CustomSynthEngine {
           break;
         }
         case "filter_res": {
-          // Filter resonance modulation: scale to ±4 Q range
+          // Filter resonance modulation: scale to ±6 Q range at 100%
           // LFO outputs 0-1, center around 0 and scale by amount
           const center = new Tone.Add(-0.5);
-          const scale = new Tone.Multiply(routing.amount * 8); // ±4 Q at full amount
+          const scale = new Tone.Multiply(routing.amount * 12); // ±6 Q at full amount
           source.connect(center);
           center.connect(scale);
           scaledSource = scale;
@@ -1146,11 +1160,14 @@ export class CustomSynthEngine {
           break;
         }
         case "amp_volume": {
-          // Amplitude modulation: scale by amount (keep normalized)
-          // LFO outputs 0-1, multiply by amount for modulation depth
-          const scale = new Tone.Multiply(routing.amount);
-          source.connect(scale);
+          // Amplitude modulation (tremolo): scale to ±0.5 gain at 100%
+          // LFO outputs 0-1, center around 0 and scale by amount
+          const center = new Tone.Add(-0.5);
+          const scale = new Tone.Multiply(routing.amount); // ±0.5 gain at full amount
+          source.connect(center);
+          center.connect(scale);
           scaledSource = scale;
+          this.modManager.storeConnection(`${routing.id}-center`, center);
           this.modManager.storeConnection(`${routing.id}-scale`, scale);
           break;
         }
@@ -1476,8 +1493,18 @@ export class CustomSynthEngine {
       }
     }
 
-    // Update glide
-    this.patch = newPatch;
+    // Update modulation routings if changed
+    const routingsChanged =
+      JSON.stringify(oldPatch.modMatrix.routings) !== JSON.stringify(newPatch.modMatrix.routings);
+
+    if (routingsChanged) {
+      // Clear existing modulation connections and re-apply
+      this.modManager.clearModConnections();
+      this.patch = newPatch; // Update patch first so applyModulationRoutings uses new routings
+      this.applyModulationRoutings();
+    } else {
+      this.patch = newPatch;
+    }
 
     return true; // Successfully updated live
   }
