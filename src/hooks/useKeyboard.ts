@@ -33,6 +33,16 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
    * Handle key down events
    */
   const handleKeyDown = useCallback((event: KeyboardEvent): void => {
+    // Ignore events when focused on input elements
+    const activeElement = document.activeElement;
+    const isInputFocused =
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      activeElement instanceof HTMLSelectElement ||
+      activeElement?.getAttribute("contenteditable") === "true";
+
+    if (isInputFocused) return;
+
     // Ignore repeated keydown events (when key is held)
     if (event.repeat) return;
 
@@ -90,6 +100,16 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
    * Handle key up events
    */
   const handleKeyUp = useCallback((event: KeyboardEvent): void => {
+    // Ignore events when focused on input elements
+    const activeElement = document.activeElement;
+    const isInputFocused =
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      activeElement instanceof HTMLSelectElement ||
+      activeElement?.getAttribute("contenteditable") === "true";
+
+    if (isInputFocused) return;
+
     const key = event.key.toLowerCase();
 
     // Ignore modifier/control keys, arrow keys, number keys, and grace note octave keys

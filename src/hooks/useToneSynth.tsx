@@ -12,6 +12,7 @@ import React, {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
   ReactNode,
 } from "react";
 import * as Tone from "tone";
@@ -189,6 +190,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   const isEnabledRef = useRef(false);
   const isInitializedRef = useRef(false);
   const isPatchBuilderOpenRef = useRef(false);
+  const isCustomPatchRef = useRef(false);
   const triggerModeRef = useRef<TriggerMode>(triggerMode);
 
   // Get current preset
@@ -201,6 +203,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   isEnabledRef.current = isEnabled;
   isInitializedRef.current = isInitialized;
   isPatchBuilderOpenRef.current = isPatchBuilderOpen;
+  isCustomPatchRef.current = isCustomPatch;
 
   useEffect(() => {
     triggerModeRef.current = triggerMode;
@@ -382,8 +385,20 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
 
   /**
    * Open the patch builder
+   * Starts Tone.js audio context immediately (requires user gesture)
    */
-  const openPatchBuilder = useCallback((patchId?: string | null) => {
+  const openPatchBuilder = useCallback(async (patchId?: string | null) => {
+    // Start Tone.js immediately on user gesture before opening modal
+    // This ensures audio context is unlocked by the button click
+    // IMPORTANT: We must await Tone.start() to ensure context is running
+    // before the patch builder creates its preview synth
+    if (Tone.getContext().state !== "running") {
+      try {
+        await Tone.start();
+      } catch (err) {
+        console.error("Failed to start Tone.js:", err);
+      }
+    }
     setEditingPatchId(patchId ?? null);
     setIsPatchBuilderOpen(true);
   }, []);
@@ -397,11 +412,51 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   }, []);
 
   /**
+   * Get the effective envelope (from custom patch if active, otherwise factory preset)
+   */
+  const effectiveEnvelope = useMemo((): ADSREnvelope => {
+    if (isCustomPatch && customPatchId) {
+      const patch = customPatches.getPatch(customPatchId);
+      if (patch) {
+        return {
+          attack: patch.ampEnvelope.attack,
+          decay: patch.ampEnvelope.decay,
+          sustain: patch.ampEnvelope.sustain,
+          release: patch.ampEnvelope.release,
+        };
+      }
+    }
+    return envelope;
+  }, [isCustomPatch, customPatchId, customPatches, envelope]);
+
+  /**
    * Update ADSR envelope
+   * For custom patches, updates the patch itself and syncs to the engine
    */
   const setEnvelope = useCallback((newEnvelope: ADSREnvelope) => {
-    setEnvelopeState(newEnvelope);
-  }, []);
+    if (isCustomPatch && customPatchId) {
+      // Update the custom patch's ampEnvelope
+      const patch = customPatches.getPatch(customPatchId);
+      if (patch) {
+        const updatedPatch = {
+          ...patch,
+          ampEnvelope: {
+            ...patch.ampEnvelope,
+            attack: newEnvelope.attack,
+            decay: newEnvelope.decay,
+            sustain: newEnvelope.sustain,
+            release: newEnvelope.release,
+          },
+          updatedAt: Date.now(),
+        };
+        customPatches.savePatch(updatedPatch);
+        // The useEffect watching customPatches.patches will update the synth
+      }
+    } else {
+      // Update factory preset envelope state
+      setEnvelopeState(newEnvelope);
+    }
+  }, [isCustomPatch, customPatchId, customPatches]);
 
   /**
    * Set master volume
@@ -470,7 +525,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
       humanizeManagerRef.current.clear();
 
       if (isCustomPatch && customSynthRef.current) {
-        // Use custom synth engine - simpler approach
+        // Use custom synth engine with expression support
         const newNotesSet = new Set(notes.map((n) => n.toString()));
         const currentSet = currentNotesRef.current;
 
@@ -494,10 +549,36 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
             });
           }
 
-          // Play notes (expression support for custom synth would require enhancement)
-          notesToStart.forEach((note) => {
-            customSynthRef.current?.triggerAttack(note, midiVelocityToTone(velocity));
-          });
+          if (strumEnabled && strumSpread > 0 && notesToStart.length > 1) {
+            // Strum: evenly-spaced delays based on note pitch order
+            const { offsets, nextDirection } = getStrumOffsets(
+              notesToStart,
+              strumSpread,
+              strumDirection,
+              strumLastDirectionRef.current
+            );
+            strumLastDirectionRef.current = nextDirection;
+
+            notesToStart.forEach((note, i) => {
+              humanizeManagerRef.current.schedule(() => {
+                customSynthRef.current?.triggerAttack(note, midiVelocityToTone(velocity));
+              }, offsets[i]);
+            });
+          } else if (humanize > 0 && notesToStart.length > 1) {
+            // Humanization: stagger notes with random timing
+            const offsets = getHumanizeOffsets(notesToStart.length, humanize);
+
+            notesToStart.forEach((note, i) => {
+              humanizeManagerRef.current.schedule(() => {
+                customSynthRef.current?.triggerAttack(note, midiVelocityToTone(velocity));
+              }, offsets[i]);
+            });
+          } else {
+            // No expression - play all notes immediately
+            notesToStart.forEach((note) => {
+              customSynthRef.current?.triggerAttack(note, midiVelocityToTone(velocity));
+            });
+          }
         }
 
         currentNotesRef.current = newNotesSet;
@@ -666,15 +747,22 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Skip playback when patch builder is open (it has its own preview synth)
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
     if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
-    if (isEnabledRef.current && isInitializedRef.current && synthRef.current) {
-      if (triggerModeRef.current === "glide") {
-        // Use glide mode - smooth transition between chords
-        playChordWithGlide(event.notes);
-      } else {
-        // Determine if we should retrigger all notes
-        const shouldRetrigger = event.retrigger || triggerModeRef.current === "all";
-        playChord(event.notes, 100, shouldRetrigger);
-      }
+    if (!isEnabledRef.current || !isInitializedRef.current) return;
+
+    // Check if we have a valid synth (either custom or factory)
+    const hasValidSynth = isCustomPatchRef.current
+      ? customSynthRef.current !== null
+      : synthRef.current !== null;
+
+    if (!hasValidSynth) return;
+
+    if (triggerModeRef.current === "glide" && !isCustomPatchRef.current) {
+      // Use glide mode - smooth transition between chords (factory synth only)
+      playChordWithGlide(event.notes);
+    } else {
+      // Determine if we should retrigger all notes
+      const shouldRetrigger = event.retrigger || triggerModeRef.current === "all";
+      playChord(event.notes, 100, shouldRetrigger);
     }
   });
 
@@ -688,18 +776,29 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Subscribe to grace note events
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
     if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
-    if (!isEnabledRef.current || !isInitializedRef.current || !synthRef.current) return;
+    if (!isEnabledRef.current || !isInitializedRef.current) return;
 
     // Grace notes: quick release and re-attack
     const graceVelocity = 85; // Slightly softer
-    event.notes.forEach((note) => {
-      const freq = midiToFreq(note);
-      synthRef.current?.triggerRelease(freq, Tone.now());
-      // Small delay before re-attack
-      setTimeout(() => {
-        synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(graceVelocity));
-      }, 20);
-    });
+
+    if (isCustomPatchRef.current && customSynthRef.current) {
+      // Custom synth grace notes
+      event.notes.forEach((note) => {
+        customSynthRef.current?.triggerRelease(note);
+        setTimeout(() => {
+          customSynthRef.current?.triggerAttack(note, midiVelocityToTone(graceVelocity));
+        }, 20);
+      });
+    } else if (synthRef.current) {
+      // Factory synth grace notes
+      event.notes.forEach((note) => {
+        const freq = midiToFreq(note);
+        synthRef.current?.triggerRelease(freq, Tone.now());
+        setTimeout(() => {
+          synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(graceVelocity));
+        }, 20);
+      });
+    }
   });
 
   // Update custom synth when patch is modified
@@ -742,7 +841,7 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     isEnabled,
     audioMode,
     currentPreset,
-    envelope,
+    envelope: effectiveEnvelope,
     volume,
     presets: synthPresets,
 

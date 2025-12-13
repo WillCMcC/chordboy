@@ -36,22 +36,13 @@ const MOD_SOURCE_OPTIONS: DropdownOption[] = [
 ];
 
 // Dropdown options for mod destinations
+// Only showing implemented destinations
 const MOD_DESTINATION_OPTIONS: DropdownOption[] = [
-  { value: 'osc1_pitch', label: 'OSC1 Pitch' },
-  { value: 'osc1_detune', label: 'OSC1 Detune' },
-  { value: 'osc1_volume', label: 'OSC1 Volume' },
-  { value: 'osc1_pan', label: 'OSC1 Pan' },
-  { value: 'osc2_pitch', label: 'OSC2 Pitch' },
-  { value: 'osc2_detune', label: 'OSC2 Detune' },
-  { value: 'osc2_volume', label: 'OSC2 Volume' },
-  { value: 'osc2_pan', label: 'OSC2 Pan' },
   { value: 'filter_freq', label: 'Filter Freq' },
   { value: 'filter_res', label: 'Filter Res' },
   { value: 'amp_volume', label: 'Amp Volume' },
-  { value: 'amp_pan', label: 'Amp Pan' },
   { value: 'lfo1_rate', label: 'LFO1 Rate' },
   { value: 'lfo2_rate', label: 'LFO2 Rate' },
-  { value: 'fx_mix', label: 'FX Mix' },
 ];
 
 // Dropdown options for LFO waveforms

@@ -7,7 +7,7 @@
  * @module components/PatchBuilder/PatchBuilderModal
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import * as Tone from "tone";
 import type { CustomPatch, PatchCategory } from "../../types/synth";
 import { createDefaultPatch } from "../../lib/defaultPatch";
@@ -47,6 +47,17 @@ export function PatchBuilderModal({
   // Preview synth for live audio feedback while editing
   const previewSynthRef = useRef<CustomSynthEngine | null>(null);
   const activeNotesRef = useRef<Set<number>>(new Set());
+
+  // Modal container ref for focus management
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Focus the modal container when it opens to prevent input auto-focus
+  // This ensures keyboard events are captured for chord playing
+  useLayoutEffect(() => {
+    if (isOpen && modalRef.current) {
+      modalRef.current.focus();
+    }
+  }, [isOpen]);
 
   // Load or create patch on mount/patchId change
   useEffect(() => {
@@ -94,7 +105,9 @@ export function PatchBuilderModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Create/dispose preview synth when modal opens/closes
+  // Create preview synth and subscribe to chord events when patch is ready
+  // Use editingPatch?.id to only recreate synth when loading a different patch
+  const currentPatchId = editingPatch?.id;
   useEffect(() => {
     if (!isOpen || !editingPatch) {
       // Dispose preview synth when closing
@@ -107,25 +120,55 @@ export function PatchBuilderModal({
       return;
     }
 
-    // Ensure Tone.js is started
-    if (Tone.getContext().state !== "running") {
-      Tone.start().catch(console.error);
-    }
-
     // Create preview synth with current patch
-    if (!previewSynthRef.current) {
-      previewSynthRef.current = new CustomSynthEngine(editingPatch);
+    let synth: CustomSynthEngine;
+    try {
+      synth = new CustomSynthEngine(editingPatch);
+      previewSynthRef.current = synth;
+    } catch (err) {
+      console.error("Failed to create preview synth:", err);
+      return;
     }
 
-    return () => {
-      if (previewSynthRef.current) {
-        previewSynthRef.current.releaseAll();
-        previewSynthRef.current.dispose();
-        previewSynthRef.current = null;
+    // Subscribe to chord events - use synth directly in closure
+    const handleChordChanged = (payload: { notes: number[]; velocity?: number }) => {
+      const newNotes = new Set(payload.notes);
+      const currentNotes = activeNotesRef.current;
+
+      // Release notes that are no longer held
+      for (const note of currentNotes) {
+        if (!newNotes.has(note)) {
+          synth.triggerRelease(note);
+        }
       }
+
+      // Trigger new notes
+      for (const note of newNotes) {
+        if (!currentNotes.has(note)) {
+          synth.triggerAttack(note, payload.velocity ?? 0.7);
+        }
+      }
+
+      activeNotesRef.current = newNotes;
+    };
+
+    const handleChordCleared = () => {
+      synth.releaseAll();
       activeNotesRef.current.clear();
     };
-  }, [isOpen, editingPatch !== null]);
+
+    const unsubChanged = appEvents.on("chord:changed", handleChordChanged);
+    const unsubCleared = appEvents.on("chord:cleared", handleChordCleared);
+
+    return () => {
+      unsubChanged();
+      unsubCleared();
+      synth.releaseAll();
+      synth.dispose();
+      previewSynthRef.current = null;
+      activeNotesRef.current.clear();
+    };
+  }, [isOpen, currentPatchId]); // Only recreate when patch ID changes, not on every param edit
 
   // Update preview synth when patch parameters change (live updates for continuous playback)
   useEffect(() => {
@@ -148,53 +191,6 @@ export function PatchBuilderModal({
       return () => clearTimeout(timeoutId);
     }
   }, [isOpen, editingPatch]);
-
-  // Subscribe to chord events for preview playback
-  useEffect(() => {
-    if (!isOpen || !editingPatch) return;
-
-    const handleChordChanged = (payload: { notes: number[]; velocity?: number }) => {
-      if (!previewSynthRef.current) return;
-
-      const newNotes = new Set(payload.notes);
-      const currentNotes = activeNotesRef.current;
-
-      // Release notes that are no longer held
-      for (const note of currentNotes) {
-        if (!newNotes.has(note)) {
-          previewSynthRef.current.triggerRelease(note);
-        }
-      }
-
-      // Trigger new notes
-      for (const note of newNotes) {
-        if (!currentNotes.has(note)) {
-          previewSynthRef.current.triggerAttack(note, payload.velocity ?? 0.7);
-        }
-      }
-
-      activeNotesRef.current = newNotes;
-    };
-
-    const handleChordCleared = () => {
-      if (!previewSynthRef.current) return;
-      previewSynthRef.current.releaseAll();
-      activeNotesRef.current.clear();
-    };
-
-    const unsubChanged = appEvents.on("chord:changed", handleChordChanged);
-    const unsubCleared = appEvents.on("chord:cleared", handleChordCleared);
-
-    return () => {
-      unsubChanged();
-      unsubCleared();
-      // Release any held notes when unsubscribing
-      if (previewSynthRef.current) {
-        previewSynthRef.current.releaseAll();
-      }
-      activeNotesRef.current.clear();
-    };
-  }, [isOpen, editingPatch !== null]);
 
   // Handle overlay click
   const handleOverlayClick = useCallback(
@@ -261,7 +257,12 @@ export function PatchBuilderModal({
 
   return (
     <div className="patch-builder-overlay" onClick={handleOverlayClick}>
-      <div className="patch-builder-modal">
+      <div
+        ref={modalRef}
+        className="patch-builder-modal"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="patch-builder-header">
           <div className="patch-builder-header-left">
             <input
@@ -314,14 +315,12 @@ export function PatchBuilderModal({
           >
             ENV
           </button>
-          {/* MOD tab hidden for now - LFO routing needs more work
           <button
             className={`patch-tab ${activeTab === "mod" ? "active" : ""}`}
             onClick={() => setActiveTab("mod")}
           >
             MOD
           </button>
-          */}
           <button
             className={`patch-tab ${activeTab === "fx" ? "active" : ""}`}
             onClick={() => setActiveTab("fx")}

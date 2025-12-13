@@ -195,6 +195,7 @@ export function EnvelopeEditor({
       if (disabled) return;
 
       e.preventDefault();
+      e.stopPropagation(); // Prevent event bubbling to modal overlay
       const coords = getCanvasCoords(e);
       const hit = hitTest(coords.x, coords.y);
       if (hit) {
@@ -284,13 +285,17 @@ export function EnvelopeEditor({
   };
 
   return (
-    <div className={`envelope-editor ${disabled ? "disabled" : ""}`}>
+    <div
+      className={`envelope-editor ${disabled ? "disabled" : ""}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="envelope-label">{label}</div>
       <canvas
         ref={canvasRef}
         className="envelope-canvas"
         onMouseDown={handlePointerDown}
         onTouchStart={handlePointerDown}
+        onClick={(e) => e.stopPropagation()}
       />
       <div className="envelope-labels">
         <span className="envelope-param-label">A {envelope.attack.toFixed(2)}s</span>

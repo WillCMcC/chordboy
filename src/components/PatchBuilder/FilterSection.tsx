@@ -3,7 +3,7 @@
  * Visual filter editor with frequency response display
  */
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { KnobControl, SectionHeader } from "./index";
 import type { FilterConfig, FilterType, FilterRolloff } from "../../types/synth";
 import "./controls.css";
@@ -255,7 +255,20 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
     ctx.fill();
   }, [filter, canvasSize, isDragging]);
 
-  // Handle drag on canvas
+  // Throttle helper for smoother filter updates
+  const throttledOnChange = useMemo(() => {
+    let lastCall = 0;
+    const minInterval = 16; // ~60fps max
+    return (newFilter: FilterConfig) => {
+      const now = Date.now();
+      if (now - lastCall >= minInterval) {
+        lastCall = now;
+        onChange(newFilter);
+      }
+    };
+  }, [onChange]);
+
+  // Handle drag on canvas - only update frequency on initial click (not resonance)
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!filter.enabled) return;
@@ -268,20 +281,13 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
 
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
 
-      // Update frequency from x
+      // Only update frequency on initial click - resonance follows during drag
       const newFreq = Math.round(xToFreq(x, canvasSize.width));
-
-      // Update resonance from y (inverse mapping)
-      // Max Q of 8 prevents self-oscillation while still being very resonant
-      const normalizedY = y / canvasSize.height;
-      const newResonance = Math.max(0.1, Math.min(8, (1 - normalizedY) * 8));
 
       onChange({
         ...filter,
         frequency: Math.max(20, Math.min(20000, newFreq)),
-        resonance: Math.round(newResonance * 10) / 10,
       });
     },
     [filter, onChange, canvasSize]
@@ -299,20 +305,43 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
       const y = Math.max(0, Math.min(canvasSize.height, e.clientY - rect.top));
 
       const newFreq = Math.round(xToFreq(x, canvasSize.width));
-      // Max Q of 8 prevents self-oscillation while still being very resonant
-      const normalizedY = y / canvasSize.height;
-      const newResonance = Math.max(0.1, Math.min(8, (1 - normalizedY) * 8));
 
-      onChange({
+      // Resonance mapping: bottom 30% of canvas = 0, top 70% maps to 0-8
+      // This gives more room to adjust frequency without touching resonance
+      const bottomDeadZone = 0.3; // Bottom 30% is resonance 0
+      const normalizedY = y / canvasSize.height;
+
+      let newResonance: number;
+      if (normalizedY > (1 - bottomDeadZone)) {
+        // In the bottom dead zone - resonance is 0
+        newResonance = 0;
+      } else {
+        // Map the top 70% to resonance 0-8
+        // At y=0 (top), resonance = 8
+        // At y=(1-bottomDeadZone)*height, resonance = 0
+        const activeRange = 1 - bottomDeadZone;
+        const resonanceNormalized = 1 - (normalizedY / activeRange);
+        newResonance = Math.round(Math.min(8, resonanceNormalized * 8) * 10) / 10;
+      }
+
+      throttledOnChange({
         ...filter,
         frequency: Math.max(20, Math.min(20000, newFreq)),
-        resonance: Math.round(newResonance * 10) / 10,
+        resonance: newResonance,
       });
     },
-    [isDragging, filter, onChange, canvasSize]
+    [isDragging, filter, throttledOnChange, canvasSize]
   );
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (canvas && e.pointerId !== undefined) {
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore if pointer capture was already released
+      }
+    }
     setIsDragging(false);
   }, []);
 
@@ -371,7 +400,7 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerLeave={() => setIsDragging(false)}
             style={{ cursor: filter.enabled ? "crosshair" : "default" }}
           />
 

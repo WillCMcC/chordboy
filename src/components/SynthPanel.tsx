@@ -526,7 +526,9 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
       {/* Expanded ADSR Panel */}
       {showSynthControls && isExpanded && (
         <div className="synth-expanded">
-          <div className="preset-description">{currentPreset.description}</div>
+          {!isCustomPatch && (
+            <div className="preset-description">{currentPreset.description}</div>
+          )}
           <ADSREnvelope envelope={envelope} onChange={setEnvelope} />
         </div>
       )}

@@ -33,6 +33,7 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import { usePWAInstall } from "./hooks/usePWAInstall";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { useEventSubscription } from "./hooks/useEventSubscription";
+import { useToneSynth } from "./hooks/useToneSynth";
 import { appEvents } from "./lib/eventBus";
 import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
@@ -88,6 +89,9 @@ function App() {
     bleDevice,
     bleSyncEnabled,
   } = useMIDI();
+
+  // Synth state (for patch builder)
+  const { isPatchBuilderOpen } = useToneSynth();
 
   // Keyboard input
   const { pressedKeys: keyboardKeys } = useKeyboard(stopAllNotes);
@@ -516,11 +520,13 @@ function App() {
             onGlideTimeChange={setGlideTime}
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
+            isPatchBuilderOpen={isPatchBuilderOpen}
           />
         )}
 
         {/* Floating save preset button for mobile - outside MobileControls to avoid clipping */}
-        {isMobile && currentChord && nextAvailableSlot && (
+        {/* Hide when playing a saved chord (activePresetSlot is set) */}
+        {isMobile && currentChord && nextAvailableSlot && !activePresetSlot && (
           <button
             className="floating-save-btn"
             onClick={handleFloatingSave}

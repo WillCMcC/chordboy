@@ -38,7 +38,8 @@ class CustomVoice {
 
   constructor(
     private patch: CustomPatch,
-    private filterFreqMod?: Tone.Signal<"frequency">
+    private filterFreqMod?: Tone.Signal<"number">,
+    private filterResMod?: Tone.Signal<"number">
   ) {
     // Create oscillators - mute if disabled
     this.osc1 = new Tone.OmniOscillator({
@@ -95,13 +96,13 @@ class CustomVoice {
     this.osc2.connect(this.mixer.b);
     this.mixer.connect(this.filter);
 
-    // Connect filter modulation signal if provided (for LFO routing)
-    if (filterFreqMod) {
-      filterFreqMod.connect(this.filter.frequency);
-    }
+    // NOTE: Filter modulation signals (filterFreqMod, filterResMod) are NOT connected here.
+    // They are connected dynamically by CustomSynthEngine.applyModulationRoutings() only
+    // when there are active modulation routings. This prevents 0-valued signals from
+    // interfering with the filter's base frequency/resonance.
 
-    // Connect filter envelope if filter enabled
-    if (patch.filter.enabled) {
+    // Connect filter envelope only if filter enabled AND envelope amount is non-zero
+    if (patch.filter.enabled && patch.filter.envelopeAmount !== 0) {
       this.filterEnv.connect(this.filter.frequency);
     }
 
@@ -297,6 +298,19 @@ class CustomVoice {
   }
 
   /**
+   * Connect filter modulation signals to this voice's filter
+   * Called when modulation routings are applied
+   */
+  connectFilterMod(): void {
+    if (this.filterFreqMod) {
+      this.filterFreqMod.connect(this.filter.frequency);
+    }
+    if (this.filterResMod) {
+      this.filterResMod.connect(this.filter.Q);
+    }
+  }
+
+  /**
    * Connect voice output to destination
    */
   connect(destination: Tone.InputNode): this {
@@ -348,20 +362,42 @@ class VoicePool {
   private activeNotes = new Map<number, CustomVoice>();
   private readonly maxVoices = 8;
 
-  // Shared filter frequency signal for modulation (engine-level target)
-  public filterFrequencyMod: Tone.Signal<"frequency">;
+  // Shared filter modulation signals (engine-level targets)
+  // Use "number" type for frequency offset (not "frequency" which has special 0Hz handling)
+  public filterFrequencyMod: Tone.Signal<"number">;
+  public filterResonanceMod: Tone.Signal<"number">;
 
   constructor(private patch: CustomPatch, private destination: Tone.InputNode) {
-    // Create shared filter frequency signal that can be modulated
-    this.filterFrequencyMod = new Tone.Signal(patch.filter.frequency, "frequency");
+    // Create shared filter modulation signals for LFO routing
+    // Initialize to 0 since these are OFFSETS that get ADDED to the filter's base values
+    // Use "number" type to avoid Tone.js frequency-specific conversions at 0Hz
+    this.filterFrequencyMod = new Tone.Signal(0, "number");
+    this.filterResonanceMod = new Tone.Signal(0, "number");
     this.createVoices();
   }
 
   /**
    * Get filter frequency parameter for modulation routing
    */
-  getFilterFrequencyParam(): Tone.Signal<"frequency"> {
+  getFilterFrequencyParam(): Tone.Signal<"number"> {
     return this.filterFrequencyMod;
+  }
+
+  /**
+   * Get filter resonance parameter for modulation routing
+   */
+  getFilterResonanceParam(): Tone.Signal<"number"> {
+    return this.filterResonanceMod;
+  }
+
+  /**
+   * Connect filter modulation signals to all voices
+   * Called when modulation routings that target filter are applied
+   */
+  connectFilterModToVoices(): void {
+    for (const voice of this.voices) {
+      voice.connectFilterMod();
+    }
   }
 
   /**
@@ -369,7 +405,7 @@ class VoicePool {
    */
   private createVoices(): void {
     for (let i = 0; i < this.maxVoices; i++) {
-      const voice = new CustomVoice(this.patch, this.filterFrequencyMod);
+      const voice = new CustomVoice(this.patch, this.filterFrequencyMod, this.filterResonanceMod);
       voice.connect(this.destination);
       this.voices.push(voice);
     }
@@ -494,6 +530,7 @@ class VoicePool {
     this.voices = [];
     this.activeNotes.clear();
     this.filterFrequencyMod.dispose();
+    this.filterResonanceMod.dispose();
   }
 }
 
@@ -1032,6 +1069,14 @@ export class CustomSynthEngine {
    * Connects mod sources to engine-level destinations (lfo rates, filter freq, master volume)
    */
   private applyModulationRoutings(): void {
+    // Check if any routings target filter - if so, connect the filter mod signals to voices
+    const hasFilterRouting = this.patch.modMatrix.routings.some(
+      r => r.enabled && r.amount !== 0 && (r.destination === "filter_freq" || r.destination === "filter_res")
+    );
+    if (hasFilterRouting) {
+      this.voicePool.connectFilterModToVoices();
+    }
+
     for (const routing of this.patch.modMatrix.routings) {
       if (!routing.enabled || routing.amount === 0) continue;
 
@@ -1051,6 +1096,9 @@ export class CustomSynthEngine {
           break;
         case "filter_freq":
           target = this.voicePool.getFilterFrequencyParam();
+          break;
+        case "filter_res":
+          target = this.voicePool.getFilterResonanceParam();
           break;
         case "amp_volume":
           target = this.masterGain.gain;
@@ -1080,6 +1128,19 @@ export class CustomSynthEngine {
           scaledSource = scale;
 
           // Store intermediate nodes for cleanup
+          this.modManager.storeConnection(`${routing.id}-center`, center);
+          this.modManager.storeConnection(`${routing.id}-scale`, scale);
+          break;
+        }
+        case "filter_res": {
+          // Filter resonance modulation: scale to ±4 Q range
+          // LFO outputs 0-1, center around 0 and scale by amount
+          const center = new Tone.Add(-0.5);
+          const scale = new Tone.Multiply(routing.amount * 8); // ±4 Q at full amount
+          source.connect(center);
+          center.connect(scale);
+          scaledSource = scale;
+
           this.modManager.storeConnection(`${routing.id}-center`, center);
           this.modManager.storeConnection(`${routing.id}-scale`, scale);
           break;

@@ -100,6 +100,7 @@ interface MobileControlsProps {
   onGlideTimeChange: (time: number) => void;
   sequencerEnabled: boolean;
   onOpenSequencer: () => void;
+  isPatchBuilderOpen?: boolean;
 }
 
 /**
@@ -152,6 +153,7 @@ export function MobileControls({
   onGlideTimeChange,
   sequencerEnabled,
   onOpenSequencer,
+  isPatchBuilderOpen = false,
 }: MobileControlsProps) {
   const [clearMode, setClearMode] = useState<boolean>(false);
   const [solveMode, setSolveMode] = useState<boolean>(false);
@@ -379,8 +381,9 @@ export function MobileControls({
   }, [heldPreset, onStopRecall]);
 
   return (
-    <div className="mobile-controls">
+    <div className={`mobile-controls ${isPatchBuilderOpen ? "presets-only" : ""}`}>
       {/* Transport controls - scrolls with content */}
+      {!isPatchBuilderOpen && (
       <div className="mobile-controls-section transport-section">
         <TransportControls
           bpm={bpm}
@@ -412,6 +415,7 @@ export function MobileControls({
           onOpenSequencer={onOpenSequencer}
         />
       </div>
+      )}
 
       <div className="mobile-controls-section presets-section">
         <div className="mobile-controls-header">
@@ -559,6 +563,8 @@ export function MobileControls({
         </div>
       </div>
 
+      {!isPatchBuilderOpen && (
+      <>
       <div className="mobile-controls-section">
         <span className="mobile-controls-label">Voicing</span>
         <div className="control-buttons">
@@ -638,6 +644,8 @@ export function MobileControls({
           {showKeyboard ? "Hide Piano" : "Show Piano"}
         </button>
       </div>
+      </>
+      )}
     </div>
   );
 }

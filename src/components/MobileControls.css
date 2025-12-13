@@ -25,6 +25,12 @@
   -webkit-touch-callout: none;
 }
 
+/* When patch builder is open, only show presets */
+.mobile-controls.presets-only {
+  height: auto;
+  overflow: hidden;
+}
+
 /* Transport section - ensure mobile layout shows */
 .mobile-controls .transport-section {
   padding: 0;
