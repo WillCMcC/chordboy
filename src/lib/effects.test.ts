@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { EffectConfig, EffectType } from "../types/synth";
+import { describe, it, expect, vi } from "vitest";
+import type { EffectConfig } from "../types/synth";
 
 // Mock Tone.js
 vi.mock("tone", () => {
@@ -45,7 +45,6 @@ vi.mock("tone", () => {
     frequency: any;
     octaves: number;
     baseFrequency: number;
-    started = false;
 
     constructor(options: any) {
       super();
@@ -54,28 +53,17 @@ vi.mock("tone", () => {
       this.baseFrequency = options.baseFrequency;
       this.wet.value = options.wet;
     }
-
-    start() {
-      this.started = true;
-      return this;
-    }
   }
 
   class MockVibratoEffect extends MockEffect {
     frequency: any;
     depth: any;
-    started = false;
 
     constructor(options: any) {
       super();
       this.frequency = { value: options.frequency };
       this.depth = { value: options.depth };
       this.wet.value = options.wet;
-    }
-
-    start() {
-      this.started = true;
-      return this;
     }
   }
 
@@ -295,14 +283,14 @@ function createEffect(config: EffectConfig): any {
         octaves: params.octaves as number,
         baseFrequency: params.baseFrequency as number,
         wet: config.wet,
-      }).start();
+      });
 
     case "vibrato":
       return new Tone.Vibrato({
         frequency: params.frequency as number,
         depth: params.depth as number,
         wet: config.wet,
-      }).start();
+      });
 
     case "tremolo":
       return new Tone.Tremolo({
@@ -339,11 +327,13 @@ function createEffect(config: EffectConfig): any {
         wet: config.wet,
       });
 
-    case "bitcrusher":
-      return new Tone.BitCrusher({
+    case "bitcrusher": {
+      const bitcrusher = new Tone.BitCrusher({
         bits: params.bits as number,
-        wet: config.wet,
       });
+      bitcrusher.wet.value = config.wet;
+      return bitcrusher;
+    }
 
     case "compressor": {
       // Compressor doesn't have native wet/dry, so create manual wet/dry mixing
@@ -385,7 +375,7 @@ function createEffect(config: EffectConfig): any {
           (mixer as any)._wetValue = v;
           dryGain.gain.value = 1 - v;
           wetGain.gain.value = v;
-        }
+        },
       };
       (mixer as any)._wetValue = config.wet;
 
@@ -670,18 +660,6 @@ describe("Effects Chain System", () => {
         expect(effect.baseFrequency).toBe(350);
         expect(effect.wet.value).toBe(0.5);
       });
-
-      it("should call .start() on phaser effect", () => {
-        const config: EffectConfig = {
-          type: "phaser",
-          enabled: true,
-          wet: 0.5,
-          params: { frequency: 0.5, octaves: 3, baseFrequency: 350 },
-        };
-
-        const effect = createEffect(config);
-        expect(effect.started).toBe(true);
-      });
     });
 
     describe("tremolo effect", () => {
@@ -741,18 +719,6 @@ describe("Effects Chain System", () => {
         expect(effect.frequency.value).toBe(5);
         expect(effect.depth.value).toBe(0.3);
         expect(effect.wet.value).toBe(0.5);
-      });
-
-      it("should call .start() on vibrato effect", () => {
-        const config: EffectConfig = {
-          type: "vibrato",
-          enabled: true,
-          wet: 0.5,
-          params: { frequency: 5, depth: 0.3 },
-        };
-
-        const effect = createEffect(config);
-        expect(effect.started).toBe(true);
       });
 
       it("should default vibrato depth to 0.3", () => {

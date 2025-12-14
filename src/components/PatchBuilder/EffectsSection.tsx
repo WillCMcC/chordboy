@@ -4,7 +4,7 @@
  * Supports adding, removing, enabling/disabling, and reordering effects.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { EffectConfig, EffectType } from '../../types/synth';
 import { KnobControl } from './KnobControl';
 import { DropdownControl, type DropdownOption } from './DropdownControl';
@@ -621,12 +621,29 @@ export function EffectsSection({ effects, onChange }: EffectsSectionProps) {
 
   // Show dropdown state
   const [showEffectMenu, setShowEffectMenu] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  // Click-away listener to close dropdown
+  useEffect(() => {
+    if (!showEffectMenu) return;
+
+    const handleClickAway = (event: MouseEvent) => {
+      if (menuContainerRef.current && !menuContainerRef.current.contains(event.target as Node)) {
+        setShowEffectMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickAway);
+    return () => {
+      document.removeEventListener('mousedown', handleClickAway);
+    };
+  }, [showEffectMenu]);
 
   return (
     <div className="effects-section">
       <div className="effects-header">
         <h3>Effects Chain</h3>
-        <div className="add-effect-container">
+        <div className="add-effect-container" ref={menuContainerRef}>
           <button
             className="add-effect-btn"
             onClick={() => setShowEffectMenu(!showEffectMenu)}

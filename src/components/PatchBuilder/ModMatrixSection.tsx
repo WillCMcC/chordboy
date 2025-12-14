@@ -12,6 +12,7 @@ import type {
   ModSource,
   ModDestination,
   LFOWaveform,
+  LFOSyncRate,
 } from '../../types/synth';
 import { KnobControl } from './KnobControl';
 import { DropdownControl, type DropdownOption } from './DropdownControl';
@@ -53,6 +54,17 @@ const LFO_WAVEFORM_OPTIONS: DropdownOption[] = [
   { value: 'sawtooth', label: 'Sawtooth' },
 ];
 
+// Dropdown options for LFO sync rates (note lengths)
+const LFO_SYNC_RATE_OPTIONS: DropdownOption[] = [
+  { value: '1m', label: '1 Bar' },
+  { value: '1n', label: 'Whole' },
+  { value: '2n', label: 'Half' },
+  { value: '4n', label: '1/4' },
+  { value: '8n', label: '1/8' },
+  { value: '16n', label: '1/16' },
+  { value: '32n', label: '1/32' },
+];
+
 /**
  * LFO Panel Component
  * Displays controls for a single LFO with enable toggle, waveform, rate, and sync.
@@ -81,16 +93,26 @@ function LFOPanel({
           onChange={(value) => onChange({ ...lfo, waveform: value as LFOWaveform })}
           disabled={!lfo.enabled}
         />
-        <KnobControl
-          label="Rate"
-          value={lfo.frequency}
-          min={0.01}
-          max={50}
-          step={0.01}
-          unit="Hz"
-          onChange={(frequency) => onChange({ ...lfo, frequency })}
-          disabled={!lfo.enabled}
-        />
+        {lfo.sync ? (
+          <DropdownControl
+            label="Rate"
+            value={lfo.syncRate}
+            options={LFO_SYNC_RATE_OPTIONS}
+            onChange={(value) => onChange({ ...lfo, syncRate: value as LFOSyncRate })}
+            disabled={!lfo.enabled}
+          />
+        ) : (
+          <KnobControl
+            label="Rate"
+            value={lfo.frequency}
+            min={0.01}
+            max={50}
+            step={0.01}
+            unit="Hz"
+            onChange={(frequency) => onChange({ ...lfo, frequency })}
+            disabled={!lfo.enabled}
+          />
+        )}
         <button
           className={`lfo-sync-btn ${lfo.sync ? 'active' : ''} ${!lfo.enabled ? 'disabled' : ''}`}
           onClick={() => onChange({ ...lfo, sync: !lfo.sync })}

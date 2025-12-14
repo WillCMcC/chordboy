@@ -286,6 +286,11 @@
   background: rgba(139, 92, 246, 0.6);
 }
 
+/* Synth Controls Row - groups controls together */
+.synth-controls-row {
+  display: contents; /* On desktop, behaves as if no wrapper */
+}
+
 /* Mobile Layout */
 @media (max-width: 768px) {
   .synth-panel {
@@ -295,51 +300,80 @@
   }
 
   .synth-bar {
-    flex-wrap: wrap;
-    padding: 10px 12px;
-    gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
     border-radius: 16px;
     margin: 0;
     width: 100%;
     box-sizing: border-box;
   }
 
+  /* Row 1: Mode toggle - full width */
   .mode-toggle {
-    order: -1;
-    flex: 1;
     width: 100%;
+    order: -1;
   }
 
   .mode-btn {
     flex: 1;
     text-align: center;
-    padding: 8px 6px;
-    font-size: 10px;
+    padding: 10px 8px;
+    font-size: 11px;
   }
 
   .synth-bar-divider {
     display: none;
   }
 
+  /* Row 2: Synth controls - flex row */
+  .synth-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
   .configure-btn {
-    flex: 1;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 11px;
   }
 
   .preset-select-compact {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
+    padding: 8px 26px 8px 10px;
+    font-size: 11px;
+  }
+
+  .edit-patch-btn {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .volume-control {
-    flex-shrink: 0;
+    flex: 0 0 auto;
   }
 
   .volume-slider {
-    width: 50px;
+    width: 44px;
   }
 
   .expand-btn {
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+  }
+
+  .expand-label {
+    font-size: 9px;
+  }
+
+  .expand-arrow {
+    font-size: 7px;
   }
 
   .mobile-pull-handle {

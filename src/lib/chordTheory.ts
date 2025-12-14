@@ -91,7 +91,7 @@ export function noteToMIDI(noteName: NoteNameWithFlats, octave: Octave = 4): MID
   const midiNote = 12 * (octave + 1) + semitone;
 
   // Clamp to valid MIDI range (0-127)
-  return Math.max(0, Math.min(127, midiNote));
+  return Math.max(0, Math.min(127, midiNote)) as MIDINote;
 }
 
 /**
@@ -144,7 +144,7 @@ export function buildNotesFromIntervals(
   intervals: Interval[]
 ): MIDINote[] {
   const rootMIDI = noteToMIDI(rootNote, octave);
-  return intervals.map((interval) => rootMIDI + interval);
+  return intervals.map((interval) => Math.max(0, Math.min(127, rootMIDI + interval)) as MIDINote);
 }
 
 /**

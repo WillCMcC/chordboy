@@ -35,7 +35,7 @@ export interface SolverOptions {
   /** Preferred octave to center voicings around */
   targetOctave?: Octave;
   /** Voicing styles to consider (defaults to all) */
-  allowedStyles?: VoicingStyle[];
+  allowedStyles?: readonly VoicingStyle[];
   /** Whether to apply 7th→3rd resolution weighting */
   jazzVoiceLeading?: boolean;
   /** Whether to apply register constraints */
@@ -184,7 +184,7 @@ function calculateVoiceDistance(
  */
 function generateAllVoicings(
   preset: Preset,
-  allowedStyles: VoicingStyle[] = VOICING_STYLES
+  allowedStyles: readonly VoicingStyle[] = VOICING_STYLES
 ): { voicings: VoicingOption[]; chord: Chord | null } {
   const parsedKeys = parseKeys(preset.keys);
   if (!parsedKeys.root) return { voicings: [], chord: null };
@@ -243,7 +243,7 @@ function generateAllVoicings(
 function generateVoicingsWithOctaveShifts(
   preset: Preset,
   octaveRange: number = 1,
-  allowedStyles: VoicingStyle[] = VOICING_STYLES
+  allowedStyles: readonly VoicingStyle[] = VOICING_STYLES
 ): { voicings: VoicingOption[]; chord: Chord | null } {
   const allVoicings: VoicingOption[] = [];
   let baseChord: Chord | null = null;

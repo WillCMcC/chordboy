@@ -172,7 +172,7 @@ export function disconnectBLEMidiDevice(server: BluetoothRemoteGATTServer | null
 export function createBLEMidiPacket(midiMessage: number[]): Uint8Array {
   // Get timestamp in milliseconds, use lower 13 bits
   const timestamp = Date.now() & 0x1fff;
-  const timestampHigh = (timestamp >> 7) & 0x3f;
+  const timestampHigh = (timestamp >> 7) & 0x7f;
   const timestampLow = timestamp & 0x7f;
 
   // Header: high bit set + 6 bits of timestamp high
@@ -195,7 +195,7 @@ export function createBatchedBLEMidiPacket(midiMessages: number[][]): Uint8Array
   if (!midiMessages.length) return new Uint8Array(0);
 
   const timestamp = Date.now() & 0x1fff;
-  const timestampHigh = (timestamp >> 7) & 0x3f;
+  const timestampHigh = (timestamp >> 7) & 0x7f;
   const timestampLow = timestamp & 0x7f;
 
   const header = 0x80 | timestampHigh;

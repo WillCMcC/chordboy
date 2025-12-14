@@ -302,6 +302,7 @@ describe("eventBus", () => {
       const payload = {
         inversion: 1,
         drop: "drop2" as const,
+        voicingStyle: "close" as const,
         spread: 2,
         octave: 0,
       };

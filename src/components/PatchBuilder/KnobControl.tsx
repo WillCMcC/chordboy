@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import './controls.css';
+import React, { useRef, useState, useCallback, useEffect } from "react";
+import "./controls.css";
 
 interface KnobControlProps {
   label: string;
@@ -29,7 +29,7 @@ export function KnobControl({
   max,
   step = 1,
   onChange,
-  unit = '',
+  unit = "",
   bipolar = false,
   disabled = false,
   formatValue,
@@ -46,7 +46,7 @@ export function KnobControl({
       // Round to step
       return Math.round(clamped / step) * step;
     },
-    [min, max, step]
+    [min, max, step],
   );
 
   // Convert value to rotation angle (270 degrees total range)
@@ -56,7 +56,7 @@ export function KnobControl({
       const normalized = (val - min) / range;
       return -135 + normalized * 270; // -135deg to +135deg
     },
-    [min, max]
+    [min, max],
   );
 
   // Handle drag start
@@ -74,7 +74,7 @@ export function KnobControl({
       dragStartY.current = e.clientY;
       dragStartValue.current = value;
     },
-    [disabled, value]
+    [disabled, value],
   );
 
   // Handle drag move
@@ -97,7 +97,7 @@ export function KnobControl({
         onChange(newValue);
       }
     },
-    [isDragging, disabled, max, min, value, onChange, clampValue]
+    [isDragging, disabled, max, min, value, onChange, clampValue],
   );
 
   // Handle drag end
@@ -113,7 +113,54 @@ export function KnobControl({
 
       setIsDragging(false);
     },
-    [isDragging]
+    [isDragging],
+  );
+
+  // Handle keyboard control
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+
+      const smallStep = e.shiftKey ? step * 0.1 : step;
+      const largeStep = step * 10;
+      let newValue = value;
+
+      switch (e.key) {
+        case "ArrowUp":
+        case "ArrowRight":
+          e.preventDefault();
+          newValue = clampValue(value + smallStep);
+          break;
+        case "ArrowDown":
+        case "ArrowLeft":
+          e.preventDefault();
+          newValue = clampValue(value - smallStep);
+          break;
+        case "PageUp":
+          e.preventDefault();
+          newValue = clampValue(value + largeStep);
+          break;
+        case "PageDown":
+          e.preventDefault();
+          newValue = clampValue(value - largeStep);
+          break;
+        case "Home":
+          e.preventDefault();
+          newValue = min;
+          break;
+        case "End":
+          e.preventDefault();
+          newValue = max;
+          break;
+        default:
+          return;
+      }
+
+      if (newValue !== value) {
+        onChange(newValue);
+      }
+    },
+    [disabled, step, value, clampValue, min, max, onChange],
   );
 
   // Prevent default touch behavior
@@ -125,24 +172,29 @@ export function KnobControl({
       e.preventDefault();
     };
 
-    knob.addEventListener('touchstart', preventTouch, { passive: false });
-    knob.addEventListener('touchmove', preventTouch, { passive: false });
+    knob.addEventListener("touchstart", preventTouch, { passive: false });
+    knob.addEventListener("touchmove", preventTouch, { passive: false });
 
     return () => {
-      knob.removeEventListener('touchstart', preventTouch);
-      knob.removeEventListener('touchmove', preventTouch);
+      // Use captured ref value, not current (may be null in cleanup)
+      knob.removeEventListener("touchstart", preventTouch);
+      knob.removeEventListener("touchmove", preventTouch);
     };
   }, []);
 
   const angle = valueToAngle(value);
+  // Calculate proper decimal places from step (e.g., step=0.01 -> 2 decimals)
+  const decimals = step < 1 ? Math.max(0, -Math.floor(Math.log10(step))) : 0;
   const displayValue = formatValue
     ? formatValue(value)
     : unit
-      ? `${value.toFixed(step < 1 ? 1 : 0)}${unit}`
-      : value.toFixed(step < 1 ? 1 : 0);
+      ? `${value.toFixed(decimals)}${unit}`
+      : value.toFixed(decimals);
 
   return (
-    <div className={`knob-control ${bipolar ? 'bipolar' : ''} ${disabled ? 'disabled' : ''}`}>
+    <div
+      className={`knob-control ${bipolar ? "bipolar" : ""} ${disabled ? "disabled" : ""}`}
+    >
       <div className="knob-label">{label}</div>
       <div
         ref={knobRef}
@@ -151,6 +203,14 @@ export function KnobControl({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
+        tabIndex={disabled ? -1 : 0}
+        role="slider"
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-disabled={disabled}
       >
         <div className="knob-circle">
           <div

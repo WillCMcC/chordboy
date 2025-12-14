@@ -99,11 +99,22 @@ export interface FilterEnvelopeConfig extends EnvelopeConfig {
 /** LFO waveform types */
 export type LFOWaveform = "sine" | "square" | "triangle" | "sawtooth";
 
+/** LFO sync rate options (Tone.js notation) */
+export type LFOSyncRate =
+  | "1m"   // 1 bar (whole measure)
+  | "2n"   // half note
+  | "1n"   // whole note
+  | "4n"   // quarter note
+  | "8n"   // 8th note
+  | "16n" // 16th note
+  | "32n"; // 32nd note
+
 /** LFO configuration */
 export interface LFOConfig {
   enabled: boolean;
   waveform: LFOWaveform;
-  frequency: number; // 0.01 to 50 Hz
+  frequency: number; // 0.01 to 50 Hz (used when sync is off)
+  syncRate: LFOSyncRate; // Note length (used when sync is on)
   min: number; // Minimum output value
   max: number; // Maximum output value
   phase: number; // 0 to 360 degrees
@@ -369,6 +380,7 @@ export const DEFAULT_LFO: LFOConfig = {
   enabled: false,
   waveform: "sine",
   frequency: 2,
+  syncRate: "4n",
   min: 0,
   max: 1,
   phase: 0,

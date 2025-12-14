@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 /** Return type for useKeyboard hook */
 export interface UseKeyboardReturn {
@@ -19,15 +19,19 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const [allKeysReleased, setAllKeysReleased] = useState<boolean>(false);
 
+  // Use ref to avoid stale closure in useEffect
+  const onAllKeysUpRef = useRef(onAllKeysUp);
+  onAllKeysUpRef.current = onAllKeysUp;
+
   /**
    * Trigger callback when all keys are released
    */
   useEffect(() => {
-    if (allKeysReleased && onAllKeysUp) {
-      onAllKeysUp();
+    if (allKeysReleased && onAllKeysUpRef.current) {
+      onAllKeysUpRef.current();
       setAllKeysReleased(false);
     }
-  }, [allKeysReleased, onAllKeysUp]);
+  }, [allKeysReleased]);
 
   /**
    * Handle key down events

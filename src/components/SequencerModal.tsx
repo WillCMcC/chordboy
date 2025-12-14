@@ -141,8 +141,8 @@ export function SequencerModal({
             {isPlaying && sequencerEnabled && (
               <span className="sequencer-playing-badge">Playing</span>
             )}
-            <button className="sequencer-close" onClick={onClose}>
-              x
+            <button aria-label="Close sequencer" className="sequencer-close" onClick={onClose}>
+              ×
             </button>
           </div>
         </div>

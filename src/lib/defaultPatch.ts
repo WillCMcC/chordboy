@@ -23,7 +23,7 @@ const defaultOscillator: OscillatorConfig = {
   waveform: "sawtooth",
   octave: 0,
   detune: 0,
-  volume: 0.8,
+  volume: 0.5,
   pan: 0,
 };
 
@@ -64,6 +64,7 @@ const defaultLFO: LFOConfig = {
   enabled: false,
   waveform: "sine",
   frequency: 2,
+  syncRate: "4n",
   min: 0,
   max: 1,
   phase: 0,
@@ -87,7 +88,7 @@ const defaultModMatrix: ModMatrix = {
  */
 export function createDefaultPatch(
   name?: string,
-  category: PatchCategory = "custom"
+  category: PatchCategory = "custom",
 ): CustomPatch {
   const now = Date.now();
   return {
@@ -122,7 +123,9 @@ export function createDefaultPatch(
  * Create a "Init" patch - completely neutral starting point
  */
 export function createInitPatch(): CustomPatch {
-  return createDefaultPatch("Init", "custom");
+  const patch = createDefaultPatch("Init", "custom");
+  patch.id = "factory-init";
+  return patch;
 }
 
 /**
@@ -130,6 +133,7 @@ export function createInitPatch(): CustomPatch {
  */
 export function createWarmPadPatch(): CustomPatch {
   const patch = createDefaultPatch("Warm Pad", "pad");
+  patch.id = "factory-warm-pad";
   patch.osc1.waveform = "triangle";
   patch.osc2.enabled = true;
   patch.osc2.waveform = "sine";
@@ -167,6 +171,7 @@ export function createWarmPadPatch(): CustomPatch {
  */
 export function createPluckyKeysPatch(): CustomPatch {
   const patch = createDefaultPatch("Plucky Keys", "keys");
+  patch.id = "factory-plucky-keys";
   patch.osc1.waveform = "sawtooth";
   patch.osc2.enabled = true;
   patch.osc2.waveform = "square";
@@ -200,6 +205,7 @@ export function createPluckyKeysPatch(): CustomPatch {
  */
 export function createFatBassPatch(): CustomPatch {
   const patch = createDefaultPatch("Fat Bass", "bass");
+  patch.id = "factory-fat-bass";
   patch.osc1.waveform = "sawtooth";
   patch.osc1.octave = -1;
   patch.osc2.enabled = true;
@@ -235,6 +241,7 @@ export function createFatBassPatch(): CustomPatch {
  */
 export function createPWMLeadPatch(): CustomPatch {
   const patch = createDefaultPatch("PWM Lead", "lead");
+  patch.id = "factory-pwm-lead";
   patch.osc1.waveform = "pwm";
   patch.osc2.enabled = true;
   patch.osc2.waveform = "sawtooth";
@@ -255,6 +262,7 @@ export function createPWMLeadPatch(): CustomPatch {
     enabled: true,
     waveform: "triangle",
     frequency: 3,
+    syncRate: "4n",
     min: 0.3,
     max: 0.7,
     phase: 0,
@@ -262,7 +270,7 @@ export function createPWMLeadPatch(): CustomPatch {
   };
   patch.modMatrix.routings = [
     {
-      id: crypto.randomUUID(),
+      id: "factory-pwm-lead-routing-1",
       source: "lfo1",
       destination: "filter_freq",
       amount: 0.3,

@@ -140,19 +140,20 @@ export type VoicingStyle =
   | "upper-struct";
 
 /** Array of voicing styles for cycling */
-export const VOICING_STYLES: VoicingStyle[] = [
+export const VOICING_STYLES = [
   "close",
   "drop2",
   "drop3",
+  "drop24",
   "rootless-a",
   "rootless-b",
   "shell",
   "quartal",
   "upper-struct",
-];
+] as const;
 
 /** Human-readable labels for voicing styles */
-export const VOICING_STYLE_LABELS: Record<VoicingStyle, string> = {
+export const VOICING_STYLE_LABELS = {
   "close": "Close",
   "rootless-a": "Rootless A",
   "rootless-b": "Rootless B",
@@ -162,7 +163,7 @@ export const VOICING_STYLE_LABELS: Record<VoicingStyle, string> = {
   "drop3": "Drop 3",
   "drop24": "Drop 2+4",
   "upper-struct": "Upper Struct",
-};
+} satisfies Record<VoicingStyle, string>;
 
 /** Voicing state for a chord */
 export interface VoicingState {

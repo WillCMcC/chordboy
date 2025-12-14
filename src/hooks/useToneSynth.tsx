@@ -183,6 +183,9 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Humanization manager for scheduling notes
   const humanizeManagerRef = useRef<HumanizeManager>(createHumanizeManager());
 
+  // Track grace note timeouts for cleanup
+  const graceNoteTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
   // Track last strum direction for alternate mode
   const strumLastDirectionRef = useRef<StrumDirection>("up");
 
@@ -785,18 +788,28 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
       // Custom synth grace notes
       event.notes.forEach((note) => {
         customSynthRef.current?.triggerRelease(note);
-        setTimeout(() => {
-          customSynthRef.current?.triggerAttack(note, midiVelocityToTone(graceVelocity));
+        const timeoutId = setTimeout(() => {
+          // Guard: verify synth is still valid and initialized
+          if (isInitializedRef.current && isCustomPatchRef.current && customSynthRef.current) {
+            customSynthRef.current.triggerAttack(note, midiVelocityToTone(graceVelocity));
+          }
+          graceNoteTimeoutsRef.current.delete(timeoutId);
         }, 20);
+        graceNoteTimeoutsRef.current.add(timeoutId);
       });
     } else if (synthRef.current) {
       // Factory synth grace notes
       event.notes.forEach((note) => {
         const freq = midiToFreq(note);
         synthRef.current?.triggerRelease(freq, Tone.now());
-        setTimeout(() => {
-          synthRef.current?.triggerAttack(freq, Tone.now(), midiVelocityToTone(graceVelocity));
+        const timeoutId = setTimeout(() => {
+          // Guard: verify synth is still valid and initialized
+          if (isInitializedRef.current && !isCustomPatchRef.current && synthRef.current) {
+            synthRef.current.triggerAttack(freq, Tone.now(), midiVelocityToTone(graceVelocity));
+          }
+          graceNoteTimeoutsRef.current.delete(timeoutId);
         }, 20);
+        graceNoteTimeoutsRef.current.add(timeoutId);
       });
     }
   });
@@ -820,6 +833,10 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   useEffect(() => {
     return () => {
       humanizeManagerRef.current.clear();
+
+      // Clear all pending grace note timeouts
+      graceNoteTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      graceNoteTimeoutsRef.current.clear();
 
       // Dispose custom synth first (before factory synth)
       if (customSynthRef.current) {

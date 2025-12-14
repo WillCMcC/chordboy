@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { CustomPatch, ModSource, ModDestination, ModRouting } from "../types/synth";
-import { DEFAULT_MOD_MATRIX, DEFAULT_OSCILLATOR, DEFAULT_FILTER, DEFAULT_ENVELOPE, DEFAULT_FILTER_ENVELOPE } from "../types/synth";
+import type {
+  CustomPatch,
+  ModSource,
+  ModDestination,
+  ModRouting,
+} from "../types/synth";
+import {
+  DEFAULT_MOD_MATRIX,
+  DEFAULT_OSCILLATOR,
+  DEFAULT_FILTER,
+  DEFAULT_ENVELOPE,
+  DEFAULT_FILTER_ENVELOPE,
+} from "../types/synth";
 
 // Mock Tone.js
 vi.mock("tone", () => {
@@ -11,8 +22,8 @@ vi.mock("tone", () => {
     min: number;
     max: number;
     phase: number;
-    private _started = false;
-    private _synced = false;
+    public started = false;
+    public synced = false;
 
     constructor(config: any) {
       this.type = config.type;
@@ -23,22 +34,22 @@ vi.mock("tone", () => {
     }
 
     start() {
-      this._started = true;
+      this.started = true;
       return this;
     }
 
     stop() {
-      this._started = false;
+      this.started = false;
       return this;
     }
 
     sync() {
-      this._synced = true;
+      this.synced = true;
       return this;
     }
 
     unsync() {
-      this._synced = false;
+      this.synced = false;
       return this;
     }
 
@@ -51,7 +62,7 @@ vi.mock("tone", () => {
     }
 
     dispose() {
-      this._started = false;
+      this.started = false;
     }
   }
 
@@ -98,7 +109,7 @@ vi.mock("tone", () => {
     minValue?: number;
     maxValue?: number;
 
-    constructor(value: number, unit?: string) {
+    constructor(value: number, _unit?: string) {
       this.value = value;
     }
 
@@ -115,23 +126,35 @@ vi.mock("tone", () => {
 
   // Mock audio nodes
   class MockMultiply {
-    constructor(value: number) {}
-    connect() { return this; }
-    disconnect() { return this; }
+    constructor(_value: number) {}
+    connect() {
+      return this;
+    }
+    disconnect() {
+      return this;
+    }
     dispose() {}
   }
 
   class MockScale {
-    constructor(min: number, max: number) {}
-    connect() { return this; }
-    disconnect() { return this; }
+    constructor(_min: number, _max: number) {}
+    connect() {
+      return this;
+    }
+    disconnect() {
+      return this;
+    }
     dispose() {}
   }
 
   class MockAdd {
-    constructor(value: number) {}
-    connect() { return this; }
-    disconnect() { return this; }
+    constructor(_value: number) {}
+    connect() {
+      return this;
+    }
+    disconnect() {
+      return this;
+    }
     dispose() {}
   }
 
@@ -183,11 +206,15 @@ class ModulationManager {
     // Configure sync if enabled
     if (patch.modMatrix.lfo1.sync) {
       this.lfo1.sync();
-      this.lfo1.frequency.value = this.frequencyToSyncedValue(patch.modMatrix.lfo1.frequency);
+      this.lfo1.frequency.value = this.frequencyToSyncedValue(
+        patch.modMatrix.lfo1.frequency,
+      );
     }
     if (patch.modMatrix.lfo2.sync) {
       this.lfo2.sync();
-      this.lfo2.frequency.value = this.frequencyToSyncedValue(patch.modMatrix.lfo2.frequency);
+      this.lfo2.frequency.value = this.frequencyToSyncedValue(
+        patch.modMatrix.lfo2.frequency,
+      );
     }
 
     // Start LFOs if enabled
@@ -235,10 +262,7 @@ class ModulationManager {
 
     // Create scaled signal for modulation amount
     const multiply = new Tone.Multiply(routing.amount);
-    const scale = new Tone.Scale(
-      target.minValue ?? 0,
-      target.maxValue ?? 1
-    );
+    const scale = new Tone.Scale(target.minValue ?? 0, target.maxValue ?? 1);
 
     source.connect(multiply);
     multiply.connect(scale);
@@ -323,12 +347,12 @@ class ModulationManager {
    */
   private frequencyToSyncedValue(hz: number): string {
     if (hz <= 0.25) return "1m"; // 1 measure
-    if (hz <= 0.5) return "1n";  // Whole note
-    if (hz <= 1) return "2n";    // Half note
-    if (hz <= 2) return "4n";    // Quarter note
-    if (hz <= 4) return "8n";    // Eighth note
-    if (hz <= 8) return "16n";   // Sixteenth note
-    return "32n";                // Thirty-second note
+    if (hz <= 0.5) return "1n"; // Whole note
+    if (hz <= 1) return "2n"; // Half note
+    if (hz <= 2) return "4n"; // Quarter note
+    if (hz <= 4) return "8n"; // Eighth note
+    if (hz <= 8) return "16n"; // Sixteenth note
+    return "32n"; // Thirty-second note
   }
 
   /**
@@ -336,7 +360,8 @@ class ModulationManager {
    */
   updateLFO(lfoNum: 1 | 2, param: string, value: number | boolean): void {
     const lfo = lfoNum === 1 ? this.lfo1 : this.lfo2;
-    const lfoConfig = lfoNum === 1 ? this.patch.modMatrix.lfo1 : this.patch.modMatrix.lfo2;
+    const lfoConfig =
+      lfoNum === 1 ? this.patch.modMatrix.lfo1 : this.patch.modMatrix.lfo2;
 
     switch (param) {
       case "frequency":
@@ -367,7 +392,9 @@ class ModulationManager {
         if (typeof value === "boolean") {
           if (value) {
             lfo.sync();
-            lfo.frequency.value = this.frequencyToSyncedValue(lfoConfig.frequency);
+            lfo.frequency.value = this.frequencyToSyncedValue(
+              lfoConfig.frequency,
+            );
           } else {
             lfo.unsync();
             lfo.frequency.value = lfoConfig.frequency;
@@ -532,9 +559,9 @@ describe("ModulationManager", () => {
       });
       const enabledManager = new ModulationManager(enabledPatch);
 
-      // Check that start was called (our mock sets _started to true)
-      expect((enabledManager.lfo1 as any)._started).toBe(true);
-      expect((enabledManager.lfo2 as any)._started).toBe(true);
+      // Check that start was called (our mock sets started to true)
+      expect((enabledManager.lfo1 as any).started).toBe(true);
+      expect((enabledManager.lfo2 as any).started).toBe(true);
     });
 
     it("should not start LFOs if disabled in patch", () => {
@@ -547,8 +574,8 @@ describe("ModulationManager", () => {
       });
       const disabledManager = new ModulationManager(disabledPatch);
 
-      expect((disabledManager.lfo1 as any)._started).toBe(false);
-      expect((disabledManager.lfo2 as any)._started).toBe(false);
+      expect((disabledManager.lfo1 as any).started).toBe(false);
+      expect((disabledManager.lfo2 as any).started).toBe(false);
     });
 
     it("should sync LFOs if sync enabled in patch", () => {
@@ -561,8 +588,8 @@ describe("ModulationManager", () => {
       });
       const syncedManager = new ModulationManager(syncedPatch);
 
-      expect((syncedManager.lfo1 as any)._synced).toBe(true);
-      expect((syncedManager.lfo2 as any)._synced).toBe(true);
+      expect((syncedManager.lfo1 as any).synced).toBe(true);
+      expect((syncedManager.lfo2 as any).synced).toBe(true);
       // Check that frequency was converted to synced value
       expect(syncedManager.lfo1.frequency.value).toBe("4n"); // 2 Hz -> 4n
       expect(syncedManager.lfo2.frequency.value).toBe("1n"); // 0.5 Hz -> 1n
@@ -680,7 +707,9 @@ describe("ModulationManager", () => {
       const mockTarget = new Tone.Signal(1000);
 
       // Should not throw error
-      expect(() => manager.connectModulation(routing, mockTarget)).not.toThrow();
+      expect(() =>
+        manager.connectModulation(routing, mockTarget),
+      ).not.toThrow();
     });
 
     it("should connect valid routing and store nodes", () => {
@@ -699,8 +728,12 @@ describe("ModulationManager", () => {
 
       expect(connectSpy).toHaveBeenCalled();
       // Check that nodes were stored for cleanup
-      expect((manager as any).activeConnections.has("test-routing-4-multiply")).toBe(true);
-      expect((manager as any).activeConnections.has("test-routing-4-scale")).toBe(true);
+      expect(
+        (manager as any).activeConnections.has("test-routing-4-multiply"),
+      ).toBe(true);
+      expect(
+        (manager as any).activeConnections.has("test-routing-4-scale"),
+      ).toBe(true);
     });
   });
 
@@ -732,7 +765,7 @@ describe("ModulationManager", () => {
 
     it("should sync LFO when sync is true", () => {
       manager.updateLFO(1, "sync", true);
-      expect((manager.lfo1 as any)._synced).toBe(true);
+      expect((manager.lfo1 as any).synced).toBe(true);
       // Should convert frequency to synced value
       expect(manager.lfo1.frequency.value).toBe("4n"); // 2 Hz -> 4n
     });
@@ -740,11 +773,11 @@ describe("ModulationManager", () => {
     it("should unsync LFO when sync is false", () => {
       // First sync it
       manager.updateLFO(1, "sync", true);
-      expect((manager.lfo1 as any)._synced).toBe(true);
+      expect((manager.lfo1 as any).synced).toBe(true);
 
       // Then unsync
       manager.updateLFO(1, "sync", false);
-      expect((manager.lfo1 as any)._synced).toBe(false);
+      expect((manager.lfo1 as any).synced).toBe(false);
       // Should restore numeric frequency
       expect(manager.lfo1.frequency.value).toBe(2);
     });
@@ -791,7 +824,7 @@ describe("ModulationManager", () => {
     it("should ignore non-boolean values for boolean parameters", () => {
       manager.updateLFO(1, "sync", "invalid" as any);
       // Sync state should remain unchanged
-      expect((manager.lfo1 as any)._synced).toBe(false);
+      expect((manager.lfo1 as any).synced).toBe(false);
     });
   });
 
@@ -885,7 +918,9 @@ describe("ModulationManager", () => {
       manager.storeConnection("test-connection", mockNode);
 
       expect((manager as any).modConnections.has("test-connection")).toBe(true);
-      expect((manager as any).modConnections.get("test-connection")).toBe(mockNode);
+      expect((manager as any).modConnections.get("test-connection")).toBe(
+        mockNode,
+      );
     });
 
     it("should dispose existing connection when storing new one with same ID", () => {
@@ -897,7 +932,9 @@ describe("ModulationManager", () => {
       manager.storeConnection("test-connection", mockNode2);
 
       expect(disposeSpy).toHaveBeenCalled();
-      expect((manager as any).modConnections.get("test-connection")).toBe(mockNode2);
+      expect((manager as any).modConnections.get("test-connection")).toBe(
+        mockNode2,
+      );
     });
   });
 
@@ -943,8 +980,12 @@ describe("ModulationManager", () => {
       manager.connectModulation(routing, mockTarget);
 
       // Get the stored connections
-      const multiply = (manager as any).activeConnections.get("test-routing-multiply");
-      const scale = (manager as any).activeConnections.get("test-routing-scale");
+      const multiply = (manager as any).activeConnections.get(
+        "test-routing-multiply",
+      );
+      const scale = (manager as any).activeConnections.get(
+        "test-routing-scale",
+      );
       const multiplySpy = vi.spyOn(multiply, "dispose");
       const scaleSpy = vi.spyOn(scale, "dispose");
 
@@ -1057,7 +1098,10 @@ describe("ModulationManager", () => {
       const customPatch = createTestPatch({
         modMatrix: {
           ...DEFAULT_MOD_MATRIX,
-          modEnv2: { ...DEFAULT_MOD_MATRIX.modEnv2, attackCurve: "exponential" },
+          modEnv2: {
+            ...DEFAULT_MOD_MATRIX.modEnv2,
+            attackCurve: "exponential",
+          },
         },
       });
       const customManager = new ModulationManager(customPatch);
@@ -1069,7 +1113,10 @@ describe("ModulationManager", () => {
       const customPatch = createTestPatch({
         modMatrix: {
           ...DEFAULT_MOD_MATRIX,
-          modEnv1: { ...DEFAULT_MOD_MATRIX.modEnv1, releaseCurve: "exponential" },
+          modEnv1: {
+            ...DEFAULT_MOD_MATRIX.modEnv1,
+            releaseCurve: "exponential",
+          },
         },
       });
       const customManager = new ModulationManager(customPatch);

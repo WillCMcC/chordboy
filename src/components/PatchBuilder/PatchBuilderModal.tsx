@@ -7,8 +7,13 @@
  * @module components/PatchBuilder/PatchBuilderModal
  */
 
-import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
-import * as Tone from "tone";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+} from "react";
 import type { CustomPatch, PatchCategory } from "../../types/synth";
 import { createDefaultPatch } from "../../lib/defaultPatch";
 import { useCustomPatches } from "../../hooks/useCustomPatches";
@@ -32,7 +37,14 @@ interface PatchBuilderModalProps {
   onSave: (patch: CustomPatch) => void;
 }
 
-const CATEGORIES: PatchCategory[] = ["keys", "pad", "lead", "bass", "fx", "custom"];
+const CATEGORIES: PatchCategory[] = [
+  "keys",
+  "pad",
+  "lead",
+  "bass",
+  "fx",
+  "custom",
+];
 
 export function PatchBuilderModal({
   isOpen,
@@ -82,7 +94,10 @@ export function PatchBuilderModal({
             modEnv1: { ...patch.modMatrix.modEnv1 },
             modEnv2: { ...patch.modMatrix.modEnv2 },
           },
-          effects: patch.effects.map((e) => ({ ...e, params: { ...e.params } })),
+          effects: patch.effects.map((e) => ({
+            ...e,
+            params: { ...e.params },
+          })),
         });
       }
     } else {
@@ -91,19 +106,41 @@ export function PatchBuilderModal({
     }
   }, [isOpen, patchId, getPatch]);
 
-  // Handle escape key
+  // Update patch helper
+  const updatePatch = useCallback((updates: Partial<CustomPatch>) => {
+    setEditingPatch((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        ...updates,
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  // Handle save
+  const handleSave = useCallback(() => {
+    if (!editingPatch) return;
+    onSave(editingPatch);
+    onClose();
+  }, [editingPatch, onSave, onClose]);
+
+  // Handle escape key and Cmd/Ctrl+S
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, handleSave]);
 
   // Create preview synth and subscribe to chord events when patch is ready
   // Use editingPatch?.id to only recreate synth when loading a different patch
@@ -131,7 +168,10 @@ export function PatchBuilderModal({
     }
 
     // Subscribe to chord events - use synth directly in closure
-    const handleChordChanged = (payload: { notes: number[]; velocity?: number }) => {
+    const handleChordChanged = (payload: {
+      notes: number[];
+      velocity?: number;
+    }) => {
       const newNotes = new Set(payload.notes);
       const currentNotes = activeNotesRef.current;
 
@@ -171,11 +211,13 @@ export function PatchBuilderModal({
   }, [isOpen, currentPatchId]); // Only recreate when patch ID changes, not on every param edit
 
   // Update preview synth when patch parameters change (live updates for continuous playback)
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!isOpen || !editingPatch || !previewSynthRef.current) return;
 
     // Try live update first (doesn't interrupt playback)
-    const liveUpdateSucceeded = previewSynthRef.current.updatePatchLive(editingPatch);
+    const liveUpdateSucceeded =
+      previewSynthRef.current.updatePatchLive(editingPatch);
 
     if (!liveUpdateSucceeded) {
       // Fall back to full rebuild only when necessary (e.g., effects chain changed)
@@ -188,7 +230,13 @@ export function PatchBuilderModal({
         }
       }, 50);
 
-      return () => clearTimeout(timeoutId);
+      debounceTimeoutRef.current = timeoutId;
+
+      return () => {
+        if (debounceTimeoutRef.current) {
+          clearTimeout(debounceTimeoutRef.current);
+        }
+      };
     }
   }, [isOpen, editingPatch]);
 
@@ -199,30 +247,8 @@ export function PatchBuilderModal({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
-
-  // Update patch helper
-  const updatePatch = useCallback(
-    (updates: Partial<CustomPatch>) => {
-      setEditingPatch((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          ...updates,
-          updatedAt: Date.now(),
-        };
-      });
-    },
-    []
-  );
-
-  // Handle save
-  const handleSave = useCallback(() => {
-    if (!editingPatch) return;
-    onSave(editingPatch);
-    onClose();
-  }, [editingPatch, onSave, onClose]);
 
   // Handle patch selection from browser
   const handlePatchSelect = useCallback(
@@ -244,24 +270,27 @@ export function PatchBuilderModal({
             modEnv1: { ...patch.modMatrix.modEnv1 },
             modEnv2: { ...patch.modMatrix.modEnv2 },
           },
-          effects: patch.effects.map((e) => ({ ...e, params: { ...e.params } })),
+          effects: patch.effects.map((e) => ({
+            ...e,
+            params: { ...e.params },
+          })),
         });
         // Switch to OSC tab after loading
         setActiveTab("osc");
       }
     },
-    [getPatch]
+    [getPatch],
   );
 
   if (!isOpen || !editingPatch) return null;
 
   return (
-    <div className="patch-builder-overlay" onClick={handleOverlayClick}>
+    <div className="patch-builder-overlay" onMouseDown={handleOverlayClick}>
       <div
         ref={modalRef}
         className="patch-builder-modal"
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="patch-builder-header">
           <div className="patch-builder-header-left">
@@ -287,10 +316,16 @@ export function PatchBuilderModal({
             </select>
           </div>
           <div className="patch-builder-actions">
-            <button className="patch-action-button save-button" onClick={handleSave}>
+            <button
+              className="patch-action-button save-button"
+              onClick={handleSave}
+            >
               Save
             </button>
-            <button className="patch-action-button cancel-button" onClick={onClose}>
+            <button
+              className="patch-action-button cancel-button"
+              onClick={onClose}
+            >
               Cancel
             </button>
           </div>
@@ -384,7 +419,12 @@ export function PatchBuilderModal({
               <EnvelopeEditor
                 envelope={editingPatch.filterEnvelope}
                 label="Filter Envelope"
-                onChange={(filterEnvelope) => updatePatch({ filterEnvelope: filterEnvelope as typeof editingPatch.filterEnvelope })}
+                onChange={(filterEnvelope) =>
+                  updatePatch({
+                    filterEnvelope:
+                      filterEnvelope as typeof editingPatch.filterEnvelope,
+                  })
+                }
                 showOctaves={true}
               />
             </div>

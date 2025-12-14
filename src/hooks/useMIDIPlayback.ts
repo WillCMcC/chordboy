@@ -247,6 +247,9 @@ export function useMIDIPlayback(
       // Small delay for clear re-articulation
       // Use refs inside setTimeout to get fresh values (avoid stale closures)
       setTimeout(() => {
+        // Guard against refs becoming null after component state changes
+        if (!selectedOutput && !bleConnected) return;
+
         const currentStrumEnabled = strumEnabledRef.current;
         const currentStrumSpread = strumSpreadRef.current;
         const currentStrumDirection = strumDirectionRef.current;

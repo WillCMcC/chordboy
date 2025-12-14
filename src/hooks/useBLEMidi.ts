@@ -195,7 +195,7 @@ export function useBLEMidi(
         bleSyncCleanupRef.current = null;
       }
     };
-  }, [bleSyncEnabled, bleConnected, bleCharacteristic, clockCallbacks]);
+  }, [bleSyncEnabled, bleConnected, bleCharacteristic]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,5 +1,5 @@
-import React from 'react';
-import './controls.css';
+import React from "react";
+import "./controls.css";
 
 interface SliderControlProps {
   label: string;
@@ -25,7 +25,7 @@ export function SliderControl({
   max,
   step = 1,
   onChange,
-  unit = '',
+  unit = "",
   disabled = false,
 }: SliderControlProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,10 +33,14 @@ export function SliderControl({
     onChange(newValue);
   };
 
-  const displayValue = unit ? `${value.toFixed(step < 1 ? 1 : 0)}${unit}` : value.toFixed(step < 1 ? 1 : 0);
+  // Calculate proper decimal places from step (e.g., step=0.01 -> 2 decimals)
+  const decimals = step < 1 ? Math.max(0, -Math.floor(Math.log10(step))) : 0;
+  const displayValue = unit
+    ? `${value.toFixed(decimals)}${unit}`
+    : value.toFixed(decimals);
 
   return (
-    <div className={`slider-control ${disabled ? 'disabled' : ''}`}>
+    <div className={`slider-control ${disabled ? "disabled" : ""}`}>
       <div className="slider-header">
         <div className="slider-label">{label}</div>
         <div className="slider-value">{displayValue}</div>
@@ -50,6 +54,10 @@ export function SliderControl({
         value={value}
         onChange={handleChange}
         disabled={disabled}
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
       />
     </div>
   );

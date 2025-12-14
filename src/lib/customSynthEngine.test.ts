@@ -159,7 +159,7 @@ vi.mock("tone", () => {
   class MockSignal {
     value: number;
 
-    constructor(value: number = 0, units?: string) {
+    constructor(value: number = 0, _units?: string) {
       this.value = value;
     }
 
@@ -254,7 +254,10 @@ vi.mock("tone", () => {
   }
 
   class MockScale {
-    constructor(public min: number = 0, public max: number = 1) {}
+    constructor(
+      public min: number = 0,
+      public max: number = 1,
+    ) {}
     connect = vi.fn().mockReturnThis();
     disconnect = vi.fn();
     dispose = vi.fn();
@@ -272,7 +275,10 @@ vi.mock("tone", () => {
   const gainToDb = vi.fn((gain: number) => Math.log10(gain) * 20);
 
   class MockFrequency {
-    constructor(public value: number, public units?: string) {}
+    constructor(
+      public value: number,
+      public units?: string,
+    ) {}
     toFrequency() {
       return this.value;
     }
@@ -424,8 +430,6 @@ describe("CustomSynthEngine", () => {
 
       // Trigger note 60 at time 0
       engine.triggerAttack(60, 1);
-      const firstVoice = voicePool.voices.find((v: any) => v.note === 60);
-      const firstTriggeredAt = firstVoice?.triggeredAt;
 
       // Advance time
       vi.advanceTimersByTime(100);
@@ -434,7 +438,9 @@ describe("CustomSynthEngine", () => {
       engine.triggerAttack(60, 1);
 
       // Should still have only one active note 60
-      const activeNote60s = voicePool.voices.filter((v: any) => v.note === 60 && v.isActive);
+      const activeNote60s = voicePool.voices.filter(
+        (v: any) => v.note === 60 && v.isActive,
+      );
       expect(activeNote60s.length).toBe(1);
 
       // The note should have been retriggered on the same voice
@@ -541,20 +547,17 @@ describe("CustomSynthEngine", () => {
 
   describe("Parameter Updates", () => {
     it("should update mixer fade value with setOscMix", () => {
-      engine = new CustomSynthEngine(patch);
-      const voicePool = (engine as any).voicePool;
-
       // Initial patch has both oscillators enabled (osc1=true by default, osc2=false by default)
       // So we need both enabled for the mix to use the actual value
       patch.osc2.enabled = true;
       engine = new CustomSynthEngine(patch);
-      const voicePool2 = (engine as any).voicePool;
+      const voicePool = (engine as any).voicePool;
 
       // Set to 0.7 (more osc2)
-      voicePool2.setOscMix(0.7);
+      voicePool.setOscMix(0.7);
 
       // Check all voices have updated mixer
-      voicePool2.voices.forEach((voice: any) => {
+      voicePool.voices.forEach((voice: any) => {
         expect(voice.mixer.fade.value).toBe(0.7);
       });
     });

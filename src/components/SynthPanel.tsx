@@ -13,6 +13,8 @@ import { appEvents } from "../lib/eventBus";
 import type { ADSREnvelope } from "../lib/synthPresets";
 import type { ChordChangedEvent } from "../types";
 import { PatchBuilderModal } from "./PatchBuilder";
+import { validatePatch } from "../lib/patchValidation";
+import { ErrorBoundary } from "./ErrorBoundary";
 import "./SynthPanel.css";
 
 /**
@@ -465,60 +467,62 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
         {/* Synth controls (when enabled and initialized) */}
         {showSynthControls && !needsAudioEnable && (
           <>
-            <div className="synth-bar-divider" />
+            {!isMobile && <div className="synth-bar-divider" />}
 
-            {/* Preset selector */}
-            <select
-              value={isCustomPatch ? `custom:${customPatchId}` : currentPreset.id}
-              onChange={handlePresetChange}
-              className="preset-select-compact"
-            >
-              {/* Factory presets by category */}
-              {Object.entries(presetsByCategory).map(([category, categoryPresets]) => (
-                <optgroup key={category} label={category.toUpperCase()}>
-                  {categoryPresets.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-
-              {/* Custom patches */}
-              {customPatches.patchLibrary.filter((p) => !p.isFactory).length > 0 && (
-                <optgroup label="CUSTOM">
-                  {customPatches.patchLibrary
-                    .filter((p) => !p.isFactory)
-                    .map((patch) => (
-                      <option key={`custom:${patch.id}`} value={`custom:${patch.id}`}>
-                        {patch.name}
+            <div className="synth-controls-row">
+              {/* Preset selector */}
+              <select
+                value={isCustomPatch ? `custom:${customPatchId}` : currentPreset.id}
+                onChange={handlePresetChange}
+                className="preset-select-compact"
+              >
+                {/* Factory presets by category */}
+                {Object.entries(presetsByCategory).map(([category, categoryPresets]) => (
+                  <optgroup key={category} label={category.toUpperCase()}>
+                    {categoryPresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}
                       </option>
                     ))}
-                </optgroup>
-              )}
-            </select>
+                  </optgroup>
+                ))}
 
-            {/* Edit/New patch button */}
-            <button
-              className="edit-patch-btn"
-              onClick={() => openPatchBuilder(isCustomPatch ? customPatchId : null)}
-              title={isCustomPatch ? "Edit patch" : "Create custom patch"}
-            >
-              {isCustomPatch ? "Edit" : "+ New"}
-            </button>
+                {/* Custom patches */}
+                {customPatches.patchLibrary.filter((p) => !p.isFactory).length > 0 && (
+                  <optgroup label="CUSTOM">
+                    {customPatches.patchLibrary
+                      .filter((p) => !p.isFactory)
+                      .map((patch) => (
+                        <option key={`custom:${patch.id}`} value={`custom:${patch.id}`}>
+                          {patch.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+              </select>
 
-            {/* Volume */}
-            <VolumeControl volume={volume} onChange={setVolume} />
+              {/* Edit/New patch button */}
+              <button
+                className="edit-patch-btn"
+                onClick={() => openPatchBuilder(isCustomPatch ? customPatchId : null)}
+                title={isCustomPatch ? "Edit patch" : "Create custom patch"}
+              >
+                {isCustomPatch ? "Edit" : "+ New"}
+              </button>
 
-            {/* Expand button */}
-            <button
-              className={`expand-btn ${isExpanded ? "expanded" : ""}`}
-              onClick={() => setIsExpanded(!isExpanded)}
-              title="ADSR Envelope"
-            >
-              <span className="expand-label">ENV</span>
-              <span className="expand-arrow">{isExpanded ? "▲" : "▼"}</span>
-            </button>
+              {/* Volume */}
+              <VolumeControl volume={volume} onChange={setVolume} />
+
+              {/* Expand button */}
+              <button
+                className={`expand-btn ${isExpanded ? "expanded" : ""}`}
+                onClick={() => setIsExpanded(!isExpanded)}
+                title="ADSR Envelope"
+              >
+                <span className="expand-label">ENV</span>
+                <span className="expand-arrow">{isExpanded ? "▲" : "▼"}</span>
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -544,16 +548,22 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
       )}
 
       {/* Patch Builder Modal */}
-      <PatchBuilderModal
-        isOpen={isPatchBuilderOpen}
-        onClose={closePatchBuilder}
-        patchId={editingPatchId}
-        onSave={(patch) => {
-          customPatches.savePatch(patch);
-          selectCustomPatch(patch.id);
-          closePatchBuilder();
-        }}
-      />
+      <ErrorBoundary>
+        <PatchBuilderModal
+          isOpen={isPatchBuilderOpen}
+          onClose={closePatchBuilder}
+          patchId={editingPatchId}
+          onSave={(patch) => {
+            if (!validatePatch(patch)) {
+              console.error('Invalid patch, cannot save');
+              return;
+            }
+            customPatches.savePatch(patch);
+            selectCustomPatch(patch.id);
+            closePatchBuilder();
+          }}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import type {
   FilterEnvelopeConfig,
   ModMatrix,
   EffectConfig,
+  LFOConfig,
 } from "../types/synth";
 
 /**
@@ -35,11 +36,7 @@ export function validatePatch(data: unknown): data is CustomPatch {
     patch.masterVolume > 1
   )
     return false;
-  if (
-    typeof patch.oscMix !== "number" ||
-    patch.oscMix < 0 ||
-    patch.oscMix > 1
-  )
+  if (typeof patch.oscMix !== "number" || patch.oscMix < 0 || patch.oscMix > 1)
     return false;
   if (typeof patch.glide !== "number" || patch.glide < 0) return false;
 
@@ -73,8 +70,10 @@ function validateOscillator(osc: unknown): osc is OscillatorConfig {
   const o = osc as Record<string, unknown>;
   if (typeof o.enabled !== "boolean") return false;
   if (typeof o.waveform !== "string") return false;
-  if (typeof o.octave !== "number") return false;
-  if (typeof o.detune !== "number") return false;
+  if (typeof o.octave !== "number" || o.octave < -4 || o.octave > 4)
+    return false;
+  if (typeof o.detune !== "number" || o.detune < -100 || o.detune > 100)
+    return false;
   if (typeof o.volume !== "number" || o.volume < 0 || o.volume > 1)
     return false;
   if (typeof o.pan !== "number" || o.pan < -1 || o.pan > 1) return false;
@@ -97,7 +96,8 @@ function validateFilter(filter: unknown): filter is FilterConfig {
     f.frequency > 20000
   )
     return false;
-  if (typeof f.resonance !== "number") return false;
+  if (typeof f.resonance !== "number" || f.resonance < 0.1 || f.resonance > 30)
+    return false;
   if (typeof f.rolloff !== "number") return false;
   if (
     typeof f.envelopeAmount !== "number" ||
@@ -134,7 +134,8 @@ function validateEnvelope(env: unknown): env is EnvelopeConfig {
 
 function validateFilterEnvelope(env: unknown): env is FilterEnvelopeConfig {
   if (!validateEnvelope(env)) return false;
-  const e = env as Record<string, unknown>;
+  // env is now narrowed to EnvelopeConfig, check for FilterEnvelopeConfig-specific field
+  const e = env as EnvelopeConfig & { octaves?: unknown };
   if (typeof e.octaves !== "number" || e.octaves < 0 || e.octaves > 8)
     return false;
   return true;
@@ -172,16 +173,25 @@ function validateModMatrix(modMatrix: unknown): modMatrix is ModMatrix {
   return true;
 }
 
+const VALID_SYNC_RATES = ["1m", "2n", "1n", "4n", "8n", "16n", "32n"];
+
 function validateLFO(lfo: unknown): boolean {
   if (typeof lfo !== "object" || lfo === null) return false;
   const l = lfo as Record<string, unknown>;
   if (typeof l.enabled !== "boolean") return false;
   if (typeof l.waveform !== "string") return false;
-  if (typeof l.frequency !== "number") return false;
+  if (typeof l.frequency !== "number" || l.frequency < 0.01 || l.frequency > 50)
+    return false;
   if (typeof l.min !== "number") return false;
   if (typeof l.max !== "number") return false;
-  if (typeof l.phase !== "number") return false;
+  if (typeof l.phase !== "number" || l.phase < 0 || l.phase > 360) return false;
   if (typeof l.sync !== "boolean") return false;
+  // syncRate is optional for backwards compatibility, but must be valid if present
+  if (
+    l.syncRate !== undefined &&
+    (typeof l.syncRate !== "string" || !VALID_SYNC_RATES.includes(l.syncRate))
+  )
+    return false;
   return true;
 }
 
@@ -210,6 +220,7 @@ export function sanitizePatch(patch: CustomPatch): CustomPatch {
     filter: sanitizeFilter(patch.filter),
     ampEnvelope: sanitizeEnvelope(patch.ampEnvelope),
     filterEnvelope: sanitizeFilterEnvelope(patch.filterEnvelope),
+    modMatrix: sanitizeModMatrix(patch.modMatrix),
     effects: patch.effects.map((effect) => ({
       ...effect,
       wet: Math.max(0, Math.min(1, effect.wet)),
@@ -248,10 +259,32 @@ function sanitizeEnvelope(env: EnvelopeConfig): EnvelopeConfig {
 }
 
 function sanitizeFilterEnvelope(
-  env: FilterEnvelopeConfig
+  env: FilterEnvelopeConfig,
 ): FilterEnvelopeConfig {
   return {
     ...sanitizeEnvelope(env),
     octaves: Math.max(0, Math.min(8, env.octaves)),
+  };
+}
+
+function sanitizeLFO(lfo: LFOConfig): LFOConfig {
+  return {
+    ...lfo,
+    frequency: Math.max(0.01, Math.min(50, lfo.frequency)),
+    phase: Math.max(0, Math.min(360, lfo.phase)),
+  };
+}
+
+function sanitizeModMatrix(modMatrix: ModMatrix): ModMatrix {
+  return {
+    ...modMatrix,
+    routings: modMatrix.routings.map((routing) => ({
+      ...routing,
+      amount: Math.max(-1, Math.min(1, routing.amount)),
+    })),
+    lfo1: sanitizeLFO(modMatrix.lfo1),
+    lfo2: sanitizeLFO(modMatrix.lfo2),
+    modEnv1: sanitizeEnvelope(modMatrix.modEnv1),
+    modEnv2: sanitizeEnvelope(modMatrix.modEnv2),
   };
 }

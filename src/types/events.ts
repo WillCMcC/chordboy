@@ -4,7 +4,7 @@
  */
 
 import type { MIDINote } from "./music";
-import type { DropType, VoicingState, Preset } from "./music";
+import type { DropType, VoicingState, VoicingStyle, Preset } from "./music";
 
 // ============================================================================
 // Event Payload Types
@@ -37,6 +37,8 @@ export interface VoicingChangedPayload {
   inversion: number;
   /** Drop voicing type */
   drop: DropType;
+  /** Jazz voicing style */
+  voicingStyle: VoicingStyle;
   /** Spread amount */
   spread: number;
   /** Octave shift */

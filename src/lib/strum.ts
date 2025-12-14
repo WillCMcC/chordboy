@@ -79,7 +79,7 @@ export function getStrumOffsets(
 
   // Generate offsets based on each note's position in the sorted array
   const offsets = notes.map((note) => {
-    const position = notePositions.get(note)!;
+    const position = notePositions.get(note) ?? 0;
     if (actualDirection === "up") {
       // Low notes first (position 0 = 0ms delay)
       return position * interval;

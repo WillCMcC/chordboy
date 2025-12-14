@@ -10,11 +10,28 @@ import type {
   CustomPatch,
   ModRouting,
   EffectConfig,
-  EffectType,
   FilterEnvelopeConfig,
   EnvelopeConfig,
   OscillatorConfig,
 } from "../types/synth";
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Convert frequency in Hz to nearest musical subdivision for synced LFOs
+ * At 120 BPM: 1n = 0.5Hz, 2n = 1Hz, 4n = 2Hz, 8n = 4Hz
+ */
+function frequencyToSyncedValue(hz: number): string {
+  if (hz <= 0.25) return "1m"; // 1 measure
+  if (hz <= 0.5) return "1n"; // Whole note
+  if (hz <= 1) return "2n"; // Half note
+  if (hz <= 2) return "4n"; // Quarter note
+  if (hz <= 4) return "8n"; // Eighth note
+  if (hz <= 8) return "16n"; // Sixteenth note
+  return "32n"; // Thirty-second note
+}
 
 // ============================================================================
 // CustomVoice - Single polyphonic voice
@@ -24,8 +41,8 @@ import type {
  * Single voice with 2 oscillators, filter, and amplitude envelope
  */
 class CustomVoice {
-  private osc1: Tone.OmniOscillator<Tone.OmniOscillatorType>;
-  private osc2: Tone.OmniOscillator<Tone.OmniOscillatorType>;
+  private osc1: Tone.OmniOscillator<any>;
+  private osc2: Tone.OmniOscillator<any>;
   private mixer: Tone.CrossFade;
   private filter: Tone.Filter;
   private filterEnv: Tone.FrequencyEnvelope;
@@ -39,7 +56,7 @@ class CustomVoice {
   constructor(
     private patch: CustomPatch,
     private filterFreqMod?: Tone.Signal<"number">,
-    private filterResMod?: Tone.Signal<"number">
+    private filterResMod?: Tone.Signal<"number">,
   ) {
     // Create oscillators - mute if disabled
     this.osc1 = new Tone.OmniOscillator({
@@ -138,9 +155,15 @@ class CustomVoice {
     // Apply key tracking to filter
     if (this.patch.filter.keyTracking > 0) {
       const trackingAmount = (note - 60) / 12; // Semitones from middle C
-      const trackingFreq = this.patch.filter.frequency * Math.pow(2, trackingAmount * this.patch.filter.keyTracking);
-      this.filter.frequency.setValueAtTime(trackingFreq, time ?? Tone.now());
-      this.filterEnv.baseFrequency = trackingFreq;
+      const trackingFreq =
+        this.patch.filter.frequency *
+        Math.pow(2, trackingAmount * this.patch.filter.keyTracking);
+      const clampedTrackingFreq = Math.max(20, Math.min(20000, trackingFreq));
+      this.filter.frequency.setValueAtTime(
+        clampedTrackingFreq,
+        time ?? Tone.now(),
+      );
+      this.filterEnv.baseFrequency = clampedTrackingFreq;
     }
 
     // Trigger envelopes with velocity
@@ -203,11 +226,12 @@ class CustomVoice {
    */
   updateOscillator(oscNum: 1 | 2, config: OscillatorConfig): void {
     const osc = oscNum === 1 ? this.osc1 : this.osc2;
-    const prevEnabled = oscNum === 1 ? this.patch.osc1.enabled : this.patch.osc2.enabled;
+    const prevEnabled =
+      oscNum === 1 ? this.patch.osc1.enabled : this.patch.osc2.enabled;
 
     // Update waveform
     try {
-      osc.type = config.waveform as Tone.OmniOscillatorType;
+      osc.type = config.waveform as any;
     } catch {
       // Some waveform transitions may fail, ignore
     }
@@ -288,7 +312,11 @@ class CustomVoice {
   /**
    * Update filter envelope parameters
    */
-  updateFilterEnvelope(env: FilterEnvelopeConfig, filterFreq: number, envAmount: number): void {
+  updateFilterEnvelope(
+    env: FilterEnvelopeConfig,
+    filterFreq: number,
+    envAmount: number,
+  ): void {
     this.filterEnv.attack = env.attack;
     this.filterEnv.decay = env.decay;
     this.filterEnv.sustain = env.sustain;
@@ -367,7 +395,10 @@ class VoicePool {
   public filterFrequencyMod: Tone.Signal<"number">;
   public filterResonanceMod: Tone.Signal<"number">;
 
-  constructor(private patch: CustomPatch, private destination: Tone.InputNode) {
+  constructor(
+    private patch: CustomPatch,
+    private destination: Tone.InputNode,
+  ) {
     // Create shared filter modulation signals for LFO routing
     // Initialize to 0 since these are OFFSETS that get ADDED to the filter's base values
     // Use "number" type to avoid Tone.js frequency-specific conversions at 0Hz
@@ -414,7 +445,11 @@ class VoicePool {
    */
   private createVoices(): void {
     for (let i = 0; i < this.maxVoices; i++) {
-      const voice = new CustomVoice(this.patch, this.filterFrequencyMod, this.filterResonanceMod);
+      const voice = new CustomVoice(
+        this.patch,
+        this.filterFrequencyMod,
+        this.filterResonanceMod,
+      );
       voice.connect(this.destination);
       this.voices.push(voice);
     }
@@ -432,12 +467,12 @@ class VoicePool {
     }
 
     // Find available voice or steal oldest
-    let voice = this.voices.find(v => !v.isActive);
+    let voice = this.voices.find((v) => !v.isActive);
 
     if (!voice) {
       // Find oldest active voice by triggeredAt timestamp
       voice = this.voices.reduce((oldest, v) =>
-        v.triggeredAt < oldest.triggeredAt ? v : oldest
+        v.triggeredAt < oldest.triggeredAt ? v : oldest,
       );
       if (voice.note !== null) {
         this.activeNotes.delete(voice.note);
@@ -511,7 +546,11 @@ class VoicePool {
   /**
    * Update filter envelope on all voices
    */
-  updateFilterEnvelope(env: FilterEnvelopeConfig, filterFreq: number, envAmount: number): void {
+  updateFilterEnvelope(
+    env: FilterEnvelopeConfig,
+    filterFreq: number,
+    envAmount: number,
+  ): void {
     for (const voice of this.voices) {
       voice.updateFilterEnvelope(env, filterFreq, envAmount);
     }
@@ -561,7 +600,10 @@ class ModulationManager {
   public modwheelSignal: Tone.Signal<"normalRange">;
   public aftertouchSignal: Tone.Signal<"normalRange">;
 
-  private activeConnections = new Map<string, Tone.Signal | Tone.ToneAudioNode>();
+  private activeConnections = new Map<
+    string,
+    Tone.Signal | Tone.ToneAudioNode
+  >();
   private modConnections = new Map<string, Tone.ToneAudioNode>();
 
   constructor(private patch: CustomPatch) {
@@ -585,11 +627,16 @@ class ModulationManager {
     // Configure sync if enabled
     if (patch.modMatrix.lfo1.sync) {
       this.lfo1.sync();
-      this.lfo1.frequency.value = this.frequencyToSyncedValue(patch.modMatrix.lfo1.frequency);
+      // Use syncRate if available, otherwise fall back to frequency conversion
+      this.lfo1.frequency.value =
+        patch.modMatrix.lfo1.syncRate ||
+        frequencyToSyncedValue(patch.modMatrix.lfo1.frequency);
     }
     if (patch.modMatrix.lfo2.sync) {
       this.lfo2.sync();
-      this.lfo2.frequency.value = this.frequencyToSyncedValue(patch.modMatrix.lfo2.frequency);
+      this.lfo2.frequency.value =
+        patch.modMatrix.lfo2.syncRate ||
+        frequencyToSyncedValue(patch.modMatrix.lfo2.frequency);
     }
 
     // Start LFOs if enabled
@@ -629,7 +676,10 @@ class ModulationManager {
   /**
    * Connect modulation source to destination parameter
    */
-  connectModulation(routing: ModRouting, target: Tone.Signal | Tone.Param): void {
+  connectModulation(
+    routing: ModRouting,
+    target: Tone.Signal | Tone.Param,
+  ): void {
     if (!routing.enabled || routing.amount === 0) return;
 
     const source = this.getModSource(routing.source);
@@ -637,10 +687,7 @@ class ModulationManager {
 
     // Create scaled signal for modulation amount
     const multiply = new Tone.Multiply(routing.amount);
-    const scale = new Tone.Scale(
-      target.minValue ?? 0,
-      target.maxValue ?? 1
-    );
+    const scale = new Tone.Scale(target.minValue ?? 0, target.maxValue ?? 1);
 
     source.connect(multiply);
     multiply.connect(scale);
@@ -654,7 +701,9 @@ class ModulationManager {
   /**
    * Get modulation source by name (public for external routing)
    */
-  getModSource(source: string): Tone.LFO | Tone.Envelope | Tone.Signal | null {
+  getModSource(
+    source: string,
+  ): Tone.LFO | Tone.Envelope | Tone.Signal<any> | null {
     switch (source) {
       case "lfo1":
         return this.lfo1;
@@ -680,7 +729,7 @@ class ModulationManager {
   /**
    * Get modulatable target parameter by destination name
    */
-  getModTarget(destination: string): Tone.Signal | Tone.Param | null {
+  getModTarget(destination: string): Tone.Signal<any> | Tone.Param<any> | null {
     switch (destination) {
       case "lfo1_rate":
         return this.lfo1.frequency;
@@ -735,34 +784,29 @@ class ModulationManager {
   }
 
   /**
-   * Convert frequency in Hz to nearest musical subdivision for synced LFOs
-   * At 120 BPM: 1n = 0.5Hz, 2n = 1Hz, 4n = 2Hz, 8n = 4Hz
-   */
-  private frequencyToSyncedValue(hz: number): string {
-    if (hz <= 0.25) return "1m"; // 1 measure
-    if (hz <= 0.5) return "1n";  // Whole note
-    if (hz <= 1) return "2n";    // Half note
-    if (hz <= 2) return "4n";    // Quarter note
-    if (hz <= 4) return "8n";    // Eighth note
-    if (hz <= 8) return "16n";   // Sixteenth note
-    return "32n";                // Thirty-second note
-  }
-
-  /**
    * Update LFO parameters
    */
-  updateLFO(lfoNum: 1 | 2, param: string, value: number | boolean): void {
+  updateLFO(
+    lfoNum: 1 | 2,
+    param: string,
+    value: number | boolean | string,
+  ): void {
     const lfo = lfoNum === 1 ? this.lfo1 : this.lfo2;
-    const lfoConfig = lfoNum === 1 ? this.patch.modMatrix.lfo1 : this.patch.modMatrix.lfo2;
+    const lfoConfig =
+      lfoNum === 1 ? this.patch.modMatrix.lfo1 : this.patch.modMatrix.lfo2;
 
     switch (param) {
       case "frequency":
         if (typeof value === "number") {
-          if (lfoConfig.sync) {
-            lfo.frequency.value = this.frequencyToSyncedValue(value);
-          } else {
+          // Only apply if sync is off (use syncRate when synced)
+          if (!lfoConfig.sync) {
             lfo.frequency.value = value;
           }
+        }
+        break;
+      case "syncRate":
+        if (typeof value === "string" && lfoConfig.sync) {
+          lfo.frequency.value = value;
         }
         break;
       case "min":
@@ -784,7 +828,9 @@ class ModulationManager {
         if (typeof value === "boolean") {
           if (value) {
             lfo.sync();
-            lfo.frequency.value = this.frequencyToSyncedValue(lfoConfig.frequency);
+            // Use syncRate if available, otherwise convert frequency
+            lfo.frequency.value =
+              lfoConfig.syncRate || frequencyToSyncedValue(lfoConfig.frequency);
           } else {
             lfo.unsync();
             lfo.frequency.value = lfoConfig.frequency;
@@ -793,7 +839,6 @@ class ModulationManager {
         break;
     }
   }
-
 
   /**
    * Set velocity modulation signal (0-1)
@@ -876,14 +921,14 @@ function createEffect(config: EffectConfig): Tone.ToneAudioNode | null {
         octaves: params.octaves as number,
         baseFrequency: params.baseFrequency as number,
         wet: config.wet,
-      }).start();
+      });
 
     case "vibrato":
       return new Tone.Vibrato({
         frequency: params.frequency as number,
         depth: params.depth as number,
         wet: config.wet,
-      }).start();
+      });
 
     case "tremolo":
       return new Tone.Tremolo({
@@ -920,11 +965,13 @@ function createEffect(config: EffectConfig): Tone.ToneAudioNode | null {
         wet: config.wet,
       });
 
-    case "bitcrusher":
-      return new Tone.BitCrusher({
+    case "bitcrusher": {
+      const bitcrusher = new Tone.BitCrusher({
         bits: params.bits as number,
-        wet: config.wet,
       });
+      bitcrusher.wet.value = config.wet;
+      return bitcrusher;
+    }
 
     case "compressor": {
       // Compressor doesn't have native wet/dry, so create manual wet/dry mixing
@@ -966,7 +1013,7 @@ function createEffect(config: EffectConfig): Tone.ToneAudioNode | null {
           (mixer as any)._wetValue = v;
           dryGain.gain.value = 1 - v;
           wetGain.gain.value = v;
-        }
+        },
       };
       (mixer as any)._wetValue = config.wet;
 
@@ -1067,9 +1114,8 @@ export class CustomSynthEngine {
     this.effectsChain = createEffectsChain(patch.effects);
 
     // Determine voice pool destination
-    const voiceDestination = this.effectsChain.length > 0
-      ? this.effectsChain[0]
-      : this.masterGain;
+    const voiceDestination =
+      this.effectsChain.length > 0 ? this.effectsChain[0] : this.masterGain;
 
     // Create voice pool
     this.voicePool = new VoicePool(patch, voiceDestination);
@@ -1098,8 +1144,10 @@ export class CustomSynthEngine {
       if (!routing.enabled || routing.amount === 0) continue;
 
       // Skip routing if its source LFO is disabled (would output static 0 causing filter issues)
-      if (routing.source === 'lfo1' && !this.patch.modMatrix.lfo1.enabled) continue;
-      if (routing.source === 'lfo2' && !this.patch.modMatrix.lfo2.enabled) continue;
+      if (routing.source === "lfo1" && !this.patch.modMatrix.lfo1.enabled)
+        continue;
+      if (routing.source === "lfo2" && !this.patch.modMatrix.lfo2.enabled)
+        continue;
 
       const source = this.modManager.getModSource(routing.source);
       if (!source) {
@@ -1107,7 +1155,7 @@ export class CustomSynthEngine {
         continue;
       }
 
-      let target: Tone.Signal | Tone.Param | null = null;
+      let target: Tone.Signal<any> | Tone.Param<any> | null = null;
 
       // Get target based on destination
       switch (routing.destination) {
@@ -1129,7 +1177,9 @@ export class CustomSynthEngine {
           target = this.masterGain.gain;
           break;
         default:
-          console.debug(`Unimplemented mod destination: ${routing.destination}`);
+          console.debug(
+            `Unimplemented mod destination: ${routing.destination}`,
+          );
           continue;
       }
 
@@ -1251,20 +1301,6 @@ export class CustomSynthEngine {
   }
 
   /**
-   * Convert frequency in Hz to nearest musical subdivision for synced LFOs
-   * At 120 BPM: 1n = 0.5Hz, 2n = 1Hz, 4n = 2Hz, 8n = 4Hz
-   */
-  private frequencyToSyncedValue(hz: number): string {
-    if (hz <= 0.25) return "1m"; // 1 measure
-    if (hz <= 0.5) return "1n";  // Whole note
-    if (hz <= 1) return "2n";    // Half note
-    if (hz <= 2) return "4n";    // Quarter note
-    if (hz <= 4) return "8n";    // Eighth note
-    if (hz <= 8) return "16n";   // Sixteenth note
-    return "32n";                // Thirty-second note
-  }
-
-  /**
    * Update patch parameters live without rebuilding (for continuous playback during editing)
    * Only rebuilds if effects chain structure changes
    */
@@ -1274,9 +1310,10 @@ export class CustomSynthEngine {
     // Check if effects chain structure changed (requires rebuild)
     const effectsChanged =
       oldPatch.effects.length !== newPatch.effects.length ||
-      oldPatch.effects.some((e, i) =>
-        e.type !== newPatch.effects[i]?.type ||
-        e.enabled !== newPatch.effects[i]?.enabled
+      oldPatch.effects.some(
+        (e, i) =>
+          e.type !== newPatch.effects[i]?.type ||
+          e.enabled !== newPatch.effects[i]?.enabled,
       );
 
     // Check if filter rolloff changed (requires rebuild - can't change live)
@@ -1301,33 +1338,41 @@ export class CustomSynthEngine {
     }
 
     // Update filter
-    const filterFreqChanged = oldPatch.filter.frequency !== newPatch.filter.frequency;
-    const filterResonanceChanged = oldPatch.filter.resonance !== newPatch.filter.resonance;
+    const filterFreqChanged =
+      oldPatch.filter.frequency !== newPatch.filter.frequency;
+    const filterResonanceChanged =
+      oldPatch.filter.resonance !== newPatch.filter.resonance;
     const filterTypeChanged = oldPatch.filter.type !== newPatch.filter.type;
 
     if (filterFreqChanged || filterResonanceChanged || filterTypeChanged) {
       this.voicePool.updateFilter(
         newPatch.filter.frequency,
         newPatch.filter.resonance,
-        newPatch.filter.type
+        newPatch.filter.type,
       );
     }
 
     // Update amp envelope
-    if (JSON.stringify(oldPatch.ampEnvelope) !== JSON.stringify(newPatch.ampEnvelope)) {
+    if (
+      JSON.stringify(oldPatch.ampEnvelope) !==
+      JSON.stringify(newPatch.ampEnvelope)
+    ) {
       this.voicePool.updateAmpEnvelope(newPatch.ampEnvelope);
     }
 
     // Update filter envelope - ALSO update when filter frequency changes
     // because the envelope's baseFrequency needs to track the filter frequency
-    const filterEnvChanged = JSON.stringify(oldPatch.filterEnvelope) !== JSON.stringify(newPatch.filterEnvelope);
-    const envAmountChanged = oldPatch.filter.envelopeAmount !== newPatch.filter.envelopeAmount;
+    const filterEnvChanged =
+      JSON.stringify(oldPatch.filterEnvelope) !==
+      JSON.stringify(newPatch.filterEnvelope);
+    const envAmountChanged =
+      oldPatch.filter.envelopeAmount !== newPatch.filter.envelopeAmount;
 
     if (filterEnvChanged || envAmountChanged || filterFreqChanged) {
       this.voicePool.updateFilterEnvelope(
         newPatch.filterEnvelope,
         newPatch.filter.frequency,
-        newPatch.filter.envelopeAmount
+        newPatch.filter.envelopeAmount,
       );
     }
 
@@ -1339,7 +1384,10 @@ export class CustomSynthEngine {
     // Update LFOs - track if enabled state changed so we can re-apply routings
     let lfoEnabledChanged = false;
 
-    if (JSON.stringify(oldPatch.modMatrix.lfo1) !== JSON.stringify(newPatch.modMatrix.lfo1)) {
+    if (
+      JSON.stringify(oldPatch.modMatrix.lfo1) !==
+      JSON.stringify(newPatch.modMatrix.lfo1)
+    ) {
       const lfo1 = newPatch.modMatrix.lfo1;
       const oldLfo1 = oldPatch.modMatrix.lfo1;
 
@@ -1383,7 +1431,9 @@ export class CustomSynthEngine {
         // Update frequency based on sync state
         try {
           if (lfo1.sync) {
-            this.modManager.lfo1.frequency.value = this.frequencyToSyncedValue(lfo1.frequency);
+            // Use syncRate if available, otherwise fall back to frequency conversion
+            this.modManager.lfo1.frequency.value =
+              lfo1.syncRate || frequencyToSyncedValue(lfo1.frequency);
           } else {
             this.modManager.lfo1.frequency.value = lfo1.frequency;
           }
@@ -1393,7 +1443,10 @@ export class CustomSynthEngine {
       }
     }
 
-    if (JSON.stringify(oldPatch.modMatrix.lfo2) !== JSON.stringify(newPatch.modMatrix.lfo2)) {
+    if (
+      JSON.stringify(oldPatch.modMatrix.lfo2) !==
+      JSON.stringify(newPatch.modMatrix.lfo2)
+    ) {
       const lfo2 = newPatch.modMatrix.lfo2;
       const oldLfo2 = oldPatch.modMatrix.lfo2;
 
@@ -1437,7 +1490,9 @@ export class CustomSynthEngine {
         // Update frequency based on sync state
         try {
           if (lfo2.sync) {
-            this.modManager.lfo2.frequency.value = this.frequencyToSyncedValue(lfo2.frequency);
+            // Use syncRate if available, otherwise fall back to frequency conversion
+            this.modManager.lfo2.frequency.value =
+              lfo2.syncRate || frequencyToSyncedValue(lfo2.frequency);
           } else {
             this.modManager.lfo2.frequency.value = lfo2.frequency;
           }
@@ -1457,14 +1512,18 @@ export class CustomSynthEngine {
     }
 
     // Update effect parameters (without rebuilding chain)
-    for (let i = 0; i < this.effectsChain.length && i < newPatch.effects.length; i++) {
+    for (
+      let i = 0;
+      i < this.effectsChain.length && i < newPatch.effects.length;
+      i++
+    ) {
       const effect = this.effectsChain[i];
       const config = newPatch.effects[i];
       const params = config.params;
 
       // Update wet/dry
       if ("wet" in effect) {
-        (effect as Tone.Effect).wet.value = config.wet;
+        (effect as { wet: { value: number } }).wet.value = config.wet;
       }
 
       // Update type-specific parameters
@@ -1561,7 +1620,8 @@ export class CustomSynthEngine {
 
     // Update modulation routings if changed
     const routingsChanged =
-      JSON.stringify(oldPatch.modMatrix.routings) !== JSON.stringify(newPatch.modMatrix.routings);
+      JSON.stringify(oldPatch.modMatrix.routings) !==
+      JSON.stringify(newPatch.modMatrix.routings);
 
     if (routingsChanged) {
       // Clear existing modulation connections and re-apply
@@ -1607,9 +1667,8 @@ export class CustomSynthEngine {
     this.masterGain = new Tone.Gain(patch.masterVolume);
     this.effectsChain = createEffectsChain(patch.effects);
 
-    const voiceDestination = this.effectsChain.length > 0
-      ? this.effectsChain[0]
-      : this.masterGain;
+    const voiceDestination =
+      this.effectsChain.length > 0 ? this.effectsChain[0] : this.masterGain;
 
     this.voicePool = new VoicePool(patch, voiceDestination);
 

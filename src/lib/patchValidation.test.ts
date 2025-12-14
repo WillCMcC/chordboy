@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validatePatch, sanitizePatch } from "./patchValidation";
 import { createDefaultPatch } from "./defaultPatch";
-import type { CustomPatch } from "../types/synth";
 
 describe("patchValidation", () => {
   describe("validatePatch", () => {
@@ -924,9 +923,7 @@ describe("patchValidation", () => {
           },
         ];
         const sanitized = sanitizePatch(patch);
-        expect(sanitized.effects[0].params).toEqual(
-          patch.effects[0].params
-        );
+        expect(sanitized.effects[0].params).toEqual(patch.effects[0].params);
       });
 
       it("should preserve timestamps", () => {
