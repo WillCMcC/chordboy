@@ -403,6 +403,13 @@ class VoicePool {
   }
 
   /**
+   * Reset filter mod connection state (called when routings are cleared/re-applied)
+   */
+  resetFilterModConnection(): void {
+    this.filterModConnected = false;
+  }
+
+  /**
    * Create voice pool
    */
   private createVoices(): void {
@@ -1090,6 +1097,10 @@ export class CustomSynthEngine {
     for (const routing of this.patch.modMatrix.routings) {
       if (!routing.enabled || routing.amount === 0) continue;
 
+      // Skip routing if its source LFO is disabled (would output static 0 causing filter issues)
+      if (routing.source === 'lfo1' && !this.patch.modMatrix.lfo1.enabled) continue;
+      if (routing.source === 'lfo2' && !this.patch.modMatrix.lfo2.enabled) continue;
+
       const source = this.modManager.getModSource(routing.source);
       if (!source) {
         console.debug(`Unknown mod source: ${routing.source}`);
@@ -1325,69 +1336,124 @@ export class CustomSynthEngine {
       this.masterGain.gain.rampTo(newPatch.masterVolume, 0.05);
     }
 
-    // Update LFOs
+    // Update LFOs - track if enabled state changed so we can re-apply routings
+    let lfoEnabledChanged = false;
+
     if (JSON.stringify(oldPatch.modMatrix.lfo1) !== JSON.stringify(newPatch.modMatrix.lfo1)) {
       const lfo1 = newPatch.modMatrix.lfo1;
       const oldLfo1 = oldPatch.modMatrix.lfo1;
-      
-      this.modManager.lfo1.type = lfo1.waveform;
-      this.modManager.lfo1.min = lfo1.min;
-      this.modManager.lfo1.max = lfo1.max;
-      
-      // Handle sync state changes
-      if (lfo1.sync !== oldLfo1.sync) {
-        if (lfo1.sync) {
-          this.modManager.lfo1.sync();
-        } else {
-          this.modManager.lfo1.unsync();
+
+      // Handle enabled state changes FIRST (before modifying other params)
+      if (lfo1.enabled !== oldLfo1.enabled) {
+        lfoEnabledChanged = true;
+        try {
+          if (lfo1.enabled) {
+            this.modManager.lfo1.start();
+          } else {
+            this.modManager.lfo1.stop();
+          }
+        } catch {
+          // Ignore start/stop errors
         }
       }
-      
-      // Update frequency based on sync state
-      if (lfo1.sync) {
-        this.modManager.lfo1.frequency.value = this.frequencyToSyncedValue(lfo1.frequency);
-      } else {
-        this.modManager.lfo1.frequency.value = lfo1.frequency;
-      }
-      
-      // Handle enabled state changes
-      if (lfo1.enabled && !oldLfo1.enabled) {
-        this.modManager.lfo1.start();
-      } else if (!lfo1.enabled && oldLfo1.enabled) {
-        this.modManager.lfo1.stop();
+
+      // Only update params if LFO is enabled
+      if (lfo1.enabled) {
+        try {
+          this.modManager.lfo1.type = lfo1.waveform;
+        } catch {
+          // Some waveform changes may fail
+        }
+        this.modManager.lfo1.min = lfo1.min;
+        this.modManager.lfo1.max = lfo1.max;
+
+        // Handle sync state changes
+        if (lfo1.sync !== oldLfo1.sync) {
+          try {
+            if (lfo1.sync) {
+              this.modManager.lfo1.sync();
+            } else {
+              this.modManager.lfo1.unsync();
+            }
+          } catch {
+            // Ignore sync errors
+          }
+        }
+
+        // Update frequency based on sync state
+        try {
+          if (lfo1.sync) {
+            this.modManager.lfo1.frequency.value = this.frequencyToSyncedValue(lfo1.frequency);
+          } else {
+            this.modManager.lfo1.frequency.value = lfo1.frequency;
+          }
+        } catch {
+          // Ignore frequency errors
+        }
       }
     }
 
     if (JSON.stringify(oldPatch.modMatrix.lfo2) !== JSON.stringify(newPatch.modMatrix.lfo2)) {
       const lfo2 = newPatch.modMatrix.lfo2;
       const oldLfo2 = oldPatch.modMatrix.lfo2;
-      
-      this.modManager.lfo2.type = lfo2.waveform;
-      this.modManager.lfo2.min = lfo2.min;
-      this.modManager.lfo2.max = lfo2.max;
-      
-      // Handle sync state changes
-      if (lfo2.sync !== oldLfo2.sync) {
-        if (lfo2.sync) {
-          this.modManager.lfo2.sync();
-        } else {
-          this.modManager.lfo2.unsync();
+
+      // Handle enabled state changes FIRST (before modifying other params)
+      if (lfo2.enabled !== oldLfo2.enabled) {
+        lfoEnabledChanged = true;
+        try {
+          if (lfo2.enabled) {
+            this.modManager.lfo2.start();
+          } else {
+            this.modManager.lfo2.stop();
+          }
+        } catch {
+          // Ignore start/stop errors
         }
       }
-      
-      // Update frequency based on sync state
-      if (lfo2.sync) {
-        this.modManager.lfo2.frequency.value = this.frequencyToSyncedValue(lfo2.frequency);
-      } else {
-        this.modManager.lfo2.frequency.value = lfo2.frequency;
+
+      // Only update params if LFO is enabled
+      if (lfo2.enabled) {
+        try {
+          this.modManager.lfo2.type = lfo2.waveform;
+        } catch {
+          // Some waveform changes may fail
+        }
+        this.modManager.lfo2.min = lfo2.min;
+        this.modManager.lfo2.max = lfo2.max;
+
+        // Handle sync state changes
+        if (lfo2.sync !== oldLfo2.sync) {
+          try {
+            if (lfo2.sync) {
+              this.modManager.lfo2.sync();
+            } else {
+              this.modManager.lfo2.unsync();
+            }
+          } catch {
+            // Ignore sync errors
+          }
+        }
+
+        // Update frequency based on sync state
+        try {
+          if (lfo2.sync) {
+            this.modManager.lfo2.frequency.value = this.frequencyToSyncedValue(lfo2.frequency);
+          } else {
+            this.modManager.lfo2.frequency.value = lfo2.frequency;
+          }
+        } catch {
+          // Ignore frequency errors
+        }
       }
-      
-      // Handle enabled state changes
-      if (lfo2.enabled && !oldLfo2.enabled) {
-        this.modManager.lfo2.start();
-      } else if (!lfo2.enabled && oldLfo2.enabled) {
-        this.modManager.lfo2.stop();
-      }
+    }
+
+    // Re-apply modulation routings if LFO enabled state changed
+    // (disabled LFOs should have their routings disconnected)
+    if (lfoEnabledChanged) {
+      this.modManager.clearModConnections();
+      this.voicePool.resetFilterModConnection();
+      this.patch = newPatch;
+      this.applyModulationRoutings();
     }
 
     // Update effect parameters (without rebuilding chain)
@@ -1500,6 +1566,7 @@ export class CustomSynthEngine {
     if (routingsChanged) {
       // Clear existing modulation connections and re-apply
       this.modManager.clearModConnections();
+      this.voicePool.resetFilterModConnection();
       this.patch = newPatch; // Update patch first so applyModulationRoutings uses new routings
       this.applyModulationRoutings();
     } else {
