@@ -7,11 +7,7 @@
  */
 
 import { useCallback, useRef, useEffect } from "react";
-import {
-  sendNoteOn,
-  sendNoteOff,
-  sendPanic,
-} from "../lib/midi";
+import { sendNoteOn, sendNoteOff, sendPanic } from "../lib/midi";
 import {
   sendBLENoteOn,
   sendBLENoteOff,
@@ -69,7 +65,7 @@ export interface PlaybackFunctions {
 export function useMIDIPlayback(
   deps: PlaybackDeps,
   currentNotesRef: React.MutableRefObject<MIDINote[]>,
-  setCurrentNotes: React.Dispatch<React.SetStateAction<MIDINote[]>>
+  setCurrentNotes: React.Dispatch<React.SetStateAction<MIDINote[]>>,
 ): PlaybackFunctions {
   const {
     selectedOutput,
@@ -85,6 +81,14 @@ export function useMIDIPlayback(
 
   // Humanization timeout manager
   const humanizeManager = useRef<HumanizeManager>(createHumanizeManager());
+
+  // Sequence ID for tracking chord changes (prevents race conditions with humanization)
+  const sequenceIdRef = useRef(0);
+
+  // Retrigger timeout ref (for cancellation on rapid calls)
+  const retriggerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Strum state
   const strumLastDirectionRef = useRef<StrumDirection>(STRUM_UP);
@@ -114,7 +118,14 @@ export function useMIDIPlayback(
         setCurrentNotes((prev) => [...prev, note]);
       }
     },
-    [selectedOutput, bleConnected, bleCharacteristic, channel, velocity, setCurrentNotes]
+    [
+      selectedOutput,
+      bleConnected,
+      bleCharacteristic,
+      channel,
+      velocity,
+      setCurrentNotes,
+    ],
   );
 
   /**
@@ -130,18 +141,22 @@ export function useMIDIPlayback(
       }
       setCurrentNotes((prev) => prev.filter((n) => n !== note));
     },
-    [selectedOutput, bleConnected, bleCharacteristic, channel, setCurrentNotes]
+    [selectedOutput, bleConnected, bleCharacteristic, channel, setCurrentNotes],
   );
 
   /**
    * Play a chord with smart diffing.
    * Only stops notes being removed, only starts new notes.
    * Supports humanization for staggered timing.
+   * Uses sequence ID to prevent race conditions when chords change rapidly.
    */
   const playChord = useCallback(
     (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
       const hasOutput = selectedOutput || bleConnected;
       if (!hasOutput || !notes?.length) return;
+
+      // Increment sequence ID to invalidate any pending scheduled note-ons
+      const currentSequence = ++sequenceIdRef.current;
 
       humanizeManager.current.clear();
 
@@ -150,7 +165,9 @@ export function useMIDIPlayback(
       const currentNotesSet = new Set(currentNotesSnapshot);
 
       // Stop removed notes immediately
-      const notesToStop = currentNotesSnapshot.filter((n) => !newNotesSet.has(n));
+      const notesToStop = currentNotesSnapshot.filter(
+        (n) => !newNotesSet.has(n),
+      );
       if (notesToStop.length > 0) {
         notesToStop.forEach((note) => {
           if (selectedOutput) sendNoteOff(selectedOutput, channel, note);
@@ -171,12 +188,15 @@ export function useMIDIPlayback(
             notesToStart,
             strumSpread,
             strumDirection,
-            strumLastDirectionRef.current
+            strumLastDirectionRef.current,
           );
           strumLastDirectionRef.current = nextDirection;
           notesToStart.forEach((note, i) => {
             humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              // Guard: only execute if this is still the current sequence
+              if (sequenceIdRef.current !== currentSequence) return;
+              if (selectedOutput)
+                sendNoteOn(selectedOutput, channel, note, vel);
               if (bleConnected && bleCharacteristic) {
                 sendBLENoteOn(bleCharacteristic, channel, note, vel);
               }
@@ -187,7 +207,10 @@ export function useMIDIPlayback(
           const offsets = getHumanizeOffsets(notesToStart.length, humanize);
           notesToStart.forEach((note, i) => {
             humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              // Guard: only execute if this is still the current sequence
+              if (sequenceIdRef.current !== currentSequence) return;
+              if (selectedOutput)
+                sendNoteOn(selectedOutput, channel, note, vel);
               if (bleConnected && bleCharacteristic) {
                 sendBLENoteOn(bleCharacteristic, channel, note, vel);
               }
@@ -219,17 +242,27 @@ export function useMIDIPlayback(
       strumDirection,
       currentNotesRef,
       setCurrentNotes,
-    ]
+    ],
   );
 
   /**
    * Retrigger a chord - forces all notes to stop and restart.
    * Used by sequencer in retrig mode for clear re-articulation.
+   * Cancels any pending retrigger timeout to prevent race conditions.
    */
   const retriggerChord = useCallback(
     (notes: MIDINote[], vel: MIDIVelocity = velocity): void => {
       const hasOutput = selectedOutput || bleConnected;
       if (!hasOutput || !notes?.length) return;
+
+      // Cancel any pending retrigger timeout to prevent race conditions
+      if (retriggerTimeoutRef.current) {
+        clearTimeout(retriggerTimeoutRef.current);
+        retriggerTimeoutRef.current = null;
+      }
+
+      // Increment sequence ID to invalidate any pending scheduled note-ons
+      const currentSequence = ++sequenceIdRef.current;
 
       humanizeManager.current.clear();
 
@@ -246,7 +279,12 @@ export function useMIDIPlayback(
 
       // Small delay for clear re-articulation
       // Use refs inside setTimeout to get fresh values (avoid stale closures)
-      setTimeout(() => {
+      retriggerTimeoutRef.current = setTimeout(() => {
+        retriggerTimeoutRef.current = null;
+
+        // Guard: only execute if this is still the current sequence
+        if (sequenceIdRef.current !== currentSequence) return;
+
         // Guard against refs becoming null after component state changes
         if (!selectedOutput && !bleConnected) return;
 
@@ -261,12 +299,15 @@ export function useMIDIPlayback(
             notes,
             currentStrumSpread,
             currentStrumDirection,
-            strumLastDirectionRef.current
+            strumLastDirectionRef.current,
           );
           strumLastDirectionRef.current = nextDirection;
           notes.forEach((note, i) => {
             humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              // Guard: only execute if this is still the current sequence
+              if (sequenceIdRef.current !== currentSequence) return;
+              if (selectedOutput)
+                sendNoteOn(selectedOutput, channel, note, vel);
               if (bleConnected && bleCharacteristic) {
                 sendBLENoteOn(bleCharacteristic, channel, note, vel);
               }
@@ -276,7 +317,10 @@ export function useMIDIPlayback(
           const offsets = getHumanizeOffsets(notes.length, currentHumanize);
           notes.forEach((note, i) => {
             humanizeManager.current.schedule(() => {
-              if (selectedOutput) sendNoteOn(selectedOutput, channel, note, vel);
+              // Guard: only execute if this is still the current sequence
+              if (sequenceIdRef.current !== currentSequence) return;
+              if (selectedOutput)
+                sendNoteOn(selectedOutput, channel, note, vel);
               if (bleConnected && bleCharacteristic) {
                 sendBLENoteOn(bleCharacteristic, channel, note, vel);
               }
@@ -306,7 +350,7 @@ export function useMIDIPlayback(
       strumDirection,
       currentNotesRef,
       setCurrentNotes,
-    ]
+    ],
   );
 
   /**
@@ -324,7 +368,14 @@ export function useMIDIPlayback(
       }
     }
     setCurrentNotes([]);
-  }, [selectedOutput, bleConnected, bleCharacteristic, channel, currentNotesRef, setCurrentNotes]);
+  }, [
+    selectedOutput,
+    bleConnected,
+    bleCharacteristic,
+    channel,
+    currentNotesRef,
+    setCurrentNotes,
+  ]);
 
   /**
    * MIDI panic - stop all notes on all channels.
@@ -350,6 +401,10 @@ export function useMIDIPlayback(
   useEffect(() => {
     return () => {
       humanizeManager.current.clear();
+      if (retriggerTimeoutRef.current) {
+        clearTimeout(retriggerTimeoutRef.current);
+        retriggerTimeoutRef.current = null;
+      }
     };
   }, []);
 

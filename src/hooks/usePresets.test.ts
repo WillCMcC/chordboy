@@ -4,7 +4,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { loadPresetsFromStorage, savePresetsToStorage } from "../lib/presetStorage";
+import {
+  loadPresetsFromStorage,
+  savePresetsToStorage,
+} from "../lib/presetStorage";
 import type { Preset } from "../types";
 
 // Mock IndexedDB using an in-memory Map
@@ -110,16 +113,13 @@ describe("usePresets - Preset Storage Integration", () => {
 
       await savePresetsToStorage(presetsMap);
 
-      const stored = mockStorage.get("chordPresets") as [string, any][];
+      // With per-slot storage, each preset is stored with key "preset-{slot}"
+      const stored = mockStorage.get("preset-1") as any;
       expect(stored).toBeDefined();
-      expect(stored.length).toBe(1);
-
-      const [slot, serialized] = stored[0];
-      expect(slot).toBe("1");
-      expect(serialized.keys).toEqual(["a", "j"]); // Serialized as array
-      expect(serialized.octave).toBe(4);
-      expect(serialized.inversionIndex).toBe(0);
-      expect(serialized.voicingStyle).toBe("close");
+      expect(stored.keys).toEqual(["a", "j"]); // Serialized as array
+      expect(stored.octave).toBe(4);
+      expect(stored.inversionIndex).toBe(0);
+      expect(stored.voicingStyle).toBe("close");
     });
 
     it("should serialize Set to Array for storage", async () => {
@@ -136,12 +136,11 @@ describe("usePresets - Preset Storage Integration", () => {
 
       await savePresetsToStorage(presetsMap);
 
-      const stored = mockStorage.get("chordPresets") as [string, any][];
-      const [, serialized] = stored[0];
+      const stored = mockStorage.get("preset-1") as any;
 
       // Keys should be an array, not a Set
-      expect(Array.isArray(serialized.keys)).toBe(true);
-      expect(serialized.keys).toEqual(["a", "j", "l"]);
+      expect(Array.isArray(stored.keys)).toBe(true);
+      expect(stored.keys).toEqual(["a", "j", "l"]);
     });
 
     it("should save multiple presets", async () => {
@@ -153,9 +152,13 @@ describe("usePresets - Preset Storage Integration", () => {
 
       await savePresetsToStorage(presetsMap);
 
-      const stored = mockStorage.get("chordPresets") as [string, any][];
-      expect(stored.length).toBe(3);
-      expect(stored.map(([slot]) => slot)).toEqual(["1", "2", "3"]);
+      // Each preset stored with its own key
+      expect(mockStorage.get("preset-1")).toBeDefined();
+      expect(mockStorage.get("preset-2")).toBeDefined();
+      expect(mockStorage.get("preset-3")).toBeDefined();
+      expect((mockStorage.get("preset-1") as any).keys).toEqual(["a"]);
+      expect((mockStorage.get("preset-2") as any).keys).toEqual(["b"]);
+      expect((mockStorage.get("preset-3") as any).keys).toEqual(["c"]);
     });
 
     it("should overwrite existing presets on save", async () => {
@@ -171,32 +174,23 @@ describe("usePresets - Preset Storage Integration", () => {
 
       await savePresetsToStorage(presetsMap2);
 
-      const stored = mockStorage.get("chordPresets") as [string, any][];
-      expect(stored.length).toBe(1);
-
-      const [slot, serialized] = stored[0];
-      expect(slot).toBe("1");
-      expect(serialized.keys).toEqual(["b"]);
-      expect(serialized.octave).toBe(5);
+      const stored = mockStorage.get("preset-1") as any;
+      expect(stored.keys).toEqual(["b"]);
+      expect(stored.octave).toBe(5);
     });
   });
 
   describe("Recall preset", () => {
     it("should load saved presets from storage", async () => {
-      // Pre-populate storage with serialized presets
-      mockStorage.set("chordPresets", [
-        [
-          "1",
-          {
-            keys: ["a", "j"],
-            octave: 4,
-            inversionIndex: 0,
-            droppedNotes: 0,
-            spreadAmount: 0,
-            voicingStyle: "close",
-          },
-        ],
-      ]);
+      // Pre-populate storage with serialized presets (new per-slot format)
+      mockStorage.set("preset-1", {
+        keys: ["a", "j"],
+        octave: 4,
+        inversionIndex: 0,
+        droppedNotes: 0,
+        spreadAmount: 0,
+        voicingStyle: "close",
+      });
 
       const loaded = await loadPresetsFromStorage();
 
@@ -212,9 +206,7 @@ describe("usePresets - Preset Storage Integration", () => {
     });
 
     it("should deserialize Array back to Set for keys", async () => {
-      mockStorage.set("chordPresets", [
-        ["1", { keys: ["a", "j", "l"], octave: 4 }],
-      ]);
+      mockStorage.set("preset-1", { keys: ["a", "j", "l"], octave: 4 });
 
       const loaded = await loadPresetsFromStorage();
       const preset = loaded.get("1")!;
@@ -227,11 +219,9 @@ describe("usePresets - Preset Storage Integration", () => {
     });
 
     it("should load multiple presets", async () => {
-      mockStorage.set("chordPresets", [
-        ["1", { keys: ["a"], octave: 4 }],
-        ["2", { keys: ["b"], octave: 5 }],
-        ["3", { keys: ["c"], octave: 6 }],
-      ]);
+      mockStorage.set("preset-1", { keys: ["a"], octave: 4 });
+      mockStorage.set("preset-2", { keys: ["b"], octave: 5 });
+      mockStorage.set("preset-3", { keys: ["c"], octave: 6 });
 
       const loaded = await loadPresetsFromStorage();
 
@@ -249,16 +239,28 @@ describe("usePresets - Preset Storage Integration", () => {
     });
 
     it("should handle numeric slot keys as strings", async () => {
-      mockStorage.set("chordPresets", [
-        ["0", { keys: ["a"], octave: 4 }],
-        ["9", { keys: ["b"], octave: 5 }],
-      ]);
+      mockStorage.set("preset-0", { keys: ["a"], octave: 4 });
+      mockStorage.set("preset-9", { keys: ["b"], octave: 5 });
 
       const loaded = await loadPresetsFromStorage();
 
       expect(loaded.has("0")).toBe(true);
       expect(loaded.has("9")).toBe(true);
       expect(typeof Array.from(loaded.keys())[0]).toBe("string");
+    });
+
+    it("should migrate legacy chordPresets format", async () => {
+      // Legacy format: array of [slot, preset] tuples
+      mockStorage.set("chordPresets", [
+        ["1", { keys: ["a"], octave: 4 }],
+        ["2", { keys: ["b"], octave: 5 }],
+      ]);
+
+      const loaded = await loadPresetsFromStorage();
+
+      expect(loaded.size).toBe(2);
+      expect(loaded.get("1")?.keys).toEqual(new Set(["a"]));
+      expect(loaded.get("2")?.keys).toEqual(new Set(["b"]));
     });
   });
 
@@ -316,16 +318,7 @@ describe("usePresets - Preset Storage Integration", () => {
     });
 
     it("should preserve complex key combinations", async () => {
-      const complexKeys = new Set([
-        "q",
-        "u",
-        "k",
-        "l",
-        "[",
-        "p",
-        ",",
-        ".",
-      ]);
+      const complexKeys = new Set(["q", "u", "k", "l", "[", "p", ",", "."]);
       const presetsMap = new Map<string, Preset>([
         ["1", { keys: complexKeys, octave: 4 }],
       ]);
@@ -343,9 +336,15 @@ describe("usePresets - Preset Storage Integration", () => {
 
       await savePresetsToStorage(empty);
 
-      const stored = mockStorage.get("chordPresets") as [string, any][];
-      expect(stored).toBeDefined();
-      expect(stored.length).toBe(0);
+      // With per-slot storage, empty map means no keys are stored
+      // Check that no preset-* keys exist
+      let presetKeyCount = 0;
+      for (const key of mockStorage.keys()) {
+        if (String(key).startsWith("preset-")) {
+          presetKeyCount++;
+        }
+      }
+      expect(presetKeyCount).toBe(0);
     });
 
     it("should handle empty Set for keys", async () => {
@@ -464,13 +463,9 @@ describe("usePresets - Preset Storage Integration", () => {
 
   describe("Voicing style types", () => {
     it("should handle all voicing style values", async () => {
-      const styles: Array<"close" | "drop2" | "drop3" | "rootless-a" | "rootless-b"> = [
-        "close",
-        "drop2",
-        "drop3",
-        "rootless-a",
-        "rootless-b",
-      ];
+      const styles: Array<
+        "close" | "drop2" | "drop3" | "rootless-a" | "rootless-b"
+      > = ["close", "drop2", "drop3", "rootless-a", "rootless-b"];
 
       const presetsMap = new Map<string, Preset>();
       styles.forEach((style, index) => {

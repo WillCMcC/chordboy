@@ -13,12 +13,7 @@ import {
   disconnectBLEMidiDevice,
   addBLEMidiListener,
 } from "../lib/bleMidi";
-import {
-  MIDI_CLOCK,
-  MIDI_START,
-  MIDI_STOP,
-  MIDI_CONTINUE,
-} from "../lib/midi";
+import { MIDI_CLOCK, MIDI_START, MIDI_STOP, MIDI_CONTINUE } from "../lib/midi";
 
 /** BLE state */
 export interface BLEMidiState {
@@ -58,7 +53,7 @@ export function useBLEMidi(
     onClock: (() => void) | null;
     onStart: (() => void) | null;
     onStop: (() => void) | null;
-  }>
+  }>,
 ): BLEMidiState & BLEMidiActions {
   // BLE MIDI state
   const [bleSupported] = useState<boolean>(() => isBLESupported());
@@ -67,7 +62,8 @@ export function useBLEMidi(
   const [bleConnecting, setBleConnecting] = useState<boolean>(false);
   const [bleError, setBleError] = useState<string | null>(null);
   const [bleSyncEnabled, setBleSyncEnabled] = useState<boolean>(false);
-  const [bleCharacteristic, setBleCharacteristic] = useState<BluetoothRemoteGATTCharacteristic | null>(null);
+  const [bleCharacteristic, setBleCharacteristic] =
+    useState<BluetoothRemoteGATTCharacteristic | null>(null);
 
   // BLE refs
   const bleServerRef = useRef<BluetoothRemoteGATTServer | null>(null);
@@ -76,10 +72,16 @@ export function useBLEMidi(
 
   /**
    * Scan for and connect to a BLE MIDI device.
+   * Guards against concurrent connect/disconnect operations.
    */
   const connectBLE = useCallback(async (): Promise<void> => {
     if (!bleSupported) {
       setBleError("Bluetooth is not supported in this browser");
+      return;
+    }
+
+    // Guard: prevent concurrent connect operations
+    if (bleConnecting || bleConnected) {
       return;
     }
 
@@ -90,13 +92,8 @@ export function useBLEMidi(
       const device = await scanForBLEMidiDevice();
       setBleDevice(device);
 
-      const { server, characteristic } = await connectToBLEMidiDevice(device);
-      bleServerRef.current = server;
-      setBleCharacteristic(characteristic);
-      setBleConnected(true);
-
-      // Listen for disconnection AFTER successful connection
-      // Store handler in ref for cleanup
+      // Set up disconnect listener BEFORE connecting to avoid race condition
+      // where device disconnects between connect and listener attachment
       const disconnectHandler = (): void => {
         setBleConnected(false);
         bleServerRef.current = null;
@@ -104,6 +101,11 @@ export function useBLEMidi(
       };
       bleDisconnectHandlerRef.current = disconnectHandler;
       device.addEventListener("gattserverdisconnected", disconnectHandler);
+
+      const { server, characteristic } = await connectToBLEMidiDevice(device);
+      bleServerRef.current = server;
+      setBleCharacteristic(characteristic);
+      setBleConnected(true);
     } catch (err) {
       const error = err as Error & { name?: string };
       if (error.name !== "NotFoundError") {
@@ -111,12 +113,28 @@ export function useBLEMidi(
         setBleError(error.message || error.toString() || "Connection failed");
         console.error("BLE MIDI connection error:", err);
       }
+      // Clean up disconnect listener on failure
+      if (bleDisconnectHandlerRef.current) {
+        // Device may not exist if scan was cancelled
+        try {
+          const currentDevice = bleDevice;
+          if (currentDevice) {
+            currentDevice.removeEventListener(
+              "gattserverdisconnected",
+              bleDisconnectHandlerRef.current,
+            );
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        bleDisconnectHandlerRef.current = null;
+      }
       setBleDevice(null);
       setBleConnected(false);
     } finally {
       setBleConnecting(false);
     }
-  }, [bleSupported]);
+  }, [bleSupported, bleConnecting, bleConnected, bleDevice]);
 
   /**
    * Disconnect from the current BLE MIDI device.
@@ -124,7 +142,10 @@ export function useBLEMidi(
   const disconnectBLE = useCallback((): void => {
     // Clean up disconnect listener before disconnecting
     if (bleDevice && bleDisconnectHandlerRef.current) {
-      bleDevice.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
+      bleDevice.removeEventListener(
+        "gattserverdisconnected",
+        bleDisconnectHandlerRef.current,
+      );
       bleDisconnectHandlerRef.current = null;
     }
     if (bleServerRef.current) {
@@ -186,7 +207,7 @@ export function useBLEMidi(
 
     bleSyncCleanupRef.current = addBLEMidiListener(
       bleCharacteristic,
-      handleBleMessage
+      handleBleMessage,
     );
 
     return () => {
@@ -202,7 +223,10 @@ export function useBLEMidi(
     return () => {
       // Clean up BLE disconnect listener
       if (bleDevice && bleDisconnectHandlerRef.current) {
-        bleDevice.removeEventListener("gattserverdisconnected", bleDisconnectHandlerRef.current);
+        bleDevice.removeEventListener(
+          "gattserverdisconnected",
+          bleDisconnectHandlerRef.current,
+        );
         bleDisconnectHandlerRef.current = null;
       }
     };

@@ -188,6 +188,29 @@ class CustomVoice {
   }
 
   /**
+   * Cancel envelopes immediately (for voice stealing).
+   * This resets envelope state to prevent corruption when re-triggering.
+   */
+  cancelEnvelopes(time?: number): void {
+    const t = time ?? Tone.now();
+    // Use cancel if available (Tone.js), otherwise fall back to triggerRelease
+    if (typeof this.ampEnv.cancel === "function") {
+      this.ampEnv.cancel(t);
+    } else {
+      this.ampEnv.triggerRelease(t);
+    }
+    if (this.patch.filter.enabled && this.patch.filter.envelopeAmount !== 0) {
+      if (typeof this.filterEnv.cancel === "function") {
+        this.filterEnv.cancel(t);
+      } else {
+        this.filterEnv.triggerRelease(t);
+      }
+    }
+    this.isActive = false;
+    this.note = null;
+  }
+
+  /**
    * Calculate effective mix based on which oscillators are enabled
    * Returns: 0 = all osc1, 0.5 = equal, 1 = all osc2
    */
@@ -477,7 +500,9 @@ class VoicePool {
       if (voice.note !== null) {
         this.activeNotes.delete(voice.note);
       }
-      voice.triggerRelease(Tone.now());
+      // Cancel envelopes immediately instead of triggering release
+      // This prevents envelope state corruption when re-triggering
+      voice.cancelEnvelopes(Tone.now());
     }
 
     voice.triggerAttack(note, velocity);
@@ -557,16 +582,54 @@ class VoicePool {
   }
 
   /**
-   * Rebuild voice pool with new patch
+   * Rebuild voice pool with new patch.
+   * Waits for release envelopes to complete before disposing to prevent audio glitches.
    */
   rebuild(patch: CustomPatch): void {
+    // Calculate max release time from current patch
+    const maxRelease = Math.max(
+      this.patch.ampEnvelope.release,
+      this.patch.filter.enabled ? this.patch.filterEnvelope.release : 0,
+    );
+
+    // Release all voices
     this.releaseAll();
-    this.dispose();
+
+    // Store old voices for delayed disposal
+    const oldVoices = this.voices;
+    const oldFilterFreqMod = this.filterFrequencyMod;
+    const oldFilterResMod = this.filterResonanceMod;
+
+    // Clear state immediately
     this.voices = [];
-    this.activeNotes.clear(); // Clear tracking state
-    this.filterModConnected = false; // Reset so filter mod can be reconnected if needed
+    this.activeNotes.clear();
+    this.filterModConnected = false;
     this.patch = patch;
+
+    // Create new filter mod signals for new voices
+    this.filterFrequencyMod = new Tone.Signal(0, "number");
+    this.filterResonanceMod = new Tone.Signal(0, "number");
+
+    // Create new voices immediately (so new notes can play)
     this.createVoices();
+
+    // Dispose old voices after release completes (add 100ms buffer)
+    const disposeDelay = maxRelease * 1000 + 100;
+    setTimeout(() => {
+      for (const voice of oldVoices) {
+        try {
+          voice.dispose();
+        } catch {
+          // Ignore disposal errors
+        }
+      }
+      try {
+        oldFilterFreqMod.dispose();
+        oldFilterResMod.dispose();
+      } catch {
+        // Ignore disposal errors
+      }
+    }, disposeDelay);
   }
 
   /**
