@@ -1,4 +1,5 @@
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
+import { useCallback } from "react";
 import type { MIDIOutputInfo } from "../types";
 import { useMIDI } from "../hooks/useMIDI";
 import "./MIDIStatus.css";
@@ -36,6 +37,16 @@ export function MIDIStatus() {
     selectOutput(e.target.value);
   };
 
+  // Prevent letter keys from changing device selection
+  const handleDeviceKeyDown = useCallback((e: KeyboardEvent<HTMLSelectElement>) => {
+    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   return (
     <div className="midi-status">
       {/* Wired MIDI Section */}
@@ -61,6 +72,7 @@ export function MIDIStatus() {
               <select
                 value={selectedOutput?.id || ""}
                 onChange={handleOutputChange}
+                onKeyDown={handleDeviceKeyDown}
                 className="device-selector"
               >
                 {(outputs as MIDIOutputInfo[]).map((output) => (

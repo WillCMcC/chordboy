@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import type { StrumDirection, MIDIInputInfoDisplay } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import "./TransportControls.css";
@@ -205,6 +205,16 @@ export function TransportControls({
     [onSelectInput]
   );
 
+  // Prevent letter keys from changing dropdown selections
+  const handleDropdownKeyDown = useCallback((e: KeyboardEvent<HTMLSelectElement>) => {
+    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   // Handle sync toggle - also select first input if none selected
   const handleSyncToggle = useCallback((): void => {
     const newSyncEnabled = !syncEnabled;
@@ -279,6 +289,7 @@ export function TransportControls({
               className={`strum-direction-select ${!strumEnabled ? "disabled" : ""}`}
               value={strumDirection}
               onChange={handleStrumDirectionChange}
+              onKeyDown={handleDropdownKeyDown}
               disabled={!strumEnabled}
             >
               <option value="up">Up</option>
@@ -413,6 +424,7 @@ export function TransportControls({
                 className="midi-input-select"
                 value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
                 onChange={handleInputChange}
+                onKeyDown={handleDropdownKeyDown}
               >
                 <option value="">Select input...</option>
                 {bleConnected && (
@@ -630,6 +642,7 @@ export function TransportControls({
                   className="mobile-sync-select"
                   value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
                   onChange={handleInputChange}
+                  onKeyDown={handleDropdownKeyDown}
                 >
                   <option value="">Select input...</option>
                   {bleConnected && (

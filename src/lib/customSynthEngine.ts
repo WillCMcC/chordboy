@@ -458,9 +458,24 @@ class VoicePool {
 
   /**
    * Reset filter mod connection state (called when routings are cleared/re-applied)
+   * Also resets the modulation signal values to 0 to prevent stuck filter positions
    */
   resetFilterModConnection(): void {
+    // CRITICAL: Disconnect filter mod signals from all voices BEFORE clearing connections
+    // This prevents disposed modulation nodes from taking the filter connections with them
+    if (this.filterModConnected) {
+      try {
+        this.filterFrequencyMod.disconnect();
+        this.filterResonanceMod.disconnect();
+      } catch (e) {
+        console.warn('[VoicePool] Error disconnecting filter mod signals:', e);
+      }
+    }
+
     this.filterModConnected = false;
+    // Reset signal values to 0 to prevent stuck filter positions after unrouting
+    this.filterFrequencyMod.value = 0;
+    this.filterResonanceMod.value = 0;
   }
 
   /**
@@ -817,16 +832,27 @@ class ModulationManager {
 
   /**
    * Clear all modulation connections (for re-applying routings)
+   * CRITICAL: Must call disconnect() before dispose() to cleanly break all connections
    */
   clearModConnections(): void {
-    for (const node of this.modConnections.values()) {
+    // First pass: disconnect all nodes from their outputs
+    for (const [id, node] of this.modConnections.entries()) {
       try {
         node.disconnect();
-        node.dispose();
-      } catch {
-        // Ignore errors
+      } catch (e) {
+        console.warn(`[ModulationManager] Error disconnecting ${id}:`, e);
       }
     }
+
+    // Second pass: dispose all nodes
+    for (const [id, node] of this.modConnections.entries()) {
+      try {
+        node.dispose();
+      } catch (e) {
+        console.warn(`[ModulationManager] Error disposing ${id}:`, e);
+      }
+    }
+
     this.modConnections.clear();
   }
 
@@ -1575,8 +1601,11 @@ export class CustomSynthEngine {
     // Re-apply modulation routings if LFO enabled state changed
     // (disabled LFOs should have their routings disconnected)
     if (lfoEnabledChanged) {
-      this.modManager.clearModConnections();
+      // CRITICAL: Reset filter mod connections FIRST (disconnects from voices)
+      // THEN clear modulation connections (disposes intermediate nodes)
+      // This order prevents disposed nodes from corrupting the audio signal chain
       this.voicePool.resetFilterModConnection();
+      this.modManager.clearModConnections();
       this.patch = newPatch;
       this.applyModulationRoutings();
     }
@@ -1694,9 +1723,12 @@ export class CustomSynthEngine {
       JSON.stringify(newPatch.modMatrix.routings);
 
     if (routingsChanged) {
-      // Clear existing modulation connections and re-apply
-      this.modManager.clearModConnections();
+      // CRITICAL: Reset filter mod connections FIRST (disconnects from voices)
+      // THEN clear modulation connections (disposes intermediate nodes)
+      // This order prevents disposed nodes from corrupting the audio signal chain
       this.voicePool.resetFilterModConnection();
+      this.modManager.clearModConnections();
+
       this.patch = newPatch; // Update patch first so applyModulationRoutings uses new routings
       this.applyModulationRoutings();
     } else {
@@ -1774,15 +1806,19 @@ export class CustomSynthEngine {
       let lfoValue = 0.5; // Default center
       if (routing.source === "lfo1" && this.patch.modMatrix.lfo1.enabled) {
         try {
-          const val = this.modManager.lfo1.getValue();
-          lfoValue = typeof val === "number" ? val : 0.5;
+          // Note: LFO doesn't have getValue() method in Tone.js
+          // This is a placeholder - would need to sample the LFO output signal
+          // For now, just use center value
+          lfoValue = 0.5;
         } catch {
           lfoValue = 0.5;
         }
       } else if (routing.source === "lfo2" && this.patch.modMatrix.lfo2.enabled) {
         try {
-          const val = this.modManager.lfo2.getValue();
-          lfoValue = typeof val === "number" ? val : 0.5;
+          // Note: LFO doesn't have getValue() method in Tone.js
+          // This is a placeholder - would need to sample the LFO output signal
+          // For now, just use center value
+          lfoValue = 0.5;
         } catch {
           lfoValue = 0.5;
         }

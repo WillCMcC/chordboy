@@ -35,6 +35,16 @@ export function DropdownControl({
     onChange(option ? option.value : selectedValue);
   };
 
+  // Prevent letter keys from changing dropdown selection
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
+    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <div className={`dropdown-control ${disabled ? 'disabled' : ''}`}>
       <div className="dropdown-label">{label}</div>
@@ -42,6 +52,7 @@ export function DropdownControl({
         className="dropdown-select"
         value={value}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
       >
         {options.map((option) => (

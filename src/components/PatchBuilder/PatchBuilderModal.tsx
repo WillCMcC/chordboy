@@ -14,6 +14,7 @@ import {
   useRef,
   useLayoutEffect,
 } from "react";
+import * as Tone from "tone";
 import type { CustomPatch, PatchCategory } from "../../types/synth";
 import { createDefaultPatch } from "../../lib/defaultPatch";
 import { useCustomPatches } from "../../hooks/useCustomPatches";
@@ -249,7 +250,7 @@ export function PatchBuilderModal({
   }, [isOpen, editingPatch]);
 
   // Poll filter modulation for visual feedback when on filter tab
-  // Calculate LFO values mathematically for accurate visual sync
+  // Uses Tone.now() to sync with audio context timing
   useEffect(() => {
     if (!isOpen || activeTab !== "filter" || !editingPatch) {
       if (filterModAnimationRef.current) {
@@ -260,11 +261,9 @@ export function PatchBuilderModal({
       return;
     }
 
-    const startTime = performance.now() / 1000; // Convert to seconds
-
     const calculateModulation = () => {
-      const now = performance.now() / 1000;
-      const elapsed = now - startTime;
+      // Use Tone.now() for audio-synced timing
+      const now = Tone.now();
 
       let frequencyOffset = 0;
       let resonanceOffset = 0;
@@ -273,26 +272,32 @@ export function PatchBuilderModal({
       for (const routing of editingPatch.modMatrix.routings) {
         if (!routing.enabled || routing.amount === 0) continue;
 
-        // Get LFO value based on source
-        let lfoValue = 0.5; // Default center
+        // Get LFO config based on source
         let lfoEnabled = false;
         let lfoFreq = 1;
         let lfoWaveform = "sine";
+        let lfoPhase = 0;
 
         if (routing.source === "lfo1" && editingPatch.modMatrix.lfo1.enabled) {
           lfoEnabled = true;
           lfoFreq = editingPatch.modMatrix.lfo1.frequency;
           lfoWaveform = editingPatch.modMatrix.lfo1.waveform;
+          lfoPhase = editingPatch.modMatrix.lfo1.phase || 0;
         } else if (routing.source === "lfo2" && editingPatch.modMatrix.lfo2.enabled) {
           lfoEnabled = true;
           lfoFreq = editingPatch.modMatrix.lfo2.frequency;
           lfoWaveform = editingPatch.modMatrix.lfo2.waveform;
+          lfoPhase = editingPatch.modMatrix.lfo2.phase || 0;
         }
 
         if (!lfoEnabled) continue;
 
-        // Calculate LFO value mathematically (0-1 range)
-        const phase = (elapsed * lfoFreq) % 1;
+        // Calculate LFO phase using absolute audio context time
+        // Add phase offset from LFO config (converted from degrees to 0-1)
+        const phase = ((now * lfoFreq) + (lfoPhase / 360)) % 1;
+
+        // Calculate LFO value (0-1 range)
+        let lfoValue = 0.5;
         switch (lfoWaveform) {
           case "sine":
             lfoValue = (Math.sin(phase * Math.PI * 2) + 1) / 2;
@@ -310,8 +315,8 @@ export function PatchBuilderModal({
             lfoValue = (Math.sin(phase * Math.PI * 2) + 1) / 2;
         }
 
-        // Center around 0 (-0.5 to +0.5)
-        const centered = lfoValue - 0.5;
+        // Center around 0 and invert to match audio signal flow
+        const centered = 0.5 - lfoValue;
 
         if (routing.destination === "filter_freq") {
           // Octave-based modulation: ±2 octaves at 100% amount
@@ -401,9 +406,19 @@ export function PatchBuilderModal({
             <select
               className="patch-category-select"
               value={editingPatch.category}
-              onChange={(e) =>
-                updatePatch({ category: e.target.value as PatchCategory })
-              }
+              onChange={(e) => {
+                updatePatch({ category: e.target.value as PatchCategory });
+                // Blur to allow keyboard chord playing
+                e.target.blur();
+              }}
+              onKeyDown={(e) => {
+                // Prevent letter keys from changing dropdown selection
+                // Allow only Tab, Escape, Enter, Arrow keys
+                if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>

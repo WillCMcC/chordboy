@@ -407,6 +407,21 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
     [selectCustomPatch, selectPreset]
   );
 
+  // Prevent letter keys from changing preset selection
+  // Only allow arrow keys, Enter, Escape, Tab for dropdown navigation
+  const handlePresetKeyDown = useCallback((e: React.KeyboardEvent<HTMLSelectElement>) => {
+    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+
+    // Allow these keys to pass through
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+
+    // Block all other keys (letters, numbers, etc.)
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   return (
     <div className={`synth-panel ${isExpanded ? "expanded" : ""} ${isMobile ? "mobile" : ""}`}>
       {/* Compact Top Bar */}
@@ -474,6 +489,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
               <select
                 value={isCustomPatch ? `custom:${customPatchId}` : currentPreset.id}
                 onChange={handlePresetChange}
+                onKeyDown={handlePresetKeyDown}
                 className="preset-select-compact"
               >
                 {/* Factory presets by category */}
