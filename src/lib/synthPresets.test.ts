@@ -19,12 +19,13 @@ describe("synthPresets", () => {
       expect(synthPresets.length).toBeGreaterThan(0);
     });
 
-    it("should have 7 presets", () => {
-      expect(synthPresets.length).toBe(7);
+    it("should have 27 presets", () => {
+      expect(synthPresets.length).toBe(27);
     });
 
     it("should include all expected presets by ID", () => {
       const expectedIds = [
+        // Original ChordBoy presets
         "poly-saw",
         "mellow-sine",
         "electric-piano",
@@ -32,6 +33,30 @@ describe("synthPresets", () => {
         "glass-keys",
         "smooth-bass",
         "analog-brass",
+        // Tone.js Keys presets
+        "kalimba",
+        "pianoetta",
+        "steelpan",
+        "marimba",
+        "drop-pulse",
+        "tiny",
+        // Tone.js Pad presets
+        "alien-chorus",
+        "delicate-wind",
+        "cool-guy",
+        "thin-saws",
+        // Tone.js Lead presets
+        "super-saw",
+        "brass-circuit",
+        "electric-cello",
+        "harmonics",
+        "lectric",
+        "bah",
+        // Tone.js Bass presets
+        "bassy",
+        "bass-guitar",
+        "pizz",
+        "tree-trunk",
       ];
 
       const actualIds = synthPresets.map((p) => p.id);

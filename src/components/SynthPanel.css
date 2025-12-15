@@ -131,6 +131,35 @@
   color: #8b5cf6;
 }
 
+/* Preset Navigation Buttons */
+.preset-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.preset-nav-btn:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.preset-nav-btn:active {
+  background: rgba(139, 92, 246, 0.25);
+  transform: scale(0.95);
+}
+
 /* Volume Control */
 .volume-control {
   display: flex;
@@ -346,6 +375,12 @@
     min-width: 0;
     padding: 8px 26px 8px 10px;
     font-size: 11px;
+  }
+
+  .preset-nav-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
   }
 
   .edit-patch-btn {

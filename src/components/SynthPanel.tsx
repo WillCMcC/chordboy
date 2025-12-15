@@ -403,23 +403,28 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
       } else {
         selectPreset(value);
       }
+      // Blur to return focus to main app for keyboard playing
+      e.target.blur();
     },
     [selectCustomPatch, selectPreset]
   );
 
-  // Prevent letter keys from changing preset selection
-  // Only allow arrow keys, Enter, Escape, Tab for dropdown navigation
+  // Navigate to previous/next preset
+  const navigatePreset = useCallback(
+    (direction: -1 | 1) => {
+      const currentIndex = presets.findIndex((p) => p.id === currentPreset.id);
+      const newIndex = (currentIndex + direction + presets.length) % presets.length;
+      selectPreset(presets[newIndex].id);
+    },
+    [presets, currentPreset.id, selectPreset]
+  );
+
+  // Block all keyboard events on the dropdown - let them bubble to main app
   const handlePresetKeyDown = useCallback((e: React.KeyboardEvent<HTMLSelectElement>) => {
-    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
-
-    // Allow these keys to pass through
-    if (allowedKeys.includes(e.key)) {
-      return;
-    }
-
-    // Block all other keys (letters, numbers, etc.)
+    // Block everything and blur - keyboard should control chord playing, not the dropdown
     e.preventDefault();
     e.stopPropagation();
+    e.currentTarget.blur();
   }, []);
 
   return (
@@ -485,7 +490,14 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
             {!isMobile && <div className="synth-bar-divider" />}
 
             <div className="synth-controls-row">
-              {/* Preset selector */}
+              {/* Preset navigation */}
+              <button
+                className="preset-nav-btn"
+                onClick={() => navigatePreset(-1)}
+                title="Previous preset"
+              >
+                ‹
+              </button>
               <select
                 value={isCustomPatch ? `custom:${customPatchId}` : currentPreset.id}
                 onChange={handlePresetChange}
@@ -516,8 +528,15 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
                   </optgroup>
                 )}
               </select>
+              <button
+                className="preset-nav-btn"
+                onClick={() => navigatePreset(1)}
+                title="Next preset"
+              >
+                ›
+              </button>
 
-              {/* Edit/New patch button */}
+              {/* Edit/New patch button - temporarily disabled
               <button
                 className="edit-patch-btn"
                 onClick={() => openPatchBuilder(isCustomPatch ? customPatchId : null)}
@@ -525,6 +544,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
               >
                 {isCustomPatch ? "Edit" : "+ New"}
               </button>
+              */}
 
               {/* Volume */}
               <VolumeControl volume={volume} onChange={setVolume} />
@@ -563,7 +583,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
         </div>
       )}
 
-      {/* Patch Builder Modal */}
+      {/* Patch Builder Modal - temporarily disabled
       <ErrorBoundary>
         <PatchBuilderModal
           isOpen={isPatchBuilderOpen}
@@ -580,6 +600,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
           }}
         />
       </ErrorBoundary>
+      */}
     </div>
   );
 }
