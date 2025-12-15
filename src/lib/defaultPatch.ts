@@ -23,7 +23,7 @@ const defaultOscillator: OscillatorConfig = {
   waveform: "sawtooth",
   octave: 0,
   detune: 0,
-  volume: 0.5,
+  volume: 0.25, // Keep low to avoid clipping with polyphony (8 voices x 2 oscs)
   pan: 0,
 };
 
@@ -176,7 +176,7 @@ export function createPluckyKeysPatch(): CustomPatch {
   patch.osc2.enabled = true;
   patch.osc2.waveform = "square";
   patch.osc2.octave = 1;
-  patch.osc2.volume = 0.3;
+  patch.osc2.volume = 0.15;
   patch.oscMix = 0.7;
   patch.ampEnvelope = {
     attack: 0.001,
@@ -246,7 +246,7 @@ export function createPWMLeadPatch(): CustomPatch {
   patch.osc2.enabled = true;
   patch.osc2.waveform = "sawtooth";
   patch.osc2.detune = 5;
-  patch.osc2.volume = 0.5;
+  patch.osc2.volume = 0.25;
   patch.oscMix = 0.6;
   patch.ampEnvelope = {
     attack: 0.05,

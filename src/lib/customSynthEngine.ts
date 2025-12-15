@@ -1256,11 +1256,18 @@ export class CustomSynthEngine {
 
       switch (routing.destination) {
         case "filter_freq": {
-          // Filter frequency modulation: scale to ±4000 Hz range at 100%
-          // LFO typically outputs 0-1, so center it around 0 (-0.5 to +0.5)
-          // then scale by amount and frequency range
+          // Filter frequency modulation: octave-based scaling
+          // LFO outputs 0-1, center around 0 (-0.5 to +0.5)
+          // Scale to ±2 octaves at 100% amount (multiplied by base freq)
+          // This makes modulation musically consistent regardless of cutoff position
+          const baseFreq = this.patch.filter.frequency;
           const center = new Tone.Add(-0.5);
-          const scale = new Tone.Multiply(routing.amount * 8000); // ±4000 Hz at full amount
+          // At 100% amount: ±2 octaves = freq * 4 to freq / 4
+          // We use linear approximation: offset = baseFreq * (2^(octaves) - 1)
+          // For small amounts this approximates well
+          const maxOctaves = 2 * routing.amount; // ±2 octaves at full amount
+          const maxOffset = baseFreq * (Math.pow(2, maxOctaves) - 1);
+          const scale = new Tone.Multiply(maxOffset * 2); // *2 because centered range is ±0.5
           source.connect(center);
           center.connect(scale);
           scaledSource = scale;
@@ -1749,6 +1756,56 @@ export class CustomSynthEngine {
    */
   getPatch(): CustomPatch {
     return this.patch;
+  }
+
+  /**
+   * Get current filter modulation info for visual feedback
+   * Returns the current modulated frequency offset in Hz
+   */
+  getFilterModulation(): { frequencyOffset: number; resonanceOffset: number } {
+    let frequencyOffset = 0;
+    let resonanceOffset = 0;
+
+    // Find filter_freq and filter_res routings and calculate current offsets
+    for (const routing of this.patch.modMatrix.routings) {
+      if (!routing.enabled || routing.amount === 0) continue;
+
+      // Get current LFO value (0-1)
+      let lfoValue = 0.5; // Default center
+      if (routing.source === "lfo1" && this.patch.modMatrix.lfo1.enabled) {
+        try {
+          const val = this.modManager.lfo1.getValue();
+          lfoValue = typeof val === "number" ? val : 0.5;
+        } catch {
+          lfoValue = 0.5;
+        }
+      } else if (routing.source === "lfo2" && this.patch.modMatrix.lfo2.enabled) {
+        try {
+          const val = this.modManager.lfo2.getValue();
+          lfoValue = typeof val === "number" ? val : 0.5;
+        } catch {
+          lfoValue = 0.5;
+        }
+      } else {
+        continue; // Skip non-LFO sources for now
+      }
+
+      // Center the LFO value around 0 (-0.5 to +0.5)
+      const centered = lfoValue - 0.5;
+
+      if (routing.destination === "filter_freq") {
+        // Octave-based modulation: ±2 octaves at 100% amount
+        // Convert to frequency multiplier then to Hz offset
+        const octaves = centered * routing.amount * 4; // ±2 octaves at full amount
+        const multiplier = Math.pow(2, octaves);
+        const baseFreq = this.patch.filter.frequency;
+        frequencyOffset = baseFreq * multiplier - baseFreq;
+      } else if (routing.destination === "filter_res") {
+        resonanceOffset = centered * routing.amount * 12; // ±6 Q at full amount
+      }
+    }
+
+    return { frequencyOffset, resonanceOffset };
   }
 
   /**

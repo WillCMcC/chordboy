@@ -26,6 +26,7 @@ import { ModMatrixSection } from "./ModMatrixSection";
 import { EffectsSection } from "./EffectsSection";
 import { PatchBrowser } from "./PatchBrowser";
 import { SliderControl } from "./SliderControl";
+import { GainMeter } from "./GainMeter";
 import "./PatchBuilderModal.css";
 
 type TabType = "osc" | "filter" | "env" | "mod" | "fx" | "browse";
@@ -59,6 +60,13 @@ export function PatchBuilderModal({
   // Preview synth for live audio feedback while editing
   const previewSynthRef = useRef<CustomSynthEngine | null>(null);
   const activeNotesRef = useRef<Set<number>>(new Set());
+
+  // Filter modulation for visual feedback
+  const [filterModulation, setFilterModulation] = useState<{
+    frequencyOffset: number;
+    resonanceOffset: number;
+  }>({ frequencyOffset: 0, resonanceOffset: 0 });
+  const filterModAnimationRef = useRef<number | null>(null);
 
   // Modal container ref for focus management
   const modalRef = useRef<HTMLDivElement>(null);
@@ -240,6 +248,95 @@ export function PatchBuilderModal({
     }
   }, [isOpen, editingPatch]);
 
+  // Poll filter modulation for visual feedback when on filter tab
+  // Calculate LFO values mathematically for accurate visual sync
+  useEffect(() => {
+    if (!isOpen || activeTab !== "filter" || !editingPatch) {
+      if (filterModAnimationRef.current) {
+        cancelAnimationFrame(filterModAnimationRef.current);
+        filterModAnimationRef.current = null;
+      }
+      setFilterModulation({ frequencyOffset: 0, resonanceOffset: 0 });
+      return;
+    }
+
+    const startTime = performance.now() / 1000; // Convert to seconds
+
+    const calculateModulation = () => {
+      const now = performance.now() / 1000;
+      const elapsed = now - startTime;
+
+      let frequencyOffset = 0;
+      let resonanceOffset = 0;
+
+      // Calculate modulation from active routings
+      for (const routing of editingPatch.modMatrix.routings) {
+        if (!routing.enabled || routing.amount === 0) continue;
+
+        // Get LFO value based on source
+        let lfoValue = 0.5; // Default center
+        let lfoEnabled = false;
+        let lfoFreq = 1;
+        let lfoWaveform = "sine";
+
+        if (routing.source === "lfo1" && editingPatch.modMatrix.lfo1.enabled) {
+          lfoEnabled = true;
+          lfoFreq = editingPatch.modMatrix.lfo1.frequency;
+          lfoWaveform = editingPatch.modMatrix.lfo1.waveform;
+        } else if (routing.source === "lfo2" && editingPatch.modMatrix.lfo2.enabled) {
+          lfoEnabled = true;
+          lfoFreq = editingPatch.modMatrix.lfo2.frequency;
+          lfoWaveform = editingPatch.modMatrix.lfo2.waveform;
+        }
+
+        if (!lfoEnabled) continue;
+
+        // Calculate LFO value mathematically (0-1 range)
+        const phase = (elapsed * lfoFreq) % 1;
+        switch (lfoWaveform) {
+          case "sine":
+            lfoValue = (Math.sin(phase * Math.PI * 2) + 1) / 2;
+            break;
+          case "triangle":
+            lfoValue = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+            break;
+          case "sawtooth":
+            lfoValue = phase;
+            break;
+          case "square":
+            lfoValue = phase < 0.5 ? 1 : 0;
+            break;
+          default:
+            lfoValue = (Math.sin(phase * Math.PI * 2) + 1) / 2;
+        }
+
+        // Center around 0 (-0.5 to +0.5)
+        const centered = lfoValue - 0.5;
+
+        if (routing.destination === "filter_freq") {
+          // Octave-based modulation: ±2 octaves at 100% amount
+          const octaves = centered * routing.amount * 4;
+          const multiplier = Math.pow(2, octaves);
+          const baseFreq = editingPatch.filter.frequency;
+          frequencyOffset = baseFreq * multiplier - baseFreq;
+        } else if (routing.destination === "filter_res") {
+          resonanceOffset = centered * routing.amount * 12;
+        }
+      }
+
+      setFilterModulation({ frequencyOffset, resonanceOffset });
+      filterModAnimationRef.current = requestAnimationFrame(calculateModulation);
+    };
+
+    filterModAnimationRef.current = requestAnimationFrame(calculateModulation);
+
+    return () => {
+      if (filterModAnimationRef.current) {
+        cancelAnimationFrame(filterModAnimationRef.current);
+      }
+    };
+  }, [isOpen, activeTab, editingPatch]);
+
   // Handle overlay click
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -315,6 +412,7 @@ export function PatchBuilderModal({
               ))}
             </select>
           </div>
+          <GainMeter compact />
           <div className="patch-builder-actions">
             <button
               className="patch-action-button save-button"
@@ -405,6 +503,7 @@ export function PatchBuilderModal({
               <FilterSection
                 filter={editingPatch.filter}
                 onChange={(filter) => updatePatch({ filter })}
+                modulation={filterModulation}
               />
             </div>
           )}

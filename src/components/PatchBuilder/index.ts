@@ -9,6 +9,7 @@ export { SliderControl } from './SliderControl';
 export { DropdownControl } from './DropdownControl';
 export type { DropdownOption } from './DropdownControl';
 export { SectionHeader } from './SectionHeader';
+export { GainMeter } from './GainMeter';
 
 // Section components
 export { OscillatorSection } from './OscillatorSection';

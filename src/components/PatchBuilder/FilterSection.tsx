@@ -12,6 +12,11 @@ import "./sections.css";
 interface FilterSectionProps {
   filter: FilterConfig;
   onChange: (filter: FilterConfig) => void;
+  /** Current LFO modulation offset for visual feedback */
+  modulation?: {
+    frequencyOffset: number;
+    resonanceOffset: number;
+  };
 }
 
 // Filter type icons (SVG paths)
@@ -119,11 +124,16 @@ function getFilterResponse(
   return Math.max(-60, Math.min(12, db));
 }
 
-export function FilterSection({ filter, onChange }: FilterSectionProps) {
+export function FilterSection({ filter, onChange, modulation }: FilterSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 400, height: 150 });
+
+  // Calculate modulated frequency
+  const modulatedFreq = filter.frequency + (modulation?.frequencyOffset ?? 0);
+  const clampedModFreq = Math.max(20, Math.min(20000, modulatedFreq));
+  const hasModulation = modulation && Math.abs(modulation.frequencyOffset) > 1;
 
   // Resize observer for responsive canvas
   useEffect(() => {
@@ -192,13 +202,42 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
     ctx.lineTo(width, zeroDbY);
     ctx.stroke();
 
-    // Draw filter response curve
+    const dbRange = 60; // -48dB to +12dB
+    const dbOffset = 12; // 12dB at top
+
+    // Draw modulated filter response curve (ghost) if modulation is active
+    if (hasModulation && filter.enabled) {
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(34, 211, 238, 0.4)"; // Cyan ghost
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+
+      for (let x = 0; x <= width; x++) {
+        const freq = xToFreq(x, width);
+        const db = getFilterResponse(
+          freq,
+          clampedModFreq,
+          filter.resonance,
+          filter.type,
+          filter.rolloff
+        );
+
+        const y = ((dbOffset - db) / dbRange) * height;
+
+        if (x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw base filter response curve
     ctx.beginPath();
     ctx.strokeStyle = filter.enabled ? "#f97316" : "rgba(249, 115, 22, 0.3)";
     ctx.lineWidth = 2;
-
-    const dbRange = 60; // -48dB to +12dB
-    const dbOffset = 12; // 12dB at top
 
     for (let x = 0; x <= width; x++) {
       const freq = xToFreq(x, width);
@@ -230,7 +269,7 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
       : "rgba(249, 115, 22, 0.05)";
     ctx.fill();
 
-    // Draw control point
+    // Draw control point (base position)
     const pointX = freqToX(filter.frequency, width);
     const pointDb = getFilterResponse(
       filter.frequency,
@@ -253,7 +292,40 @@ export function FilterSection({ filter, onChange }: FilterSectionProps) {
     ctx.arc(pointX, pointY, 4, 0, Math.PI * 2);
     ctx.fillStyle = filter.enabled ? "#f97316" : "rgba(249, 115, 22, 0.5)";
     ctx.fill();
-  }, [filter, canvasSize, isDragging]);
+
+    // Draw modulated control point (animated ghost) if modulation is active
+    if (hasModulation && filter.enabled) {
+      const modPointX = freqToX(clampedModFreq, width);
+      const modPointDb = getFilterResponse(
+        clampedModFreq,
+        clampedModFreq,
+        filter.resonance,
+        filter.type,
+        filter.rolloff
+      );
+      const modPointY = ((dbOffset - modPointDb) / dbRange) * height;
+
+      // Connecting line from base to modulated
+      ctx.beginPath();
+      ctx.moveTo(pointX, pointY);
+      ctx.lineTo(modPointX, modPointY);
+      ctx.strokeStyle = "rgba(34, 211, 238, 0.3)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Modulated point (cyan)
+      ctx.beginPath();
+      ctx.arc(modPointX, modPointY, 8, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(34, 211, 238, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(modPointX, modPointY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#22d3ee";
+      ctx.fill();
+    }
+  }, [filter, canvasSize, isDragging, hasModulation, clampedModFreq]);
 
   // Throttle helper for smoother filter updates
   const throttledOnChange = useMemo(() => {
