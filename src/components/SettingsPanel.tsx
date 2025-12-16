@@ -7,6 +7,7 @@
 
 import type { ChangeEvent } from "react";
 import { MIDIStatus } from "./MIDIStatus";
+import { useMIDI } from "../hooks/useMIDI";
 import "./SettingsPanel.css";
 
 // Declare build timestamp as a global (set by Vite)
@@ -45,10 +46,16 @@ export function SettingsPanel({
   wakeLockActive,
   onWakeLockChange,
 }: SettingsPanelProps) {
+  const { lowLatencyMode, setLowLatencyMode, bleConnected } = useMIDI();
+
   if (!isOpen) return null;
 
   const handleWakeLockChange = (e: ChangeEvent<HTMLInputElement>): void => {
     onWakeLockChange(e.target.checked);
+  };
+
+  const handleLowLatencyChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setLowLatencyMode(e.target.checked);
   };
 
   return (
@@ -64,6 +71,28 @@ export function SettingsPanel({
           <div className="settings-section">
             <h3>MIDI Interface</h3>
             <MIDIStatus />
+          </div>
+          <div className="settings-section">
+            <h3>Performance</h3>
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={lowLatencyMode}
+                onChange={handleLowLatencyChange}
+              />
+              <span className="toggle-label">
+                Low latency mode
+                {lowLatencyMode && bleConnected && (
+                  <span className="toggle-status inactive"> (BLE may be unreliable)</span>
+                )}
+              </span>
+            </label>
+            <p className="settings-description">
+              Minimizes grace note delay for tighter timing when playing along with other instruments.
+              {bleConnected
+                ? " Warning: May cause missed notes or unreliable re-articulation over Bluetooth MIDI."
+                : " Recommended for USB MIDI connections."}
+            </p>
           </div>
           {wakeLockSupported && (
             <div className="settings-section">

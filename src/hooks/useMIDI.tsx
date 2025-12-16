@@ -17,6 +17,7 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
+import { usePersistentState } from "./usePersistence";
 import { appEvents } from "../lib/eventBus";
 import { useEventSubscription } from "./useEventSubscription";
 import {
@@ -55,12 +56,13 @@ import { useMIDIExpression } from "./useMIDIExpression";
 import { useBLEMidi } from "./useBLEMidi";
 
 /**
- * Delay for grace notes - balances responsiveness with BLE reliability.
- * Too short (<10ms): BLE may not perceive the gap, notes won't rearticulate clearly
- * Too long (>50ms): Feels sluggish for rapid jamming
- * 20ms is the sweet spot for BLE MIDI latency characteristics
+ * Grace note delays - different for BLE vs USB MIDI connections.
+ * BLE needs longer gaps for reliable note re-articulation due to connection interval latency.
+ * USB MIDI can use minimal delay since the transport is much faster.
  */
-const GRACE_NOTE_DELAY_MS = 20;
+const GRACE_NOTE_DELAY_BLE_MS = 20; // BLE needs this for reliable re-articulation
+const GRACE_NOTE_DELAY_USB_MS = 5;  // USB MIDI is fast, minimal gap needed
+const GRACE_NOTE_DELAY_LOW_LATENCY_MS = 2; // Absolute minimum for performance mode
 
 /** Check if MIDI output should be enabled based on audio mode setting */
 function isMidiOutputEnabled(): boolean {
@@ -100,6 +102,7 @@ export interface MIDIContextValue {
   strumDirection: StrumDirection;
   triggerMode: TriggerMode;
   glideTime: number;
+  lowLatencyMode: boolean;
 
   // BLE State
   bleSupported: boolean;
@@ -130,6 +133,7 @@ export interface MIDIContextValue {
   setStrumDirection: Dispatch<SetStateAction<StrumDirection>>;
   setTriggerMode: Dispatch<SetStateAction<TriggerMode>>;
   setGlideTime: Dispatch<SetStateAction<number>>;
+  setLowLatencyMode: Dispatch<SetStateAction<boolean>>;
 
   // MIDI Clock functions
   sendMIDIClock: () => void;
@@ -180,6 +184,13 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
 
   // Glide time for pitch bend transitions (when triggerMode === "glide")
   const [glideTime, setGlideTime] = useState<number>(100); // ms
+
+  // Low latency mode - minimizes grace note delays for tighter timing
+  // Tradeoff: may cause issues with BLE MIDI reliability
+  const [lowLatencyMode, setLowLatencyMode] = usePersistentState<boolean>(
+    "chordboy-low-latency-mode",
+    false
+  );
 
   // Currently playing notes
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
@@ -471,7 +482,17 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
       sendBLEChordOff(ble.bleCharacteristic, channel, event.notes);
     }
 
-    // 3. Schedule note-ons with single timeout, BLE batched
+    // 3. Determine appropriate grace note delay based on connection type and latency mode
+    // Low latency mode: absolute minimum delay for performance (may affect BLE reliability)
+    // BLE: needs longer gap for reliable re-articulation due to connection interval
+    // USB: can use minimal delay since transport is fast
+    const graceNoteDelay = lowLatencyMode
+      ? GRACE_NOTE_DELAY_LOW_LATENCY_MS
+      : ble.bleConnected
+        ? GRACE_NOTE_DELAY_BLE_MS
+        : GRACE_NOTE_DELAY_USB_MS;
+
+    // 4. Schedule note-ons with adaptive timeout, BLE batched
     const timeout = setTimeout(() => {
       // Clear timeout refs for all notes
       event.notes.forEach((note) => {
@@ -485,7 +506,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
       if (ble.bleConnected && ble.bleCharacteristic) {
         sendBLEChordOn(ble.bleCharacteristic, channel, event.notes, graceVelocity);
       }
-    }, GRACE_NOTE_DELAY_MS);
+    }, graceNoteDelay);
 
     // Store same timeout ref for all notes (allows cancellation if any note is re-tapped)
     event.notes.forEach((note) => {
@@ -563,6 +584,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     strumDirection,
     triggerMode,
     glideTime,
+    lowLatencyMode,
 
     // BLE State
     bleSupported: ble.bleSupported,
@@ -593,6 +615,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     setStrumDirection,
     setTriggerMode,
     setGlideTime,
+    setLowLatencyMode,
 
     // MIDI Clock functions
     sendMIDIClock: () => selectedOutput && sendMIDIClock(selectedOutput),
