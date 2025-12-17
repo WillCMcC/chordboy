@@ -11,8 +11,8 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 55vh;
-  height: 55dvh; /* Dynamic viewport - accounts for URL bar */
+  height: 50vh;
+  height: 50dvh; /* Dynamic viewport - accounts for URL bar */
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;

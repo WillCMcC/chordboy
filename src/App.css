@@ -749,7 +749,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(55dvh + 8px);
+  bottom: calc(50dvh + 8px);
   z-index: 110;
   padding: 10px 24px;
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
