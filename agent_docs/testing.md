@@ -15,85 +15,69 @@ Located alongside source files with `.test.ts` suffix:
 
 ```
 src/lib/
-  chordTheory.test.ts
-  chordBuilder.test.ts
-  chordNamer.test.ts
-  chordSolver.test.ts
-  voicingTransforms.test.ts
-  keyboardMappings.test.ts
-  parseKeys.test.ts
-  pianoLayout.test.ts
-  sequencerLogic.test.ts
-  tutorialLogic.test.ts
-  midi.test.ts
-  bleMidi.test.ts
-  eventBus.test.ts
+  chordTheory.test.ts      # Interval calculations
+  chordBuilder.test.ts     # Chord building from root + modifiers
+  chordNamer.test.ts       # Chord naming/display
+  chordSolver.test.ts      # Voice leading solver
+  voicingTransforms.test.ts # Voicing transforms
+  jazzVoicings.test.ts     # Jazz voicing patterns
+  keyboardMappings.test.ts # Keyboard mappings
+  parseKeys.test.ts        # Key parsing
+  pianoLayout.test.ts      # Piano layout calculations
+  sequencerLogic.test.ts   # Sequencer step logic
+  tutorialLogic.test.ts    # Tutorial conditions
+  midi.test.ts             # MIDI protocol functions
+  bleMidi.test.ts          # BLE MIDI protocol
+  eventBus.test.ts         # Event bus pub/sub
+  humanize.test.ts         # Note timing humanization
+  strum.test.ts            # Strum/arpeggio logic
+  noteColors.test.ts       # Piano key coloring
+  dbUtils.test.ts          # IndexedDB utilities
+  presetStorage.test.ts    # Preset persistence
+  sequencerStorage.test.ts # Sequencer persistence
+  patchStorage.test.ts     # Custom patch persistence
+  patchValidation.test.ts  # Patch schema validation
+  customSynthEngine.test.ts # Synthesis engine
+  effects.test.ts          # Audio effects
+  modulation.test.ts       # LFO/modulation routing
+  synthPresets.test.ts     # Factory presets
+  integration.test.ts      # Cross-module integration
 
 src/hooks/
-  useChordEngine.test.ts
-  usePresets.test.ts
+  useChordEngine.test.ts   # Chord engine hook
+  usePresets.test.ts       # Presets hook
+  useKeyboard.test.ts      # Keyboard input hook
+  useVoicingKeyboard.test.ts # Voicing controls
+  useGraceNotes.test.ts    # Grace note re-articulation
 ```
 
 ## Test Patterns
 
-Using Vitest. Common patterns in this codebase:
+Using Vitest. See any existing test file for patterns. Example:
 
 ```typescript
 import { describe, it, expect } from "vitest";
+import { functionName } from "./moduleName";
 
 describe("functionName", () => {
   it("should handle normal case", () => {
     expect(functionName(input)).toEqual(expected);
-  });
-
-  it("should handle edge case", () => {
-    expect(functionName(null)).toBeNull();
   });
 });
 ```
 
 ## What's Tested
 
-**Core chord logic:**
-- Interval calculations (chordTheory)
-- Chord building from root + modifiers (chordBuilder)
-- Chord naming/display (chordNamer)
-- Voice leading solver (chordSolver)
-- Voicing transforms (voicingTransforms)
-- Keyboard mappings (keyboardMappings)
-- Key parsing (parseKeys)
+**Core chord logic:** intervals, chord building, naming, voice leading, voicing transforms, keyboard mappings
 
-**Infrastructure:**
-- Event bus pub/sub (eventBus)
-- MIDI protocol functions (midi)
-- BLE MIDI protocol (bleMidi)
-- Piano layout calculations (pianoLayout)
+**Synthesis:** custom synth engine, effects chain, modulation routing, patch validation
 
-**App logic:**
-- Sequencer step logic (sequencerLogic)
-- Tutorial conditions (tutorialLogic)
-- Chord engine hook (useChordEngine)
-- Presets hook (usePresets)
+**Infrastructure:** event bus, MIDI protocol, BLE MIDI, humanization, strum
 
-**Not tested (UI/integration):**
-- React components
-- MIDI I/O hardware interaction
-- BLE device connection
+**Persistence:** IndexedDB storage for presets, sequencer, patches
+
+**Not tested (UI/integration):** React components, MIDI hardware I/O, BLE device connection
 
 ## Adding Tests
 
-For pure functions in `src/lib/`, add corresponding `.test.ts` file:
-
-```typescript
-// src/lib/newFeature.test.ts
-import { describe, it, expect } from "vitest";
-import { newFunction } from "./newFeature";
-
-describe("newFunction", () => {
-  it("should do the thing", () => {
-    expect(newFunction("input")).toBe("expected");
-  });
-});
-```
-
-Run `npm run test:run` to verify.
+For pure functions in `src/lib/`, add corresponding `.test.ts` file. Run `npm run test:run` to verify.

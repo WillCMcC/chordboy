@@ -125,7 +125,7 @@ function ADSREnvelope({
     ctx.stroke();
 
     // Draw control points
-    const drawPoint = (x: number, y: number, isActive: boolean, _label: string) => {
+    const drawPoint = (x: number, y: number, isActive: boolean) => {
       ctx.beginPath();
       ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2);
       ctx.fillStyle = isActive ? "#c4b5fd" : "#8b5cf6";
@@ -135,10 +135,10 @@ function ADSREnvelope({
       ctx.stroke();
     };
 
-    drawPoint(points.attack.x, points.attack.y, dragging === "attack", "A");
-    drawPoint(points.decay.x, points.decay.y, dragging === "decay", "D");
-    drawPoint(points.sustain.x, points.sustain.y, dragging === "sustain", "S");
-    drawPoint(points.release.x, points.release.y, dragging === "release", "R");
+    drawPoint(points.attack.x, points.attack.y, dragging === "attack");
+    drawPoint(points.decay.x, points.decay.y, dragging === "decay");
+    drawPoint(points.sustain.x, points.sustain.y, dragging === "sustain");
+    drawPoint(points.release.x, points.release.y, dragging === "release");
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }, [dimensions, getPoints, dragging]);
@@ -536,16 +536,6 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
                 ›
               </button>
 
-              {/* Edit/New patch button - temporarily disabled
-              <button
-                className="edit-patch-btn"
-                onClick={() => openPatchBuilder(isCustomPatch ? customPatchId : null)}
-                title={isCustomPatch ? "Edit patch" : "Create custom patch"}
-              >
-                {isCustomPatch ? "Edit" : "+ New"}
-              </button>
-              */}
-
               {/* Volume */}
               <VolumeControl volume={volume} onChange={setVolume} />
 
@@ -582,25 +572,6 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
           <span className="pull-bar" />
         </div>
       )}
-
-      {/* Patch Builder Modal - temporarily disabled
-      <ErrorBoundary>
-        <PatchBuilderModal
-          isOpen={isPatchBuilderOpen}
-          onClose={closePatchBuilder}
-          patchId={editingPatchId}
-          onSave={(patch) => {
-            if (!validatePatch(patch)) {
-              console.error('Invalid patch, cannot save');
-              return;
-            }
-            customPatches.savePatch(patch);
-            selectCustomPatch(patch.id);
-            closePatchBuilder();
-          }}
-        />
-      </ErrorBoundary>
-      */}
     </div>
   );
 }
