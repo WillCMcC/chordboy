@@ -100,7 +100,7 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
         button.removeEventListener("touchstart", handler);
       });
     };
-  }, [notes?.length, emitGraceNote]);
+  }, [notes, emitGraceNote]);
 
   // Set up non-passive touch listener on ALL button
   useEffect(() => {
