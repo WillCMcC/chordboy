@@ -312,6 +312,7 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
             inversionIndex: solved.inversionIndex,
             droppedNotes: solved.droppedNotes,
             spreadAmount: solved.spreadAmount,
+            voicingStyle: solved.voicingStyle,
           });
         });
         return newPresets;

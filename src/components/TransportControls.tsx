@@ -1,7 +1,13 @@
 import { useCallback, useState } from "react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import type { ChangeEvent } from "react";
 import type { StrumDirection, MIDIInputInfoDisplay } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
+import {
+  MIDIControls,
+  HumanizeControls,
+  StrumControls,
+  TriggerModeSelector,
+} from "./transport";
 import "./TransportControls.css";
 
 /** Mobile tab identifiers */
@@ -133,35 +139,6 @@ export function TransportControls({
     [bpm, onBpmChange]
   );
 
-  // Handle humanize slider
-  const handleHumanizeChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
-      onHumanizeChange(parseInt(e.target.value, 10));
-    },
-    [onHumanizeChange]
-  );
-
-  // Handle strum toggle
-  const handleStrumToggle = useCallback((): void => {
-    onStrumEnabledChange(!strumEnabled);
-  }, [strumEnabled, onStrumEnabledChange]);
-
-  // Handle strum spread slider
-  const handleStrumSpreadChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
-      onStrumSpreadChange(parseInt(e.target.value, 10));
-    },
-    [onStrumSpreadChange]
-  );
-
-  // Handle strum direction change
-  const handleStrumDirectionChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>): void => {
-      onStrumDirectionChange(e.target.value as StrumDirection);
-    },
-    [onStrumDirectionChange]
-  );
-
   // Cycle strum direction (for mobile tap)
   const cycleStrumDirection = useCallback((): void => {
     const directions: StrumDirection[] = ["up", "down", "alternate"];
@@ -170,50 +147,15 @@ export function TransportControls({
     onStrumDirectionChange(directions[nextIndex]);
   }, [strumDirection, onStrumDirectionChange]);
 
-  // Handle trigger mode - cycle through new -> all -> glide
-  const cycleTriggerMode = useCallback((): void => {
-    const modes: TriggerMode[] = ["new", "all", "glide"];
-    const currentIndex = modes.indexOf(triggerMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    onTriggerModeChange(modes[nextIndex]);
-  }, [triggerMode, onTriggerModeChange]);
-
-  // Handle glide time slider
-  const handleGlideTimeChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
-      onGlideTimeChange(parseInt(e.target.value, 10));
-    },
-    [onGlideTimeChange]
-  );
-
-  // Trigger mode display helper
-  const getTriggerLabel = (mode: TriggerMode): string => {
-    switch (mode) {
-      case "new": return "New";
-      case "all": return "All";
-      case "glide": return "Glide";
-      default: return mode;
+  // Direction display helper (for mobile)
+  const getDirectionLabel = (dir: StrumDirection): string => {
+    switch (dir) {
+      case "up": return "^";
+      case "down": return "v";
+      case "alternate": return "^v";
+      default: return dir;
     }
   };
-
-  // Handle MIDI input selection
-  const handleInputChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>): void => {
-      const value = e.target.value;
-      onSelectInput(value || null);
-    },
-    [onSelectInput]
-  );
-
-  // Prevent letter keys from changing dropdown selections
-  const handleDropdownKeyDown = useCallback((e: KeyboardEvent<HTMLSelectElement>) => {
-    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
-    if (allowedKeys.includes(e.key)) {
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
 
   // Handle sync toggle - also select first input if none selected
   const handleSyncToggle = useCallback((): void => {
@@ -231,16 +173,6 @@ export function TransportControls({
     }
   }, [syncEnabled, onSyncEnabledChange, selectedInputId, bleSyncEnabled, bleConnected, midiInputs, onSelectInput]);
 
-  // Direction display helper
-  const getDirectionLabel = (dir: StrumDirection): string => {
-    switch (dir) {
-      case "up": return "^";
-      case "down": return "v";
-      case "alternate": return "^v";
-      default: return dir;
-    }
-  };
-
   return (
     <div className="transport-controls">
       {/* Desktop Layout */}
@@ -248,17 +180,10 @@ export function TransportControls({
         {/* Humanize Section */}
         <div className="transport-section humanize-section">
           <label className="transport-label">Human</label>
-          <div className="humanize-dial">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={humanize}
-              onChange={handleHumanizeChange}
-              className="humanize-slider"
-            />
-            <span className="humanize-value">{humanize}%</span>
-          </div>
+          <HumanizeControls
+            humanize={humanize}
+            onHumanizeChange={onHumanizeChange}
+          />
         </div>
 
         {/* Divider */}
@@ -267,36 +192,14 @@ export function TransportControls({
         {/* Strum Section */}
         <div className="transport-section strum-section">
           <label className="transport-label">Strum</label>
-          <div className="strum-controls">
-            <button
-              className={`strum-toggle ${strumEnabled ? "active" : ""}`}
-              onClick={handleStrumToggle}
-              aria-label={strumEnabled ? "Disable strum" : "Enable strum"}
-            >
-              {strumEnabled ? "ON" : "OFF"}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="200"
-              value={strumSpread}
-              onChange={handleStrumSpreadChange}
-              className={`strum-slider ${!strumEnabled ? "disabled" : ""}`}
-              disabled={!strumEnabled}
-            />
-            <span className={`strum-value ${!strumEnabled ? "disabled" : ""}`}>{strumSpread}ms</span>
-            <select
-              className={`strum-direction-select ${!strumEnabled ? "disabled" : ""}`}
-              value={strumDirection}
-              onChange={handleStrumDirectionChange}
-              onKeyDown={handleDropdownKeyDown}
-              disabled={!strumEnabled}
-            >
-              <option value="up">Up</option>
-              <option value="down">Down</option>
-              <option value="alternate">Alt</option>
-            </select>
-          </div>
+          <StrumControls
+            strumEnabled={strumEnabled}
+            strumSpread={strumSpread}
+            strumDirection={strumDirection}
+            onStrumEnabledChange={onStrumEnabledChange}
+            onStrumSpreadChange={onStrumSpreadChange}
+            onStrumDirectionChange={onStrumDirectionChange}
+          />
         </div>
 
         {/* Divider */}
@@ -305,32 +208,12 @@ export function TransportControls({
         {/* Trigger Mode Section */}
         <div className="transport-section articulation-section">
           <label className="transport-label">Trigger</label>
-          <div className="articulation-controls">
-            <button
-              className={`trigger-mode-btn trigger-${triggerMode}`}
-              onClick={cycleTriggerMode}
-              title={
-                triggerMode === "new" ? "Only new notes trigger" :
-                triggerMode === "all" ? "All notes retrigger" :
-                "Pitch bend glide between chords"
-              }
-            >
-              {getTriggerLabel(triggerMode)}
-            </button>
-            {triggerMode === "glide" && (
-              <>
-                <input
-                  type="range"
-                  min="20"
-                  max="500"
-                  value={glideTime}
-                  onChange={handleGlideTimeChange}
-                  className="glide-slider"
-                />
-                <span className="glide-value">{glideTime}ms</span>
-              </>
-            )}
-          </div>
+          <TriggerModeSelector
+            triggerMode={triggerMode}
+            onTriggerModeChange={onTriggerModeChange}
+            glideTime={glideTime}
+            onGlideTimeChange={onGlideTimeChange}
+          />
         </div>
 
         {/* Divider */}
@@ -419,29 +302,15 @@ export function TransportControls({
             >
               {syncEnabled ? "ON" : "OFF"}
             </button>
-            {syncEnabled && (midiInputs.length > 0 || bleConnected) && (
-              <select
-                className="midi-input-select"
-                value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
-                onChange={handleInputChange}
-                onKeyDown={handleDropdownKeyDown}
-              >
-                <option value="">Select input...</option>
-                {bleConnected && (
-                  <option value="ble">
-                    {bleDevice?.name || "Bluetooth MIDI"}
-                  </option>
-                )}
-                {midiInputs.map((input) => (
-                  <option key={input.id} value={input.id}>
-                    {input.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {syncEnabled && midiInputs.length === 0 && !bleConnected && (
-              <span className="no-inputs">No MIDI inputs</span>
-            )}
+            <MIDIControls
+              midiInputs={midiInputs}
+              selectedInputId={selectedInputId}
+              onSelectInput={onSelectInput}
+              bleConnected={bleConnected}
+              bleDevice={bleDevice}
+              bleSyncEnabled={bleSyncEnabled}
+              syncEnabled={syncEnabled}
+            />
           </div>
         </div>
 
@@ -564,7 +433,7 @@ export function TransportControls({
                 <div className="feel-control-inline strum-control">
                   <button
                     className={`feel-toggle-btn ${strumEnabled ? "active" : ""}`}
-                    onClick={handleStrumToggle}
+                    onClick={() => onStrumEnabledChange(!strumEnabled)}
                   >
                     Strum
                   </button>
@@ -641,8 +510,14 @@ export function TransportControls({
                 <select
                   className="mobile-sync-select"
                   value={bleSyncEnabled ? "ble" : (selectedInputId || "")}
-                  onChange={handleInputChange}
-                  onKeyDown={handleDropdownKeyDown}
+                  onChange={(e) => onSelectInput(e.target.value || null)}
+                  onKeyDown={(e) => {
+                    const allowedKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', ' '];
+                    if (!allowedKeys.includes(e.key)) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                 >
                   <option value="">Select input...</option>
                   {bleConnected && (

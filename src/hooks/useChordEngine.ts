@@ -13,14 +13,14 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Dispatch, SetStateAction } from "react";
 import { parseKeys } from "../lib/parseKeys";
-import { buildChord, invertChord } from "../lib/chordBuilder";
-import { getChordName } from "../lib/chordNamer";
-import { applySpread, applyVoicingStyle } from "../lib/voicingTransforms";
 import { usePresets } from "./usePresets";
 import { useVoicingKeyboard } from "./useVoicingKeyboard";
+import { useChordBuilder } from "./useChordBuilder";
+import { useVoicingControls } from "./useVoicingControls";
+import { useOctaveControls } from "./useOctaveControls";
+import { usePresetActions } from "./usePresetActions";
 import { appEvents } from "../lib/eventBus";
 import type { Chord, MIDINote, Octave, Preset, ParsedKeys, VoicingStyle } from "../types";
-import { VOICING_STYLES } from "../types";
 
 /** Options for useChordEngine */
 export interface UseChordEngineOptions {
@@ -156,56 +156,20 @@ export function useChordEngine(
     return parseKeys(keysToUse);
   }, [pressedKeys, recalledKeys]);
 
-  /**
-   * Build the base chord from parsed keys.
-   */
-  const baseChord = useMemo((): Chord | null => {
-    if (!parsedKeys.root) return null;
-
-    const activeOctave = recalledOctave !== null ? recalledOctave : octave;
-    return buildChord(parsedKeys.root, parsedKeys.modifiers, {
-      octave: activeOctave,
-    });
-  }, [parsedKeys.root, parsedKeys.modifiers, octave, recalledOctave]);
-
-  /**
-   * Apply voicing transforms to the base chord.
-   * Uses recalled values when a preset is active, otherwise uses global values.
-   *
-   * Transform order: voicingStyle -> spread -> inversion
-   */
-  const currentChord = useMemo((): VoicedChord | null => {
-    if (!baseChord) return null;
-
-    // Use recalled values if preset is active, otherwise use global values
-    const activeInversion = recalledInversion !== null ? recalledInversion : inversionIndex;
-    const activeDrop = recalledDrop !== null ? recalledDrop : droppedNotes;
-    const activeSpread = recalledSpread !== null ? recalledSpread : spreadAmount;
-    const activeVoicingStyle = recalledVoicingStyle !== null ? recalledVoicingStyle : voicingStyle;
-
-    // Apply voicing style first (this is the main jazz voicing transform)
-    let notes = applyVoicingStyle(baseChord, activeVoicingStyle);
-
-    // Apply spread (can be used on top of any voicing style)
-    if (activeSpread > 0) {
-      notes = applySpread(notes, activeSpread);
-    }
-
-    // Apply inversion last
-    notes = invertChord(notes, activeInversion);
-
-    const chordName = getChordName(baseChord.root, baseChord.modifiers);
-
-    return {
-      ...baseChord,
-      notes,
-      name: chordName,
-      inversion: activeInversion,
-      droppedNotes: activeDrop,
-      spreadAmount: activeSpread,
-      voicingStyle: activeVoicingStyle,
-    };
-  }, [baseChord, inversionIndex, droppedNotes, spreadAmount, voicingStyle, recalledInversion, recalledDrop, recalledSpread, recalledVoicingStyle]);
+  // Use chord builder hook to build and transform chords
+  const { currentChord } = useChordBuilder({
+    parsedKeys,
+    octave,
+    recalledOctave,
+    inversionIndex,
+    recalledInversion,
+    droppedNotes,
+    recalledDrop,
+    spreadAmount,
+    recalledSpread,
+    voicingStyle,
+    recalledVoicingStyle,
+  });
 
   // Track previous chord to detect changes and emit events
   const prevChordRef = useRef<VoicedChord | null>(null);
@@ -276,12 +240,58 @@ export function useChordEngine(
     findNextAvailableSlot,
   });
 
-  /**
-   * Track if recalledKeys was just set (by sequencer or preset recall).
-   * This prevents clearing a preset that was just triggered.
-   * Set synchronously in recallPresetFromSlot, cleared via microtask.
-   */
-  const recalledKeysJustSetRef = useRef<boolean>(false);
+  // Use preset actions hook for save/recall/solve functionality
+  const {
+    saveCurrentChordToSlot,
+    recallPresetFromSlot,
+    stopRecallingPreset,
+    solvePresets,
+    getChordNotesFromPreset,
+    recalledKeysJustSetRef,
+  } = usePresetActions({
+    pressedKeys,
+    recalledKeys,
+    octave,
+    inversionIndex,
+    droppedNotes,
+    spreadAmount,
+    voicingStyle,
+    savedPresets,
+    savePreset,
+    recallPreset,
+    stopRecalling,
+    solvePresetVoicings,
+  });
+
+  // Use voicing controls hook for cycle functions
+  const { cycleInversion, cycleDrop, cycleSpread, cycleVoicingStyle } = useVoicingControls({
+    currentChord,
+    inversionIndex,
+    droppedNotes,
+    spreadAmount,
+    voicingStyle,
+    activePresetSlot,
+    savedPresets,
+    setInversionIndex,
+    setDroppedNotes,
+    setSpreadAmount,
+    setVoicingStyle,
+    setRecalledInversion,
+    setRecalledDrop,
+    setRecalledSpread,
+    setRecalledVoicingStyle,
+    updatePresetVoicing,
+  });
+
+  // Use octave controls hook for octave functions
+  const { increaseOctave, decreaseOctave, resetOctave, changeOctave } = useOctaveControls({
+    octave,
+    activePresetSlot,
+    savedPresets,
+    setOctave,
+    setRecalledOctave,
+    updatePresetVoicing,
+  });
 
   /**
    * Track previous parsedKeys.root to detect chord changes.
@@ -357,240 +367,6 @@ export function useChordEngine(
     clearRecalledState,
     resetVoicing,
   ]);
-
-  /**
-   * Helper to update voicing on the active preset.
-   */
-  const updateActivePresetVoicing = useCallback(
-    (updates: { octave?: Octave; inversionIndex?: number; droppedNotes?: number; spreadAmount?: number; voicingStyle?: VoicingStyle }): void => {
-      if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-        updatePresetVoicing(activePresetSlot, updates);
-      }
-    },
-    [activePresetSlot, savedPresets, updatePresetVoicing]
-  );
-
-  /**
-   * Cycle to the next inversion. Updates recalled value if preset active, else global.
-   */
-  const cycleInversion = useCallback((): void => {
-    if (!currentChord?.notes) return;
-    const maxInversions = currentChord.notes.length;
-
-    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-      setRecalledInversion((prev) => {
-        const current = prev !== null ? prev : inversionIndex;
-        const newInversion = (current + 1) % maxInversions;
-        updateActivePresetVoicing({ inversionIndex: newInversion });
-        return newInversion;
-      });
-    } else {
-      setInversionIndex((prev) => (prev + 1) % maxInversions);
-    }
-  }, [currentChord, activePresetSlot, savedPresets, inversionIndex, updateActivePresetVoicing, setRecalledInversion]);
-
-  /**
-   * Cycle to the next drop voicing. Updates recalled value if preset active, else global.
-   */
-  const cycleDrop = useCallback((): void => {
-    if (!currentChord?.notes) return;
-    const maxDrops = currentChord.notes.length - 1;
-
-    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-      setRecalledDrop((prev) => {
-        const current = prev !== null ? prev : droppedNotes;
-        const newDropped = (current + 1) % (maxDrops + 1);
-        updateActivePresetVoicing({ droppedNotes: newDropped });
-        return newDropped;
-      });
-    } else {
-      setDroppedNotes((prev) => (prev + 1) % (maxDrops + 1));
-    }
-  }, [currentChord, activePresetSlot, savedPresets, droppedNotes, updateActivePresetVoicing, setRecalledDrop]);
-
-  /**
-   * Cycle to the next spread amount. Updates recalled value if preset active, else global.
-   */
-  const cycleSpread = useCallback((): void => {
-    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-      setRecalledSpread((prev) => {
-        const current = prev !== null ? prev : spreadAmount;
-        const newSpread = (current + 1) % 4;
-        updateActivePresetVoicing({ spreadAmount: newSpread });
-        return newSpread;
-      });
-    } else {
-      setSpreadAmount((prev) => (prev + 1) % 4);
-    }
-  }, [activePresetSlot, savedPresets, spreadAmount, updateActivePresetVoicing, setRecalledSpread]);
-
-  /**
-   * Cycle to the next voicing style. Updates recalled value if preset active, else global.
-   */
-  const cycleVoicingStyle = useCallback((): void => {
-    if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-      setRecalledVoicingStyle((prev) => {
-        const current = prev !== null ? prev : voicingStyle;
-        const currentIndex = VOICING_STYLES.indexOf(current);
-        const newStyle = VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
-        updateActivePresetVoicing({ voicingStyle: newStyle });
-        return newStyle;
-      });
-    } else {
-      setVoicingStyle((prev) => {
-        const currentIndex = VOICING_STYLES.indexOf(prev);
-        return VOICING_STYLES[(currentIndex + 1) % VOICING_STYLES.length];
-      });
-    }
-  }, [activePresetSlot, savedPresets, voicingStyle, updateActivePresetVoicing, setRecalledVoicingStyle]);
-
-  /**
-   * Change octave by a given direction. Updates preset if one is active.
-   */
-  const changeOctave = useCallback(
-    (direction: number): void => {
-      if (activePresetSlot !== null && savedPresets.has(activePresetSlot)) {
-        setRecalledOctave((prev) => {
-          const currentOct = prev !== null ? prev : octave;
-          const newOctave = Math.max(0, Math.min(7, currentOct + direction)) as Octave;
-          updateActivePresetVoicing({ octave: newOctave });
-          return newOctave;
-        });
-      } else {
-        setOctave((prev) => Math.max(0, Math.min(7, prev + direction)) as Octave);
-      }
-    },
-    [
-      activePresetSlot,
-      savedPresets,
-      octave,
-      setRecalledOctave,
-      updateActivePresetVoicing,
-    ]
-  );
-
-  /**
-   * Increase global octave by 1.
-   */
-  const increaseOctave = useCallback((): void => {
-    setOctave((prev) => Math.min(7, prev + 1) as Octave);
-  }, []);
-
-  /**
-   * Decrease global octave by 1.
-   */
-  const decreaseOctave = useCallback((): void => {
-    setOctave((prev) => Math.max(0, prev - 1) as Octave);
-  }, []);
-
-  /**
-   * Reset octave to default (4).
-   */
-  const resetOctave = useCallback((): void => {
-    setOctave(4);
-  }, []);
-
-  /**
-   * Save current chord to a specific slot.
-   */
-  const saveCurrentChordToSlot = useCallback(
-    (slotNumber: string): boolean => {
-      if (pressedKeys.size > 0 && !recalledKeys) {
-        return savePreset(slotNumber, {
-          keys: pressedKeys,
-          octave,
-          inversionIndex,
-          droppedNotes,
-          spreadAmount,
-          voicingStyle,
-        });
-      }
-      return false;
-    },
-    [
-      pressedKeys,
-      recalledKeys,
-      octave,
-      inversionIndex,
-      droppedNotes,
-      spreadAmount,
-      voicingStyle,
-      savePreset,
-    ]
-  );
-
-  /**
-   * Recall a preset from a slot.
-   * Sets recalledKeysJustSetRef to prevent immediate clearing by the
-   * coordination effect when called from sequencer.
-   * Voicing (octave, inversion, drop, spread) is now set via recalled states in recallPreset.
-   */
-  const recallPresetFromSlot = useCallback(
-    (slotNumber: string): boolean => {
-      const preset = recallPreset(slotNumber);
-      if (preset) {
-        // Set flag to prevent coordination effect from clearing
-        recalledKeysJustSetRef.current = true;
-        return true;
-      }
-      return false;
-    },
-    [recallPreset]
-  );
-
-  /**
-   * Stop recalling the current preset.
-   */
-  const stopRecallingPreset = useCallback((): void => {
-    stopRecalling();
-  }, [stopRecalling]);
-
-  /**
-   * Solve voice leading for selected preset slots.
-   * @param selectedSlots - Array of slot IDs in progression order
-   * @param spreadPreference - -1 (close) to 1 (wide), 0 = neutral
-   */
-  const solvePresets = useCallback(
-    (selectedSlots: string[], spreadPreference: number = 0): boolean => {
-      return solvePresetVoicings(selectedSlots, octave, spreadPreference);
-    },
-    [solvePresetVoicings, octave]
-  );
-
-  /**
-   * Build chord notes from a preset without changing state.
-   * Used by sequencer for retrigger functionality.
-   */
-  const getChordNotesFromPreset = useCallback(
-    (slotNumber: string): MIDINote[] | null => {
-      if (!savedPresets.has(slotNumber)) return null;
-
-      const preset = savedPresets.get(slotNumber)!;
-      const parsed = parseKeys(preset.keys);
-
-      if (!parsed.root) return null;
-
-      const chord = buildChord(parsed.root, parsed.modifiers, {
-        octave: preset.octave,
-      });
-
-      if (!chord) return null;
-
-      // Apply voicing style first
-      let notes = applyVoicingStyle(chord, preset.voicingStyle ?? "close");
-
-      // Apply spread
-      if (preset.spreadAmount && preset.spreadAmount > 0) {
-        notes = applySpread(notes, preset.spreadAmount);
-      }
-
-      // Apply inversion last
-      notes = invertChord(notes, preset.inversionIndex ?? 0);
-
-      return notes;
-    },
-    [savedPresets]
-  );
 
   // Compute effective values (use recalled values if preset is active)
   const effectiveOctave = recalledOctave !== null ? recalledOctave : octave;

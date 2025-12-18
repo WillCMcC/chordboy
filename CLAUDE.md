@@ -17,7 +17,9 @@ npm run deploy   # Build and deploy to CapRover (chordboy.com)
 src/
   types/       # TypeScript types (music, midi, events, synth)
   hooks/       # React hooks (useChordEngine, useMIDI, useToneSynth, usePresets, etc.)
+               # See hooks/README_SYNTH_ARCHITECTURE.md for synth refactoring details
   lib/         # Pure functions (chord building, MIDI, voicings, synthesis engine)
+               # Includes synthFactory.ts (synth creation) and synthPlayback.ts (playback helpers)
   components/  # UI components (includes PatchBuilder/ for synth editing)
   workers/     # Web Workers (MIDI clock)
 ```
@@ -45,6 +47,7 @@ The `appEvents` event bus decouples chord state from playback. `useChordEngine` 
 - Web MIDI API + BLE MIDI
 - Tone.js + custom synthesis engine (8-voice polyphonic, dual oscillators, effects)
 - Event-driven architecture via typed `appEvents` pub/sub
+- IndexedDB for persistence (presets, custom patches, sequencer state)
 
 ## Detailed Documentation
 
@@ -57,6 +60,8 @@ See `agent_docs/` for in-depth reference:
 | `chord-building.md` | Chord construction pipeline, voicing transforms |
 | `midi-integration.md` | MIDI/BLE setup, clock sync, humanization |
 | `testing.md` | Test patterns and coverage |
+| `LFO_UNROUTING_BUG_FIX.md` | Critical LFO routing bug fix (filter mod disconnection order) |
+| `REFACTORING_NOTES.md` | useToneSynth refactoring history (synthFactory, synthPlayback split) |
 
 ## Critical Notes
 
