@@ -50,6 +50,14 @@ const INTERVAL_KEYS: Record<string, number[]> = {
 // Preset keys (0-9)
 const PRESET_KEYS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 
+// Left-hand root keys - if any of these are held, user is building a chord
+// and grace notes should NOT trigger (even if a preset key is also held)
+const ROOT_KEYS = new Set([
+  "q", "w", "e", "r", // C, C#, D, D#
+  "a", "s", "d", "f", // E, F, F#, G
+  "z", "x", "c", "v", // G#, A, A#, B
+]);
+
 // Octave shift modifier keys
 const OCTAVE_DOWN_KEY = "-";
 const OCTAVE_UP_KEY = "=";
@@ -60,6 +68,8 @@ export interface UseGraceNotesOptions {
   currentChordNotes: MIDINote[] | null;
   /** Whether grace notes are enabled */
   enabled?: boolean;
+  /** Active preset slot from useChordEngine - indicates a preset is actually recalled */
+  activePresetSlot?: string | null;
 }
 
 /**
@@ -76,21 +86,30 @@ export interface UseGraceNotesOptions {
 export function useGraceNotes({
   currentChordNotes,
   enabled = true,
+  activePresetSlot = null,
 }: UseGraceNotesOptions): void {
   // Track which preset key is being held
   const heldPresetKeyRef = useRef<string | null>(null);
+  // Store activePresetSlot in ref to avoid stale closures
+  const activePresetSlotRef = useRef<string | null>(null);
   // Track which grace note keys are currently pressed (to prevent repeat triggers)
   const activeGraceKeysRef = useRef<Set<string>>(new Set());
+  // Track which root keys are currently held (to detect chord building)
+  const heldRootKeysRef = useRef<Set<string>>(new Set());
   // Track octave shift modifier keys
   const octaveDownHeldRef = useRef<boolean>(false);
   const octaveUpHeldRef = useRef<boolean>(false);
   // Store current chord notes in ref to avoid stale closures
   const notesRef = useRef<MIDINote[] | null>(null);
 
-  // Keep notes ref in sync
+  // Keep refs in sync to avoid stale closures in event handlers
   useEffect(() => {
     notesRef.current = currentChordNotes;
   }, [currentChordNotes]);
+
+  useEffect(() => {
+    activePresetSlotRef.current = activePresetSlot;
+  }, [activePresetSlot]);
 
   /**
    * Select notes from chord by indices, handling out-of-bounds gracefully.
@@ -189,14 +208,31 @@ export function useGraceNotes({
         octaveUpHeldRef.current = true;
       }
 
+      // Track root keys (left hand) - indicates user is building a chord
+      if (ROOT_KEYS.has(key)) {
+        heldRootKeysRef.current.add(key);
+        // Don't return - let the event propagate to useKeyboard
+      }
+
       // Track preset key holds
       if (PRESET_KEYS.has(key)) {
         heldPresetKeyRef.current = key;
         return;
       }
 
-      // Only process grace notes if a preset key is being held
+      // Only process grace notes if:
+      // 1. A preset key is being held
+      // 2. AND that key matches an actually active preset (not just a number key press)
+      //    This prevents grace notes when pressing number keys to save, or when
+      //    the slot is empty, or during chord building after preset release
+      // 3. AND we have chord notes to grace note on
+      // 4. AND no root keys are held (user is not building a chord)
+      //    This is the key fix: if user presses Q (root) then G (grace key),
+      //    the grace note should NOT fire because they're building a chord
       if (!heldPresetKeyRef.current) return;
+      if (heldPresetKeyRef.current !== activePresetSlotRef.current) return;
+      if (!notesRef.current?.length) return;
+      if (heldRootKeysRef.current.size > 0) return;
 
       // Check if this is a grace note key
       const isGraceKey =
@@ -237,6 +273,12 @@ export function useGraceNotes({
       }
       if (key === OCTAVE_UP_KEY) {
         octaveUpHeldRef.current = false;
+      }
+
+      // Clear root key from held set
+      if (ROOT_KEYS.has(key)) {
+        heldRootKeysRef.current.delete(key);
+        // Don't return - let the event propagate
       }
 
       // Clear preset key hold

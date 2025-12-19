@@ -157,9 +157,12 @@ function App() {
   } = useChordEngine(allPressedKeys, { isMobile });
 
   // Enable grace notes when holding preset keys (ghjkl = single notes, yuiop = pairs, vbnm,. = intervals)
+  // Pass activePresetSlot to ensure grace notes only fire when a preset is actually recalled,
+  // not during chord building with overlapping modifier keys (j, u, k, i, etc.)
   useGraceNotes({
     currentChordNotes: currentChord?.notes ?? null,
     enabled: !isMobile, // Only on desktop
+    activePresetSlot,
   });
 
   /**
