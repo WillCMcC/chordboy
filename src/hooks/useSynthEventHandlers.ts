@@ -1,6 +1,7 @@
 /**
  * Synth Event Handlers Hook
  * Manages event subscriptions for chord and grace note playback.
+ * Supports playback modes for rhythmic patterns.
  *
  * @module hooks/useSynthEventHandlers
  */
@@ -9,7 +10,9 @@ import { useRef, MutableRefObject } from "react";
 import * as Tone from "tone";
 import { appEvents } from "../lib/eventBus";
 import { useEventSubscription } from "./useEventSubscription";
-import type { ChordChangedEvent, GraceNotePayload, MIDINote } from "../types";
+import { applyPlaybackMode } from "../lib/playbackModes";
+import { createHumanizeManager } from "../lib/humanize";
+import type { ChordChangedEvent, GraceNotePayload, MIDINote, PlaybackMode, HumanizeManager } from "../types";
 import type { TriggerMode } from "./useMIDI";
 import type { CustomSynthEngine } from "../lib/customSynthEngine";
 import { midiToFreq, midiVelocityToTone } from "../lib/synthPlayback";
@@ -20,6 +23,8 @@ interface SynthEventHandlersParams {
   isInitializedRef: MutableRefObject<boolean>;
   isCustomPatchRef: MutableRefObject<boolean>;
   triggerModeRef: MutableRefObject<TriggerMode>;
+  playbackModeRef: MutableRefObject<PlaybackMode>;
+  bpmRef: MutableRefObject<number>;
   customSynthRef: MutableRefObject<CustomSynthEngine | null>;
   synthRef: MutableRefObject<Tone.PolySynth | null>;
   playChordWithGlide: (notes: MIDINote[], velocity?: number) => void;
@@ -36,12 +41,20 @@ export function useSynthEventHandlers({
   isInitializedRef,
   isCustomPatchRef,
   triggerModeRef,
+  playbackModeRef,
+  bpmRef,
   customSynthRef,
   synthRef,
   playChordWithGlide,
   playChord,
   stopAllNotes,
 }: SynthEventHandlersParams): void {
+  // Scheduler for playback mode timed note groups
+  const schedulerRef = useRef<HumanizeManager>(createHumanizeManager());
+
+  // Sequence ID to cancel pending scheduled notes on chord change
+  const sequenceIdRef = useRef(0);
+
   // Subscribe to chord events (use refs for latest values)
   // Skip playback when patch builder is open (it has its own preview synth)
   useEventSubscription(appEvents, "chord:changed", (event: ChordChangedEvent) => {
@@ -55,18 +68,60 @@ export function useSynthEventHandlers({
 
     if (!hasValidSynth) return;
 
-    if (triggerModeRef.current === "glide" && !isCustomPatchRef.current) {
-      // Use glide mode - smooth transition between chords (factory synth only)
-      playChordWithGlide(event.notes);
+    // Increment sequence ID to invalidate any pending scheduled notes
+    const currentSequence = ++sequenceIdRef.current;
+
+    // Clear any previously scheduled notes
+    schedulerRef.current.clear();
+
+    const playbackMode = playbackModeRef.current;
+    const triggerMode = triggerModeRef.current;
+    const bpm = bpmRef.current;
+
+    // Handle playback mode
+    if (playbackMode !== "block") {
+      // Apply playback mode transformation
+      const result = applyPlaybackMode(event.notes, playbackMode, bpm);
+
+      // Play sustained notes immediately
+      if (result.sustainedNotes.length > 0) {
+        if (triggerMode === "glide" && !isCustomPatchRef.current) {
+          playChordWithGlide(result.sustainedNotes);
+        } else {
+          const shouldRetrigger = event.retrigger || triggerMode === "all";
+          playChord(result.sustainedNotes, 100, shouldRetrigger);
+        }
+      }
+
+      // Schedule future note groups
+      for (const group of result.scheduledGroups) {
+        schedulerRef.current.schedule(() => {
+          // Guard: only execute if this is still the current sequence
+          if (sequenceIdRef.current !== currentSequence) return;
+
+          // Use retrigger if specified in the group
+          playChord(group.notes, 100, group.retrigger ?? false);
+        }, group.delayMs);
+      }
     } else {
-      // Determine if we should retrigger all notes
-      const shouldRetrigger = event.retrigger || triggerModeRef.current === "all";
-      playChord(event.notes, 100, shouldRetrigger);
+      // Block mode: standard behavior
+      if (triggerMode === "glide" && !isCustomPatchRef.current) {
+        // Use glide mode - smooth transition between chords (factory synth only)
+        playChordWithGlide(event.notes);
+      } else {
+        // Determine if we should retrigger all notes
+        const shouldRetrigger = event.retrigger || triggerMode === "all";
+        playChord(event.notes, 100, shouldRetrigger);
+      }
     }
   });
 
   useEventSubscription(appEvents, "chord:cleared", () => {
     if (isPatchBuilderOpenRef.current) return; // Let patch builder handle preview
+
+    // Clear any scheduled notes
+    schedulerRef.current.clear();
+
     if (isEnabledRef.current && isInitializedRef.current) {
       stopAllNotes();
     }

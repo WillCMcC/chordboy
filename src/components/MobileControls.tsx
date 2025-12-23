@@ -4,6 +4,7 @@ import type {
   StrumDirection,
   MIDIInputInfoDisplay,
   VoicingStyle,
+  PlaybackMode,
 } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import { TransportControls } from "./TransportControls";
@@ -85,6 +86,8 @@ interface MobileControlsProps {
   sequencerEnabled: boolean;
   onOpenSequencer: () => void;
   isPatchBuilderOpen?: boolean;
+  playbackMode: PlaybackMode;
+  onPlaybackModeChange: (mode: PlaybackMode) => void;
 }
 
 /**
@@ -138,6 +141,8 @@ export function MobileControls({
   sequencerEnabled,
   onOpenSequencer,
   isPatchBuilderOpen = false,
+  playbackMode,
+  onPlaybackModeChange,
 }: MobileControlsProps) {
 
   return (
@@ -173,6 +178,8 @@ export function MobileControls({
             onGlideTimeChange={onGlideTimeChange}
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={onOpenSequencer}
+            playbackMode={playbackMode}
+            onPlaybackModeChange={onPlaybackModeChange}
           />
         </div>
       )}

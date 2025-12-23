@@ -69,3 +69,14 @@ export type {
   AnyEventHandler,
   EventBus,
 } from "./events";
+
+// Playback mode types
+export type {
+  PlaybackMode,
+  PlaybackModeConfig,
+  ScheduledNoteGroup,
+  PlaybackModeResult,
+  ChordComponents,
+} from "./playbackMode";
+
+export { PLAYBACK_MODES } from "./playbackMode";

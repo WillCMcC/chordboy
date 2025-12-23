@@ -8,6 +8,7 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
   useState,
   useEffect,
@@ -27,6 +28,7 @@ import type {
   StrumDirection,
   MIDIOutputInfo,
   MIDIInputInfo,
+  PlaybackMode,
 } from "../types";
 import type { ClockCallbacks } from "./useTransport";
 import { useMIDIPlayback } from "./useMIDIPlayback";
@@ -62,6 +64,7 @@ export interface MIDIContextValue {
   triggerMode: TriggerMode;
   glideTime: number;
   lowLatencyMode: boolean;
+  playbackMode: PlaybackMode;
 
   // BLE State
   bleSupported: boolean;
@@ -93,6 +96,11 @@ export interface MIDIContextValue {
   setTriggerMode: Dispatch<SetStateAction<TriggerMode>>;
   setGlideTime: Dispatch<SetStateAction<number>>;
   setLowLatencyMode: Dispatch<SetStateAction<boolean>>;
+  setPlaybackMode: Dispatch<SetStateAction<PlaybackMode>>;
+  /** Set BPM for playback mode timing (called from useTransport) */
+  setBpmForPlayback: (bpm: number) => void;
+  /** Current BPM for playback mode timing */
+  bpmForPlayback: number;
 
   // MIDI Clock functions
   sendMIDIClock: () => void;
@@ -140,6 +148,22 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     "chordboy-low-latency-mode",
     false
   );
+
+  // Playback mode - controls how chords are played (block, vamp, stride, etc.)
+  const [playbackMode, setPlaybackMode] = usePersistentState<PlaybackMode>(
+    "chordboy-playback-mode",
+    "block"
+  );
+
+  // BPM for playback mode timing (set from useTransport in App)
+  const [bpmForPlayback, setBpmForPlaybackState] = useState<number>(120);
+  const bpmForPlaybackRef = useRef<number>(120);
+
+  // Keep ref in sync
+  const setBpmForPlayback = useCallback((bpm: number): void => {
+    bpmForPlaybackRef.current = bpm;
+    setBpmForPlaybackState(bpm);
+  }, []);
 
   // Currently playing notes
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
@@ -240,6 +264,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     isConnected: connection.isConnected,
     bleConnected: ble.bleConnected,
     triggerMode,
+    playbackMode,
+    bpm: bpmForPlaybackRef.current,
     playChord: playback.playChord,
     retriggerChord: playback.retriggerChord,
     playChordWithGlide: expression.playChordWithGlide,
@@ -309,6 +335,7 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     triggerMode,
     glideTime,
     lowLatencyMode,
+    playbackMode,
 
     // BLE State
     bleSupported: ble.bleSupported,
@@ -340,6 +367,9 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
     setTriggerMode,
     setGlideTime,
     setLowLatencyMode,
+    setPlaybackMode,
+    setBpmForPlayback,
+    bpmForPlayback,
 
     // MIDI Clock functions
     sendMIDIClock: clock.sendMIDIClock,

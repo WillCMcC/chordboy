@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { StrumDirection, MIDIInputInfoDisplay } from "../types";
+import type { StrumDirection, MIDIInputInfoDisplay, PlaybackMode } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import {
   MIDIControls,
   HumanizeControls,
+  PlaybackModeSelector,
   StrumControls,
   TriggerModeSelector,
 } from "./transport";
@@ -76,6 +77,11 @@ interface TransportControlsProps {
   sequencerEnabled: boolean;
   /** Callback to open sequencer modal */
   onOpenSequencer: () => void;
+  // Playback mode
+  /** Current playback mode */
+  playbackMode: PlaybackMode;
+  /** Callback to change playback mode */
+  onPlaybackModeChange: (mode: PlaybackMode) => void;
 }
 
 /**
@@ -116,6 +122,9 @@ export function TransportControls({
   // Sequencer
   sequencerEnabled,
   onOpenSequencer,
+  // Playback mode
+  playbackMode,
+  onPlaybackModeChange,
 }: TransportControlsProps) {
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<MobileTab>("transport");
@@ -213,6 +222,18 @@ export function TransportControls({
             onTriggerModeChange={onTriggerModeChange}
             glideTime={glideTime}
             onGlideTimeChange={onGlideTimeChange}
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="transport-divider" />
+
+        {/* Playback Mode Section */}
+        <div className="transport-section playback-section">
+          <label className="transport-label">Mode</label>
+          <PlaybackModeSelector
+            mode={playbackMode}
+            onModeChange={onPlaybackModeChange}
           />
         </div>
 
@@ -493,6 +514,15 @@ export function TransportControls({
                   />
                   <span className={`feel-control-value ${triggerMode !== "glide" ? "disabled" : ""}`}>{glideTime}ms</span>
                 </div>
+              </div>
+
+              {/* Third row: Playback mode */}
+              <div className="feel-controls-row playback-row">
+                <span className="feel-control-label">Mode</span>
+                <PlaybackModeSelector
+                  mode={playbackMode}
+                  onModeChange={onPlaybackModeChange}
+                />
               </div>
             </div>
           )}

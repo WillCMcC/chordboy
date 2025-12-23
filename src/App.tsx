@@ -14,6 +14,7 @@ import type {
   MIDIInputInfoDisplay,
 } from "./types";
 import type { VoicedChord } from "./hooks/useChordEngine";
+import { usePlaybackModeDisplay } from "./hooks/usePlaybackModeDisplay";
 import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
 import { TransportControls } from "./components/TransportControls";
@@ -88,6 +89,10 @@ function App() {
     bleConnected,
     bleDevice,
     bleSyncEnabled,
+    // Playback mode
+    playbackMode,
+    setPlaybackMode,
+    setBpmForPlayback,
   } = useMIDI();
 
   // Synth state (for patch builder)
@@ -225,6 +230,11 @@ function App() {
     }
   }, [currentChord]);
 
+  // Sync BPM from transport to MIDI for playback mode timing
+  useEffect(() => {
+    setBpmForPlayback(bpm);
+  }, [bpm, setBpmForPlayback]);
+
   // Subscribe to grace note events for visual feedback on piano
   useEventSubscription(appEvents, "grace:note", (event: GraceNotePayload) => {
     // Clear any pending timeout
@@ -298,6 +308,14 @@ function App() {
 
   // Determine which chord to display (current or last)
   const displayChord = currentChord || lastChord;
+
+  // Calculate which notes to show on keyboard based on playback mode
+  // For rhythmic modes, updates in real-time as the pattern progresses
+  const displayNotes = usePlaybackModeDisplay({
+    chordNotes: currentChord?.notes ?? null,
+    playbackMode,
+    bpm,
+  });
 
   // Filter and map midiInputs to display type (handles null names safely)
   const typedMidiInputs: MIDIInputInfoDisplay[] = midiInputs
@@ -408,7 +426,7 @@ function App() {
         {isMobile && showMobileKeyboard && (
           <div className="mobile-keyboard-inline" ref={mobileKeyboardRef}>
             <PianoKeyboard
-              activeNotes={currentChord ? currentChord.notes : []}
+              activeNotes={displayNotes}
               triggeredNotes={triggeredNotes}
               startOctave={2}
               endOctave={6}
@@ -448,6 +466,8 @@ function App() {
             onGlideTimeChange={setGlideTime}
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
+            playbackMode={playbackMode}
+            onPlaybackModeChange={setPlaybackMode}
           />
         )}
 
@@ -463,7 +483,7 @@ function App() {
         {/* Desktop piano keyboard */}
         {!isMobile && (
           <PianoKeyboard
-            activeNotes={currentChord ? currentChord.notes : []}
+            activeNotes={displayNotes}
             triggeredNotes={triggeredNotes}
             startOctave={1}
             endOctave={7}
@@ -524,6 +544,8 @@ function App() {
             sequencerEnabled={sequencerEnabled}
             onOpenSequencer={() => setShowSequencer(true)}
             isPatchBuilderOpen={isPatchBuilderOpen}
+            playbackMode={playbackMode}
+            onPlaybackModeChange={setPlaybackMode}
           />
         )}
 

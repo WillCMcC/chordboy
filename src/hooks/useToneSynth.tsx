@@ -25,7 +25,7 @@ import {
   type SynthPreset,
   type ADSREnvelope,
 } from "../lib/synthPresets";
-import type { MIDINote, StrumDirection, HumanizeManager } from "../types";
+import type { MIDINote, StrumDirection, HumanizeManager, PlaybackMode } from "../types";
 import type { TriggerMode } from "./useMIDI";
 import { useCustomPatches } from "./useCustomPatches";
 import { useCustomSynth } from "./useCustomSynth";
@@ -116,6 +116,8 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     strumDirection,
     triggerMode,
     glideTime,
+    playbackMode,
+    bpmForPlayback,
   } = useMIDI();
 
   // Use settings management hook
@@ -217,6 +219,8 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   const isPatchBuilderOpenRef = useRef(false);
   const isCustomPatchRef = useRef(false);
   const triggerModeRef = useRef<TriggerMode>(triggerMode);
+  const playbackModeRef = useRef<PlaybackMode>(playbackMode);
+  const bpmRef = useRef<number>(bpmForPlayback);
 
   // Update envelope based on patch selection
   const finalEnvelope = isCustomPatch ? presetEnvelope : settingsEnvelope;
@@ -235,6 +239,14 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   useEffect(() => {
     triggerModeRef.current = triggerMode;
   }, [triggerMode]);
+
+  useEffect(() => {
+    playbackModeRef.current = playbackMode;
+  }, [playbackMode]);
+
+  useEffect(() => {
+    bpmRef.current = bpmForPlayback;
+  }, [bpmForPlayback]);
 
   /**
    * Set audio mode
@@ -304,6 +316,8 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
     isInitializedRef,
     isCustomPatchRef,
     triggerModeRef,
+    playbackModeRef,
+    bpmRef,
     customSynthRef,
     synthRef,
     playChordWithGlide: playChordWithGlideInternal,
