@@ -31,6 +31,10 @@ interface SettingsPanelProps {
   wakeLockActive: boolean;
   /** Callback to toggle wake lock */
   onWakeLockChange: (enabled: boolean) => void;
+  /** Whether true random mode is enabled */
+  trueRandomMode: boolean;
+  /** Callback to toggle true random mode */
+  onTrueRandomModeChange: (enabled: boolean) => void;
 }
 
 /**
@@ -45,6 +49,8 @@ export function SettingsPanel({
   wakeLockEnabled,
   wakeLockActive,
   onWakeLockChange,
+  trueRandomMode,
+  onTrueRandomModeChange,
 }: SettingsPanelProps) {
   const { lowLatencyMode, setLowLatencyMode, bleConnected } = useMIDI();
 
@@ -56,6 +62,10 @@ export function SettingsPanel({
 
   const handleLowLatencyChange = (e: ChangeEvent<HTMLInputElement>): void => {
     setLowLatencyMode(e.target.checked);
+  };
+
+  const handleTrueRandomChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    onTrueRandomModeChange(e.target.checked);
   };
 
   return (
@@ -92,6 +102,22 @@ export function SettingsPanel({
               {bleConnected
                 ? " Warning: May cause missed notes or unreliable re-articulation over Bluetooth MIDI."
                 : " Recommended for USB MIDI connections."}
+            </p>
+          </div>
+          <div className="settings-section">
+            <h3>Chord Generation</h3>
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={trueRandomMode}
+                onChange={handleTrueRandomChange}
+              />
+              <span className="toggle-label">True random mode</span>
+            </label>
+            <p className="settings-description">
+              When enabled, Space generates completely random chords.
+              When disabled (default), Space generates jazz-informed progressions based on saved presets
+              (ii-V-I, turnarounds, tritone subs, and more).
             </p>
           </div>
           {wakeLockSupported && (

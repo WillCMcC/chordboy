@@ -22,6 +22,8 @@ interface PresetsPanelProps {
   onClearPreset: (slot: string) => void;
   /** Callback to solve voicings for selected presets, returns true on success */
   onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
+  /** Callback to open the chord wizard modal */
+  onOpenWizard: () => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export function PresetsPanel({
   savedPresets,
   onClearPreset,
   onSolvePresets,
+  onOpenWizard,
 }: PresetsPanelProps) {
   /** Currently selected preset slots */
   const [selectedPresets, setSelectedPresets] = useState<string[]>([]);
@@ -88,13 +91,21 @@ export function PresetsPanel({
         <h3>Saved Presets</h3>
         <div className="presets-actions">
           {!isSelectMode ? (
-            <button
-              onClick={() => setIsSelectMode(true)}
-              className="solve-mode-btn"
-              disabled={savedPresets.size < 2}
-            >
-              Select to Solve
-            </button>
+            <>
+              <button
+                onClick={onOpenWizard}
+                className="wizard-btn"
+              >
+                Chord Wizard
+              </button>
+              <button
+                onClick={() => setIsSelectMode(true)}
+                className="solve-mode-btn"
+                disabled={savedPresets.size < 2}
+              >
+                Select to Solve
+              </button>
+            </>
           ) : (
             <>
               <span className="select-hint">

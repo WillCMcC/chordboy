@@ -357,11 +357,12 @@
   font-style: italic;
 }
 
+.wizard-btn,
 .solve-mode-btn {
   padding: var(--space-2) var(--space-4);
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
-  border: none;
+  background: transparent;
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.8rem;
@@ -369,9 +370,10 @@
   transition: all 0.2s var(--ease-out-expo);
 }
 
+.wizard-btn:hover,
 .solve-mode-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  background: var(--accent-primary);
+  color: white;
 }
 
 .solve-mode-btn:disabled {

@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useCallback, Dispatch, SetStateAction } from "react";
 import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "../lib/keyboardMappings";
+import { generateTrueRandomChord } from "../lib/progressionGenerator";
 import type { Chord, Preset, MIDINote, Octave, VoicingStyle } from "../types";
 import { VOICING_STYLES } from "../types";
 
@@ -277,6 +278,7 @@ export function useVoicingKeyboard({
 
   /**
    * Handle space key for saving to next available slot.
+   * Saves current chord if holding keys, otherwise generates a random chord.
    */
   const handleSpaceKey = useCallback(
     (event: KeyboardEvent): boolean => {
@@ -302,13 +304,15 @@ export function useVoicingKeyboard({
           spreadAmount,
           voicingStyle,
         });
+        return true;
       }
-      // Generate random chord if no chord selected
-      else if (!currentChord && pressedKeys.size === 0) {
-        const randomChordKeys = generateRandomChord();
+
+      // Generate random chord if no keys pressed
+      if (!currentChord && pressedKeys.size === 0) {
+        const randomChord = generateTrueRandomChord();
         savePreset(nextSlot, {
-          keys: randomChordKeys,
-          octave,
+          keys: randomChord.keys,
+          octave: randomChord.suggestedOctave,
           inversionIndex: 0,
           droppedNotes: 0,
           spreadAmount: 0,
