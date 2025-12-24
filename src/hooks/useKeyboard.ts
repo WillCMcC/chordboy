@@ -17,21 +17,10 @@ export interface UseKeyboardReturn {
  */
 export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
-  const [allKeysReleased, setAllKeysReleased] = useState<boolean>(false);
 
-  // Use ref to avoid stale closure in useEffect
+  // Use ref to avoid stale closure in event handlers
   const onAllKeysUpRef = useRef(onAllKeysUp);
   onAllKeysUpRef.current = onAllKeysUp;
-
-  /**
-   * Trigger callback when all keys are released
-   */
-  useEffect(() => {
-    if (allKeysReleased && onAllKeysUpRef.current) {
-      onAllKeysUpRef.current();
-      setAllKeysReleased(false);
-    }
-  }, [allKeysReleased]);
 
   /**
    * Handle key down events
@@ -141,9 +130,9 @@ export function useKeyboard(onAllKeysUp?: () => void): UseKeyboardReturn {
       const newSet = new Set(prev);
       newSet.delete(key);
 
-      // If all keys are now released, set flag
-      if (newSet.size === 0) {
-        setAllKeysReleased(true);
+      // If all keys are now released, trigger callback directly (not via useEffect!)
+      if (newSet.size === 0 && onAllKeysUpRef.current) {
+        onAllKeysUpRef.current();
       }
 
       return newSet;

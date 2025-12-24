@@ -169,10 +169,8 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   const [currentNotes, setCurrentNotes] = useState<MIDINote[]>([]);
   const currentNotesRef = useRef<MIDINote[]>(currentNotes);
 
-  // Keep ref updated
-  useEffect(() => {
-    currentNotesRef.current = currentNotes;
-  }, [currentNotes]);
+  // Keep ref updated during render (no useEffect needed!)
+  currentNotesRef.current = currentNotes;
 
   // MIDI Connection hook
   const connection = useMIDIConnection();
@@ -273,16 +271,15 @@ export function MIDIProvider({ children }: MIDIProviderProps): React.JSX.Element
   });
 
   // Refs for cleanup to avoid stale closures
+  // Anti-pattern fix: Initialize and update during render
   const selectedOutputRef = useRef<MIDIOutput | null>(connection.selectedOutput);
   const channelRef = useRef<MIDIChannel>(channel);
-
-  // Keep refs in sync
-  selectedOutputRef.current = connection.selectedOutput;
-  channelRef.current = channel;
-
-  // Refs for cleanup functions to avoid re-running cleanup on every render
   const playbackRef = useRef(playback);
   const expressionRef = useRef(expression);
+
+  // Keep refs in sync during render (no useEffect needed!)
+  selectedOutputRef.current = connection.selectedOutput;
+  channelRef.current = channel;
   playbackRef.current = playback;
   expressionRef.current = expression;
 

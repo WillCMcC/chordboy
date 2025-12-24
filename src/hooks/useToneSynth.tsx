@@ -213,40 +213,30 @@ export function ToneSynthProvider({ children }: ToneSynthProviderProps): React.J
   // Track last strum direction for alternate mode
   const strumLastDirectionRef = useRef<StrumDirection>("up");
 
-  // Refs for latest values (to avoid stale closures in event subscriptions)
-  const isEnabledRef = useRef(false);
-  const isInitializedRef = useRef(false);
-  const isPatchBuilderOpenRef = useRef(false);
-  const isCustomPatchRef = useRef(false);
-  const triggerModeRef = useRef<TriggerMode>(triggerMode);
-  const playbackModeRef = useRef<PlaybackMode>(playbackMode);
-  const bpmRef = useRef<number>(bpmForPlayback);
-
   // Update envelope based on patch selection
   const finalEnvelope = isCustomPatch ? presetEnvelope : settingsEnvelope;
 
   // Derived enabled state
   const isEnabled = audioMode === "synth" || audioMode === "both";
 
-  // Keep refs in sync with state (for event subscription closures)
-  useEffect(() => {
-    isEnabledRef.current = isEnabled;
-    isInitializedRef.current = isInitialized;
-    isPatchBuilderOpenRef.current = isPatchBuilderOpen;
-    isCustomPatchRef.current = isCustomPatch;
-  }, [isEnabled, isInitialized, isPatchBuilderOpen, isCustomPatch]);
+  // Refs for latest values (to avoid stale closures in event subscriptions)
+  // Anti-pattern fix: Update refs during render instead of using useEffect
+  const isEnabledRef = useRef(isEnabled);
+  const isInitializedRef = useRef(isInitialized);
+  const isPatchBuilderOpenRef = useRef(isPatchBuilderOpen);
+  const isCustomPatchRef = useRef(isCustomPatch);
+  const triggerModeRef = useRef(triggerMode);
+  const playbackModeRef = useRef(playbackMode);
+  const bpmRef = useRef(bpmForPlayback);
 
-  useEffect(() => {
-    triggerModeRef.current = triggerMode;
-  }, [triggerMode]);
-
-  useEffect(() => {
-    playbackModeRef.current = playbackMode;
-  }, [playbackMode]);
-
-  useEffect(() => {
-    bpmRef.current = bpmForPlayback;
-  }, [bpmForPlayback]);
+  // Keep refs in sync during render (no useEffect needed!)
+  isEnabledRef.current = isEnabled;
+  isInitializedRef.current = isInitialized;
+  isPatchBuilderOpenRef.current = isPatchBuilderOpen;
+  isCustomPatchRef.current = isCustomPatch;
+  triggerModeRef.current = triggerMode;
+  playbackModeRef.current = playbackMode;
+  bpmRef.current = bpmForPlayback;
 
   /**
    * Set audio mode

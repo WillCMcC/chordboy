@@ -107,10 +107,10 @@ function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
-  const [lastChord, setLastChord] = useState<VoicedChord | null>(null);
   const [triggeredNotes, setTriggeredNotes] = useState<MIDINote[]>([]);
   const mobileKeyboardRef = useRef<HTMLDivElement>(null);
   const triggeredTimeoutRef = useRef<number | null>(null);
+  const lastChordRef = useRef<VoicedChord | null>(null);
 
   // Show tutorial on first visit
   useEffect(() => {
@@ -223,12 +223,6 @@ function App() {
 
   // Chord playback is now handled via event subscription in useMIDI
   // useChordEngine emits 'chord:changed' and 'chord:cleared' events
-  // Update lastChord for display purposes
-  useEffect(() => {
-    if (currentChord) {
-      setLastChord(currentChord);
-    }
-  }, [currentChord]);
 
   // Sync BPM from transport to MIDI for playback mode timing
   useEffect(() => {
@@ -307,7 +301,11 @@ function App() {
   }, [currentChord?.notes, showMobileKeyboard]);
 
   // Determine which chord to display (current or last)
-  const displayChord = currentChord || lastChord;
+  // Anti-pattern fix: Update ref during render instead of useEffect
+  if (currentChord) {
+    lastChordRef.current = currentChord;
+  }
+  const displayChord = currentChord || lastChordRef.current;
 
   // Calculate which notes to show on keyboard based on playback mode
   // For rhythmic modes, updates in real-time as the pattern progresses

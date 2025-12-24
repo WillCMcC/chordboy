@@ -108,12 +108,9 @@ export function usePlaybackModeDisplay({
     };
   }, [chordNotes, playbackMode, bpm]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearTimeouts();
-    };
-  }, []);
+  // Note: Cleanup is already handled in the main effect above.
+  // No separate cleanup effect needed - the main effect runs on mount
+  // and cleans up on unmount.
 
   return activeNotes;
 }
