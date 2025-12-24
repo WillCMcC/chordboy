@@ -77,6 +77,10 @@ export function ChordWizardModal({
   // Selected progression type
   const [progressionType, setProgressionType] = useState<ProgressionType>("ii-V-I");
 
+  // Error and success messages
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -84,6 +88,8 @@ export function ChordWizardModal({
       setSelectedPresetSlot(null);
       setCapturedChord(null);
       setProgressionType("ii-V-I");
+      setErrorMessage(null);
+      setSuccessMessage(null);
     }
   }, [isOpen]);
 
@@ -129,6 +135,10 @@ export function ChordWizardModal({
   const handleConfirm = useCallback(() => {
     if (!startingChord || !progressionPreview || progressionPreview.length === 0) return;
 
+    // Clear any previous messages
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
     // If starting from a preset, don't duplicate it - just save the progression
     // If played in, save the captured chord first, then the progression
     const includeStartingChord = sourceType === "play-in";
@@ -138,7 +148,7 @@ export function ChordWizardModal({
 
     // Check we have enough slots
     if (totalNeeded > availableSlots) {
-      alert(
+      setErrorMessage(
         `Not enough preset slots! Need ${totalNeeded} slots but only ${availableSlots} available.`
       );
       return;
@@ -153,7 +163,12 @@ export function ChordWizardModal({
       : progressionPreview.map((p) => ({ keys: p.keys, octave: p.octave }));
 
     onSavePresets(allChords);
-    onClose();
+
+    // Show success message briefly before closing
+    setSuccessMessage(`Generated ${totalNeeded} chord${totalNeeded > 1 ? 's' : ''} to presets!`);
+    setTimeout(() => {
+      onClose();
+    }, 800);
   }, [startingChord, sourceType, progressionPreview, availableSlots, onSavePresets, onClose]);
 
   if (!isOpen) return null;
@@ -272,6 +287,7 @@ export function ChordWizardModal({
                   className={`progression-btn ${progressionType === prog.id ? "selected" : ""}`}
                   onClick={() => setProgressionType(prog.id)}
                   disabled={!hasValidStart}
+                  title={!hasValidStart ? "Select a starting chord first" : prog.description}
                 >
                   <span className="prog-name">{prog.name}</span>
                   <span className="prog-desc">{prog.description}</span>
@@ -318,16 +334,35 @@ export function ChordWizardModal({
         </div>
 
         <div className="wizard-footer">
-          <button className="wizard-cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="wizard-confirm"
-            onClick={handleConfirm}
-            disabled={!canGenerate}
-          >
-            Generate Progression
-          </button>
+          {errorMessage && (
+            <div className="wizard-message wizard-error">
+              {errorMessage}
+            </div>
+          )}
+          {successMessage && (
+            <div className="wizard-message wizard-success">
+              {successMessage}
+            </div>
+          )}
+          <div className="wizard-actions">
+            <button className="wizard-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="wizard-confirm"
+              onClick={handleConfirm}
+              disabled={!canGenerate}
+              title={
+                !canGenerate
+                  ? totalChordsNeeded > availableSlots
+                    ? "Not enough preset slots available"
+                    : "Select a starting chord and progression type"
+                  : "Generate and save progression to presets"
+              }
+            >
+              Generate Progression
+            </button>
+          </div>
         </div>
       </div>
     </div>

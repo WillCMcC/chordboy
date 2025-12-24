@@ -665,7 +665,13 @@
 
 /* Playback Mode Section */
 .playback-section {
-  min-width: 85px;
+  min-width: 140px;
+}
+
+.playback-mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .playback-mode-select {
@@ -695,6 +701,23 @@
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.playback-mode-description {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0.8;
+}
+
+.bpm-indicator {
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  margin-left: auto;
+  opacity: 0.9;
 }
 
 /* ============================================
