@@ -60,10 +60,10 @@ export function SettingsPanel({
 
   return (
     <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="settings-panel" data-testid="settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <h2>Settings</h2>
-          <button className="settings-close" onClick={onClose}>
+          <button className="settings-close" onClick={onClose} data-testid="close-settings">
             x
           </button>
         </div>

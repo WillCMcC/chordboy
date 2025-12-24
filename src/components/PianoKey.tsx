@@ -65,6 +65,8 @@ export const PianoKey = memo(function PianoKey({
   return (
     <div
       className={className}
+      data-testid="piano-key"
+      data-note={midiNumber}
       data-midi={midiNumber}
       title={noteName}
       style={{ ...style, ...mobileStyles, ...colorStyles }}

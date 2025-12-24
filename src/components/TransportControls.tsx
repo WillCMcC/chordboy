@@ -263,6 +263,7 @@ export function TransportControls({
                 value={bpm}
                 onChange={handleBpmInput}
                 className="bpm-input"
+                data-testid="bpm-input"
               />
             )}
             {!syncEnabled && (
@@ -299,6 +300,7 @@ export function TransportControls({
             disabled={syncEnabled}
             aria-label={isPlaying ? "Stop" : "Play"}
             title={syncEnabled ? "Controlled by external MIDI" : (isPlaying ? "Stop" : "Play")}
+            data-testid={isPlaying ? "stop-button" : "play-button"}
           >
             {isPlaying ? (
               <span className="stop-icon" />
@@ -345,6 +347,7 @@ export function TransportControls({
             className={`seq-btn ${sequencerEnabled ? "active" : ""}`}
             onClick={onOpenSequencer}
             aria-label="Open sequencer"
+            data-testid="open-sequencer"
           >
             <span className="seq-icon" />
           </button>

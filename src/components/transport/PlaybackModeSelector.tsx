@@ -55,6 +55,7 @@ export function PlaybackModeSelector({
   return (
     <select
       className="playback-mode-select"
+      data-testid="playback-mode"
       value={mode}
       onChange={handleChange}
       onKeyDown={handleKeyDown}

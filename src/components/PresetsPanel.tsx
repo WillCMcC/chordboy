@@ -92,6 +92,7 @@ export function PresetsPanel({
               onClick={() => setIsSelectMode(true)}
               className="solve-mode-btn"
               disabled={savedPresets.size < 2}
+              data-testid="select-to-solve"
             >
               Select to Solve
             </button>
@@ -124,10 +125,11 @@ export function PresetsPanel({
                 onClick={handleSolveChords}
                 className="solve-btn"
                 disabled={selectedPresets.length < 2}
+                data-testid="solve-voicings"
               >
                 Solve Voicings
               </button>
-              <button onClick={cancelSelectMode} className="cancel-btn">
+              <button onClick={cancelSelectMode} className="cancel-btn" data-testid="cancel-solve">
                 Cancel
               </button>
             </>
@@ -144,6 +146,7 @@ export function PresetsPanel({
             <div
               key={slot}
               className={`preset-slot compact ${hasPreset ? "filled" : "empty"} ${isSelectMode && hasPreset ? "selectable" : ""} ${isSelected ? "selected" : ""}`}
+              data-testid={`preset-${slot}`}
               onClick={
                 isSelectMode && hasPreset
                   ? () => togglePresetSelection(slot)
@@ -170,6 +173,7 @@ export function PresetsPanel({
                     onClearPreset(slot);
                   }}
                   className="clear-btn-mini"
+                  data-testid={`clear-preset-${slot}`}
                 >
                   x
                 </button>

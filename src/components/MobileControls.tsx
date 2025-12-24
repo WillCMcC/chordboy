@@ -149,7 +149,7 @@ export function MobileControls({
     <div className={`mobile-controls ${isPatchBuilderOpen ? "presets-only" : ""}`}>
       {/* Transport controls - scrolls with content */}
       {!isPatchBuilderOpen && (
-        <div className="mobile-controls-section transport-section">
+        <div className="mobile-controls-section transport-section" data-testid="mobile-transport">
           <TransportControls
             bpm={bpm}
             isPlaying={isPlaying}

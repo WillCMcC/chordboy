@@ -134,14 +134,14 @@ export function SequencerModal({
 
   return (
     <div className="sequencer-overlay" onClick={onClose}>
-      <div className="sequencer-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="sequencer-modal" data-testid="sequencer-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sequencer-header">
           <h2>Sequencer</h2>
           <div className="sequencer-header-right">
             {isPlaying && sequencerEnabled && (
               <span className="sequencer-playing-badge">Playing</span>
             )}
-            <button aria-label="Close sequencer" className="sequencer-close" onClick={onClose}>
+            <button aria-label="Close sequencer" className="sequencer-close" onClick={onClose} data-testid="close-sequencer">
               ×
             </button>
           </div>
@@ -253,7 +253,7 @@ export function SequencerModal({
           <div className="sequencer-section">
             <div className="section-header">
               <h3>Sequence</h3>
-              <button className="clear-sequence-btn" onClick={onClearSequence}>
+              <button className="clear-sequence-btn" onClick={onClearSequence} data-testid="clear-sequence">
                 Clear All
               </button>
             </div>
@@ -267,6 +267,7 @@ export function SequencerModal({
                   <div
                     key={index}
                     className={`step-cell ${presetSlot ? "filled" : "empty"} ${isCurrentStep ? "playing" : ""} ${isMeasureStart ? "measure-start" : ""} ${isDownbeat ? "downbeat" : ""}`}
+                    data-testid={`step-${index}`}
                     onClick={(e) => handleStepClick(index, e)}
                     onContextMenu={(e) => handleStepRightClick(index, e)}
                   >

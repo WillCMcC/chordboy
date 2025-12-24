@@ -130,7 +130,7 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
   }
 
   return (
-    <div className="grace-note-strip">
+    <div className="grace-note-strip" data-testid="grace-note-strip">
       <div className="grace-note-buttons">
         {notes.map((note, index) => {
           const noteName = getNoteNameOnly(note);
@@ -140,6 +140,7 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
             <button
               key={`${note}-${index}`}
               className="grace-note-btn"
+              data-testid={`grace-note-${index}`}
               ref={(el) => {
                 if (el) buttonRefs.current.set(index, el);
                 else buttonRefs.current.delete(index);
@@ -154,6 +155,7 @@ export function GraceNoteStrip({ notes }: GraceNoteStripProps) {
         {/* ALL button to retrigger full chord */}
         <button
           className="grace-note-btn grace-note-all"
+          data-testid="grace-note-all"
           ref={allButtonRef}
         >
           <span className="note-name">ALL</span>

@@ -71,6 +71,7 @@ export function RootNotesSection({
           <button
             key={key}
             className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""}`}
+            data-testid={`mobile-root-${note.replace('#', 's')}`}
             onPointerDown={(e: PointerEvent<HTMLButtonElement>) => {
               e.preventDefault();
               handleRootTap(key);

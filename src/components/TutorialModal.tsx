@@ -455,8 +455,8 @@ export function TutorialModal({
 
   return (
     <div className="tutorial-overlay">
-      <div className="tutorial-modal">
-        <button className="tutorial-close" onClick={handleClose} aria-label="Close">
+      <div className="tutorial-modal" data-testid="tutorial-modal">
+        <button className="tutorial-close" onClick={handleClose} aria-label="Close" data-testid="tutorial-close">
           x
         </button>
 
@@ -494,17 +494,18 @@ export function TutorialModal({
 
           <div className="tutorial-buttons">
             {isFirstStep ? (
-              <button className="tutorial-btn tutorial-btn-ghost" onClick={handleSkip}>
+              <button className="tutorial-btn tutorial-btn-ghost" onClick={handleSkip} data-testid="tutorial-skip">
                 Skip Tutorial
               </button>
             ) : (
-              <button className="tutorial-btn tutorial-btn-secondary" onClick={handlePrev}>
+              <button className="tutorial-btn tutorial-btn-secondary" onClick={handlePrev} data-testid="tutorial-back">
                 Back
               </button>
             )}
             <button
               className="tutorial-btn tutorial-btn-primary"
               onClick={handleNext}
+              data-testid="tutorial-next"
             >
               {isLastStep ? "Get Started" : hasCondition && !stepCompleted ? "Skip" : "Next"}
             </button>

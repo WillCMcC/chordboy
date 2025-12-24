@@ -391,6 +391,7 @@ export function PatchBuilderModal({
       <div
         ref={modalRef}
         className="patch-builder-modal"
+        data-testid="patch-builder-modal"
         tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -399,6 +400,7 @@ export function PatchBuilderModal({
             <input
               type="text"
               className="patch-name-input"
+              data-testid="patch-name-input"
               value={editingPatch.name}
               onChange={(e) => updatePatch({ name: e.target.value })}
               placeholder="Patch Name"
@@ -432,12 +434,14 @@ export function PatchBuilderModal({
             <button
               className="patch-action-button save-button"
               onClick={handleSave}
+              data-testid="save-patch"
             >
               Save
             </button>
             <button
               className="patch-action-button cancel-button"
               onClick={onClose}
+              data-testid="cancel-patch-builder"
             >
               Cancel
             </button>
