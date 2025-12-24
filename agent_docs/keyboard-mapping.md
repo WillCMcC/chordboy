@@ -79,7 +79,11 @@ Presets store: keys, octave, inversion, spread, voicingStyle.
 
 ## Grace Note Keys
 
-While holding a preset key (0-9), these keys re-articulate specific notes:
+While holding a preset key (0-9), these keys re-articulate specific notes.
+
+**Important:** Grace notes only trigger when:
+1. A preset key is held AND matches an active recalled preset
+2. No root keys (QWER/ASDF/ZXCV) are pressed (indicates chord building)
 
 **Single Notes (g/h/j/k/l):**
 - `G` = 1st note of chord
@@ -96,19 +100,20 @@ While holding a preset key (0-9), these keys re-articulate specific notes:
 - `P` = notes 5-6
 
 **Harmonic Intervals (v/b/n/m/,/.):**
-- `V` = notes 1 & 3
-- `B` = notes 2 & 4
-- `N` = notes 1 & 4
-- `M` = notes 2 & 5
-- `,` = notes 1 & 5
-- `.` = notes 3 & 5
+- `V` = notes 1 & 3 (root + 3rd)
+- `B` = notes 1 & 4 (root + 5th/7th)
+- `N` = notes 1 & 5 (root + 7th/9th)
+- `M` = notes 2 & 4 (3rd + 7th)
+- `,` = notes 3 & 5 (5th + 9th)
+- `.` = notes 1, 2, 3 (triad from chord)
 
 **Full Chord:**
 - `Space` = re-articulate entire chord
 
 **Octave Shift (while grace noting):**
-- `-` = shift grace notes down one octave
-- `=` = shift grace notes up one octave
+- `-` = shift grace notes down one octave (-12 semitones)
+- `=` = shift grace notes up one octave (+12 semitones)
+- Both held = no shift (they cancel out)
 
 ## Helper Functions
 

@@ -94,6 +94,8 @@ Optimizes voicings across a chord progression to minimize voice movement. Used b
 
 3. **All Combinations**: Considers all voicing styles × inversions × spreads × octave shifts.
 
+4. **Spread Preference**: Adjustable preference for close vs wide voicings via `spreadPreference` option.
+
 ### Solver Options
 
 ```typescript
@@ -105,6 +107,12 @@ interface SolverOptions {
   spreadPreference?: number;       // -1 (close) to 1 (wide), 0 = neutral
 }
 ```
+
+### Key Functions
+
+- `calculateVoiceDistance(chord1, chord2, ...)` - Measures semitone distance between voicings
+- `calculateSpreadAdjustment(notes, preference)` - Bonus/penalty for voicing width
+- `isSeventh(note, root)` / `isThird(note, root)` - Interval detection for voice leading
 
 ## Intervals Reference
 

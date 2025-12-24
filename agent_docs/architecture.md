@@ -8,6 +8,7 @@ main.tsx
     └── App.tsx
         ├── ChordDisplay
         ├── TransportControls (desktop)
+        │   └── PlaybackModeSelector
         ├── PresetsPanel (desktop)
         ├── PianoKeyboard
         ├── MobileControls (mobile)
@@ -15,7 +16,8 @@ main.tsx
         ├── SettingsPanel
         ├── SynthPanel
         ├── TutorialModal
-        └── SequencerModal
+        ├── SequencerModal
+        └── ChordWizardModal
 ```
 
 ## Hook Responsibilities
@@ -30,8 +32,11 @@ main.tsx
 | `useMIDIPlayback` | Note playback engine with diffing | `playChord`, `retriggerChord`, `stopAllNotes`, `panic` |
 | `usePresets` | Preset storage with IndexedDB persistence | `savePreset`, `recallPreset`, `solvePresetVoicings` |
 | `useTransport` | BPM, playback, sequencer, MIDI clock sync | `toggle`, `setBpm`, sequencer state |
-| `useGraceNotes` | Grace note re-articulation during preset playback | (internal, captures g/h/j/k/l keys) |
+| `useGraceNotes` | Grace note re-articulation during preset playback | (internal, captures g/h/j/k/l keys, -/= octave shift) |
 | `useCustomPatches` | Custom patch storage with IndexedDB persistence | `createPatch`, `updatePatch`, `deletePatch`, `patchLibrary` |
+| `usePlaybackMode` | Playback mode state and rhythmic chord scheduling | `mode`, `setMode`, `playChordWithMode`, `stopPlayback` |
+| `usePlaybackModeDisplay` | Real-time keyboard display for playback modes | Returns active notes array |
+| `useProgressionSettings` | Chord progression generation settings | `trueRandomMode`, `setTrueRandomMode` |
 
 ### Supporting Hooks
 
