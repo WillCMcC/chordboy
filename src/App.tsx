@@ -106,19 +106,15 @@ function App() {
   const [showMobileKeyboard, setShowMobileKeyboard] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
-  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  // Lazy initialization - check localStorage only once on mount (not in useEffect!)
+  const [showTutorial, setShowTutorial] = useState<boolean>(() => {
+    const hasSeenTutorial = localStorage.getItem(TUTORIAL_SEEN_KEY);
+    return !hasSeenTutorial;
+  });
   const [triggeredNotes, setTriggeredNotes] = useState<MIDINote[]>([]);
   const mobileKeyboardRef = useRef<HTMLDivElement>(null);
   const triggeredTimeoutRef = useRef<number | null>(null);
   const lastChordRef = useRef<VoicedChord | null>(null);
-
-  // Show tutorial on first visit
-  useEffect(() => {
-    const hasSeenTutorial = localStorage.getItem(TUTORIAL_SEEN_KEY);
-    if (!hasSeenTutorial) {
-      setShowTutorial(true);
-    }
-  }, []);
 
   // Hide mobile browser URL bar by scrolling on mount
   useEffect(() => {

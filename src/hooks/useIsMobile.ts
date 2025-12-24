@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 
 /**
+ * Check if current environment is mobile.
+ * Uses both user agent detection and viewport width.
+ */
+function checkIsMobile(): boolean {
+  const userAgent =
+    typeof window.navigator === "undefined" ? "" : navigator.userAgent;
+  return (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      userAgent
+    ) || window.innerWidth < 768
+  );
+}
+
+/**
  * useIsMobile Hook
  * Detects whether the current device is mobile based on user agent and viewport width.
  * Automatically updates on window resize.
@@ -12,26 +26,17 @@ import { useState, useEffect } from "react";
  * // Render mobile-specific UI when isMobile is true
  */
 export function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(false);
+  // Lazy initialization - run checkIsMobile only once on mount (not in useEffect!)
+  const [isMobile, setIsMobile] = useState<boolean>(checkIsMobile);
 
+  // Listen for resize events to update isMobile state
   useEffect(() => {
-    /**
-     * Check if current environment is mobile.
-     * Uses both user agent detection and viewport width.
-     */
-    const checkMobile = (): void => {
-      const userAgent =
-        typeof window.navigator === "undefined" ? "" : navigator.userAgent;
-      const mobile =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          userAgent
-        ) || window.innerWidth < 768;
-      setIsMobile(mobile);
+    const handleResize = (): void => {
+      setIsMobile(checkIsMobile());
     };
 
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return isMobile;

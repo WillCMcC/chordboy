@@ -102,14 +102,9 @@ export function useGraceNotes({
   // Store current chord notes in ref to avoid stale closures
   const notesRef = useRef<MIDINote[] | null>(null);
 
-  // Keep refs in sync to avoid stale closures in event handlers
-  useEffect(() => {
-    notesRef.current = currentChordNotes;
-  }, [currentChordNotes]);
-
-  useEffect(() => {
-    activePresetSlotRef.current = activePresetSlot;
-  }, [activePresetSlot]);
+  // Anti-pattern fix: Update refs during render instead of useEffect
+  notesRef.current = currentChordNotes;
+  activePresetSlotRef.current = activePresetSlot;
 
   /**
    * Select notes from chord by indices, handling out-of-bounds gracefully.
