@@ -10,7 +10,7 @@ import type { MIDINote } from "./music";
 /**
  * Available playback modes.
  * - Instant modes: block, root-only, shell
- * - BPM-synced modes: vamp, charleston, stride, two-feel, bossa, tremolo
+ * - BPM-synced modes: vamp, charleston, stride, two-feel, bossa, tremolo, custom
  */
 export type PlaybackMode =
   | "block"
@@ -21,7 +21,8 @@ export type PlaybackMode =
   | "stride"
   | "two-feel"
   | "bossa"
-  | "tremolo";
+  | "tremolo"
+  | "custom";
 
 /** Configuration for a playback mode */
 export interface PlaybackModeConfig {
@@ -46,6 +47,7 @@ export const PLAYBACK_MODES: PlaybackModeConfig[] = [
   { id: "two-feel", name: "Two-Feel", description: "Walking bass feel", requiresBpm: true },
   { id: "bossa", name: "Bossa", description: "Bossa nova pattern", requiresBpm: true },
   { id: "tremolo", name: "Tremolo", description: "Rapid retrigger", requiresBpm: true },
+  { id: "custom", name: "Custom", description: "User-defined pattern", requiresBpm: true },
 ];
 
 /** A note scheduled for future playback */
@@ -80,4 +82,14 @@ export interface ChordComponents {
   upperNotes: MIDINote[];
   /** All notes in original order */
   allNotes: MIDINote[];
+}
+
+/** Grid pattern for custom playback mode (16 columns x 8 rows max) */
+export interface CustomPlaybackPattern {
+  /** 2D grid: [rowIndex][columnIndex] = active (true/false) */
+  grid: boolean[][];
+  /** Number of active rows (adapts to chord size) */
+  rows: number;
+  /** Number of columns (16th notes in a bar) */
+  cols: number;
 }

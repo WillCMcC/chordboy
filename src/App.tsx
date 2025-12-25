@@ -20,6 +20,7 @@ import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
 import { TransportControls } from "./components/TransportControls";
 import { SequencerModal } from "./components/SequencerModal";
+import { GridSequencerModal } from "./components/GridSequencerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
 import { ChordWizardModal } from "./components/ChordWizardModal";
@@ -108,6 +109,7 @@ function App() {
   const [showMobileKeyboard, setShowMobileKeyboard] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
+  const [showGridSequencer, setShowGridSequencer] = useState<boolean>(false);
   const [showWizard, setShowWizard] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [lastChord, setLastChord] = useState<VoicedChord | null>(null);
@@ -501,6 +503,7 @@ function App() {
             onOpenSequencer={() => setShowSequencer(true)}
             playbackMode={playbackMode}
             onPlaybackModeChange={setPlaybackMode}
+            onOpenGridSequencer={() => setShowGridSequencer(true)}
           />
         )}
 
@@ -580,6 +583,7 @@ function App() {
             isPatchBuilderOpen={isPatchBuilderOpen}
             playbackMode={playbackMode}
             onPlaybackModeChange={setPlaybackMode}
+            onOpenGridSequencer={() => setShowGridSequencer(true)}
           />
         )}
 
@@ -626,6 +630,12 @@ function App() {
         currentOctave={octave}
         onSavePresets={handleSaveWizardPresets}
         findNextAvailableSlot={findNextAvailableSlot}
+      />
+
+      {/* Grid Sequencer modal */}
+      <GridSequencerModal
+        isOpen={showGridSequencer}
+        onClose={() => setShowGridSequencer(false)}
       />
     </div>
   );

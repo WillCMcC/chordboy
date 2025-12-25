@@ -1255,3 +1255,46 @@
     font-style: italic;
   }
 }
+
+/* Playback mode controls with edit button */
+.playback-mode-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-pattern-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: all 0.2s;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-pattern-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.edit-pattern-btn:active {
+  transform: scale(0.95);
+}
+
+/* Mobile playback row with edit button */
+.playback-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playback-row .edit-pattern-btn {
+  margin-left: auto;
+}
