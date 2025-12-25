@@ -84,10 +84,13 @@ export function PlaybackModeSelector({
         </optgroup>
       </select>
       {currentConfig && (
-        <div className="playback-mode-description">
-          {currentConfig.description}
+        <div
+          key={mode}
+          className={`playback-mode-description${currentConfig.requiresBpm ? " rhythmic" : ""}`}
+        >
+          <span className="mode-text">{currentConfig.description}</span>
           {currentConfig.requiresBpm && (
-            <span className="bpm-indicator" title="This mode uses BPM timing">
+            <span className="bpm-indicator" title="Synced to BPM">
               ♪
             </span>
           )}

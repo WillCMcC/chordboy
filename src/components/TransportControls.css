@@ -703,20 +703,34 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
+/* Mode Feedback - Subtle Helper Text */
 .playback-mode-description {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  line-height: 1.2;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  opacity: 0.8;
+  gap: 6px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+  animation: modeFadeIn 0.2s ease-out;
+}
+
+@keyframes modeFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.playback-mode-description.rhythmic .mode-text {
+  color: var(--text-secondary);
+}
+
+.mode-text {
+  flex: 1;
 }
 
 .bpm-indicator {
-  color: var(--accent-color);
-  font-size: 0.75rem;
-  margin-left: auto;
+  color: #8b5cf6;
+  font-size: 0.7rem;
+  flex-shrink: 0;
   opacity: 0.9;
 }
 
@@ -1222,6 +1236,11 @@
     flex: 1;
     font-size: 0.75rem;
     padding: 6px 28px 6px 10px;
+  }
+
+  .playback-row .playback-mode-description {
+    font-size: 0.65rem;
+    padding: 4px 0;
   }
 
   /* Sync Tab Content */
