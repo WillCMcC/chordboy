@@ -39,6 +39,7 @@
   color: var(--text-secondary);
 }
 
+.wizard-btn,
 .solve-mode-btn,
 .solve-btn,
 .cancel-btn {
@@ -50,12 +51,14 @@
   transition: all 0.2s;
 }
 
+.wizard-btn,
 .solve-mode-btn {
   background: transparent;
   border: 1px solid var(--accent-primary);
   color: var(--accent-primary);
 }
 
+.wizard-btn:hover,
 .solve-mode-btn:hover:not(:disabled) {
   background: var(--accent-primary);
   color: white;

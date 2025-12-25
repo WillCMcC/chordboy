@@ -39,6 +39,9 @@ The `appEvents` event bus decouples chord state from playback. `useChordEngine` 
 - **Right hand**: Chord modifiers (J=major, U=minor, K=dom7, I=maj7, L=9th)
 - **Voicing controls**: Shift keys for inversion/style, arrows for octave/spread
 - **Presets**: 0-9 keys save/recall chords (IndexedDB)
+- **Grace notes**: While holding preset key, ghjkl retrigger individual notes; -/= shift octave
+- **Playback modes**: 9 modes (Block, Root Only, Shell + 6 rhythmic patterns synced to BPM)
+- **Chord Wizard**: Generate jazz progressions (ii-V-I, turnarounds, tritone subs) from a starting chord
 - **Audio modes**: MIDI only, Synth only, or Both
 
 ## Tech Stack
@@ -56,12 +59,12 @@ See `agent_docs/` for in-depth reference:
 | File | Contents |
 |------|----------|
 | `architecture.md` | Component hierarchy, hooks, event flow, synthesis engine, state management |
-| `keyboard-mapping.md` | Complete key-to-function mappings |
-| `chord-building.md` | Chord construction pipeline, voicing transforms |
+| `keyboard-mapping.md` | Complete key-to-function mappings (including grace notes) |
+| `chord-building.md` | Chord construction pipeline, voicing transforms, chord solver |
+| `playback-modes.md` | Playback mode patterns and implementation |
+| `chord-wizard.md` | Jazz progression generator (ii-V-I, turnarounds, etc.) |
 | `midi-integration.md` | MIDI/BLE setup, clock sync, humanization |
 | `testing.md` | Test patterns and coverage |
-| `LFO_UNROUTING_BUG_FIX.md` | Critical LFO routing bug fix (filter mod disconnection order) |
-| `REFACTORING_NOTES.md` | useToneSynth refactoring history (synthFactory, synthPlayback split) |
 
 ## Critical Notes
 

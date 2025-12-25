@@ -46,6 +46,7 @@ src/lib/
 src/hooks/
   useChordEngine.test.ts   # Chord engine hook
   usePresets.test.ts       # Presets hook
+  usePresets.solveVoicings.test.ts # Voice leading solver tests
   useKeyboard.test.ts      # Keyboard input hook
   useVoicingKeyboard.test.ts # Voicing controls
   useGraceNotes.test.ts    # Grace note re-articulation

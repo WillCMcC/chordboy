@@ -50,3 +50,4 @@ e2e/.screenshots/
 # Misc
 *.log
 .cache/
+playback-modes/

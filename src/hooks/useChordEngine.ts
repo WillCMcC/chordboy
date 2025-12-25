@@ -19,6 +19,7 @@ import { useChordBuilder } from "./useChordBuilder";
 import { useVoicingControls } from "./useVoicingControls";
 import { useOctaveControls } from "./useOctaveControls";
 import { usePresetActions } from "./usePresetActions";
+import { useProgressionSettings } from "./useProgressionSettings";
 import { appEvents } from "../lib/eventBus";
 import type { Chord, MIDINote, Octave, Preset, ParsedKeys, VoicingStyle } from "../types";
 
@@ -84,6 +85,10 @@ export interface UseChordEngineReturn {
   cycleDrop: () => void;
   cycleSpread: () => void;
   cycleVoicingStyle: () => void;
+
+  // Progression settings
+  trueRandomMode: boolean;
+  setTrueRandomMode: (enabled: boolean) => void;
 }
 
 /**
@@ -147,6 +152,9 @@ export function useChordEngine(
     setRecalledVoicingStyle,
     setActivePresetSlot,
   } = usePresets({ defaultOctave: octave });
+
+  // Use progression settings for smart chord generation
+  const { trueRandomMode, setTrueRandomMode } = useProgressionSettings();
 
   /**
    * Parse the currently pressed keys (or use recalled keys if active).
@@ -414,5 +422,13 @@ export function useChordEngine(
     cycleDrop,
     cycleSpread,
     cycleVoicingStyle,
+
+    // Progression settings
+    trueRandomMode,
+    setTrueRandomMode,
+
+    // Raw preset functions (for wizard)
+    savePreset,
+    findNextAvailableSlot,
   };
 }

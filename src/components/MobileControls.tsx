@@ -88,6 +88,7 @@ interface MobileControlsProps {
   isPatchBuilderOpen?: boolean;
   playbackMode: PlaybackMode;
   onPlaybackModeChange: (mode: PlaybackMode) => void;
+  onOpenGridSequencer: () => void;
 }
 
 /**
@@ -143,6 +144,7 @@ export function MobileControls({
   isPatchBuilderOpen = false,
   playbackMode,
   onPlaybackModeChange,
+  onOpenGridSequencer,
 }: MobileControlsProps) {
 
   return (
@@ -180,6 +182,7 @@ export function MobileControls({
             onOpenSequencer={onOpenSequencer}
             playbackMode={playbackMode}
             onPlaybackModeChange={onPlaybackModeChange}
+            onOpenGridSequencer={onOpenGridSequencer}
           />
         </div>
       )}

@@ -12,6 +12,7 @@ import type {
   StrumDirection,
   GraceNotePayload,
   MIDIInputInfoDisplay,
+  Octave,
 } from "./types";
 import type { VoicedChord } from "./hooks/useChordEngine";
 import { usePlaybackModeDisplay } from "./hooks/usePlaybackModeDisplay";
@@ -19,8 +20,10 @@ import { PianoKeyboard } from "./components/PianoKeyboard";
 import { MobileControls } from "./components/MobileControls";
 import { TransportControls } from "./components/TransportControls";
 import { SequencerModal } from "./components/SequencerModal";
+import { GridSequencerModal } from "./components/GridSequencerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
+import { ChordWizardModal } from "./components/ChordWizardModal";
 import { ChordDisplay } from "./components/ChordDisplay";
 import { TutorialModal } from "./components/TutorialModal";
 import { GraceNoteStrip } from "./components/GraceNoteStrip";
@@ -106,6 +109,8 @@ function App() {
   const [showMobileKeyboard, setShowMobileKeyboard] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
+  const [showGridSequencer, setShowGridSequencer] = useState<boolean>(false);
+  const [showWizard, setShowWizard] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [lastChord, setLastChord] = useState<VoicedChord | null>(null);
   const [triggeredNotes, setTriggeredNotes] = useState<MIDINote[]>([]);
@@ -159,6 +164,10 @@ function App() {
     activePresetSlot,
     solvePresets,
     getChordNotesFromPreset,
+    trueRandomMode,
+    setTrueRandomMode,
+    savePreset,
+    findNextAvailableSlot,
   } = useChordEngine(allPressedKeys, { isMobile });
 
   // Enable grace notes when holding preset keys (ghjkl = single notes, yuiop = pairs, vbnm,. = intervals)
@@ -348,6 +357,30 @@ function App() {
     }
   }, [nextAvailableSlot, saveCurrentChordToSlot]);
 
+  // Handle saving presets from chord wizard
+  const handleSaveWizardPresets = useCallback(
+    (presets: Array<{ keys: Set<string>; octave: Octave }>): void => {
+      // Pre-calculate all available slots (since findNextAvailableSlot uses a ref
+      // that doesn't update synchronously during the loop)
+      const slots = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+      const availableSlots = slots.filter((s) => !savedPresets.has(s));
+
+      // Save each preset to the next available slot
+      presets.forEach((preset, index) => {
+        if (index < availableSlots.length) {
+          savePreset(availableSlots[index], {
+            keys: preset.keys,
+            octave: preset.octave,
+            inversionIndex: 0,
+            spreadAmount: 0,
+            voicingStyle: "close",
+          });
+        }
+      });
+    },
+    [savedPresets, savePreset]
+  );
+
   return (
     <div className="app">
       {/* Synth / MIDI mode selector - fixed at top */}
@@ -385,6 +418,8 @@ function App() {
         wakeLockEnabled={wakeLockEnabled}
         wakeLockActive={wakeLockActive}
         onWakeLockChange={handleWakeLockChange}
+        trueRandomMode={trueRandomMode}
+        onTrueRandomModeChange={setTrueRandomMode}
       />
 
       {/* Tutorial modal */}
@@ -472,6 +507,7 @@ function App() {
             onOpenSequencer={() => setShowSequencer(true)}
             playbackMode={playbackMode}
             onPlaybackModeChange={setPlaybackMode}
+            onOpenGridSequencer={() => setShowGridSequencer(true)}
           />
         )}
 
@@ -481,6 +517,7 @@ function App() {
             savedPresets={savedPresets}
             onClearPreset={clearPreset}
             onSolvePresets={solvePresets}
+            onOpenWizard={() => setShowWizard(true)}
           />
         )}
 
@@ -552,6 +589,7 @@ function App() {
             isPatchBuilderOpen={isPatchBuilderOpen}
             playbackMode={playbackMode}
             onPlaybackModeChange={setPlaybackMode}
+            onOpenGridSequencer={() => setShowGridSequencer(true)}
           />
         )}
 
@@ -587,6 +625,23 @@ function App() {
         onSetStepsPerBeat={setStepsPerBeat}
         onSetSequencerEnabled={setSequencerEnabled}
         onSetRetrigMode={setRetrigMode}
+      />
+
+      {/* Chord Wizard modal */}
+      <ChordWizardModal
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        savedPresets={savedPresets}
+        currentChordKeys={allPressedKeys.size > 0 ? allPressedKeys : null}
+        currentOctave={octave}
+        onSavePresets={handleSaveWizardPresets}
+        findNextAvailableSlot={findNextAvailableSlot}
+      />
+
+      {/* Grid Sequencer modal */}
+      <GridSequencerModal
+        isOpen={showGridSequencer}
+        onClose={() => setShowGridSequencer(false)}
       />
     </div>
   );

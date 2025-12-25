@@ -82,6 +82,8 @@ interface TransportControlsProps {
   playbackMode: PlaybackMode;
   /** Callback to change playback mode */
   onPlaybackModeChange: (mode: PlaybackMode) => void;
+  /** Callback to open grid sequencer modal */
+  onOpenGridSequencer: () => void;
 }
 
 /**
@@ -125,6 +127,7 @@ export function TransportControls({
   // Playback mode
   playbackMode,
   onPlaybackModeChange,
+  onOpenGridSequencer,
 }: TransportControlsProps) {
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<MobileTab>("transport");
@@ -234,6 +237,18 @@ export function TransportControls({
           <PlaybackModeSelector
             mode={playbackMode}
             onModeChange={onPlaybackModeChange}
+            inlineAction={
+              playbackMode === "custom" ? (
+                <button
+                  className="edit-pattern-btn"
+                  onClick={onOpenGridSequencer}
+                  title="Edit custom pattern"
+                  aria-label="Edit custom pattern"
+                >
+                  ⋮⋮
+                </button>
+              ) : undefined
+            }
           />
         </div>
 
@@ -525,6 +540,18 @@ export function TransportControls({
                 <PlaybackModeSelector
                   mode={playbackMode}
                   onModeChange={onPlaybackModeChange}
+                  inlineAction={
+                    playbackMode === "custom" ? (
+                      <button
+                        className="edit-pattern-btn"
+                        onClick={onOpenGridSequencer}
+                        title="Edit custom pattern"
+                        aria-label="Edit custom pattern"
+                      >
+                        ⋮⋮
+                      </button>
+                    ) : undefined
+                  }
                 />
               </div>
             </div>

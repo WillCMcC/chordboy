@@ -339,3 +339,59 @@ export interface HumanizeManager {
   /** Clear all pending callbacks */
   clear(): void;
 }
+
+// ============================================================================
+// Progression Generator Types
+// ============================================================================
+
+/** Chord quality categories for progression analysis */
+export type ChordQualityCategory =
+  | "major"
+  | "minor"
+  | "dominant"
+  | "half-dim"
+  | "dim"
+  | "aug"
+  | "sus";
+
+/** Analysis of a chord's harmonic function */
+export interface ChordAnalysis {
+  /** Root note name */
+  root: NoteName;
+  /** Root as pitch class (0-11, C=0) */
+  rootPitchClass: number;
+  /** Simplified quality category */
+  quality: ChordQualityCategory;
+  /** Whether chord has extensions (9, 11, 13) */
+  hasExtensions: boolean;
+  /** Whether chord has a seventh */
+  isSeventh: boolean;
+  /** Whether chord has alterations (b9, #9, #11, b13) */
+  hasAlterations: boolean;
+  /** Original keys for reconstruction */
+  keys: Set<string>;
+}
+
+/** Detected progression pattern */
+export type ProgressionPattern =
+  | "ii-V-needs-I"
+  | "ii-V-minor-needs-i"
+  | "ii-needs-V"
+  | "ii-minor-needs-V"
+  | "V-needs-resolution"
+  | "I-start-turnaround"
+  | "turnaround-vi-needs-ii"
+  | "turnaround-ii-needs-V"
+  | "backdoor-iv-needs-bVII"
+  | "continue-circle"
+  | "none";
+
+/** Generated chord result from progression generator */
+export interface GeneratedChord {
+  /** Keys to save as preset */
+  keys: Set<string>;
+  /** Suggested octave for voicing */
+  suggestedOctave: Octave;
+  /** Human-readable reasoning */
+  reasoning: string;
+}

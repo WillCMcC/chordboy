@@ -1,0 +1,261 @@
+/**
+ * GridSequencerModal Styles
+ * Styles for the custom playback mode grid sequencer modal.
+ */
+
+.sequencer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.sequencer-modal {
+  background: var(--secondary-bg);
+  border-radius: 12px;
+  width: 95%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.sequencer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  background: var(--secondary-bg);
+  z-index: 1;
+}
+
+.sequencer-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.sequencer-close {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sequencer-close:hover {
+  opacity: 1;
+}
+
+.sequencer-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  /* Prevent text selection during drag */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sequencer-info {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.sequencer-info p {
+  margin: 0;
+}
+
+.sequencer-grid-container {
+  overflow-x: auto;
+  padding: 0.5rem;
+}
+
+.sequencer-grid {
+  display: flex;
+  gap: 0.5rem;
+  min-width: fit-content;
+}
+
+.sequencer-row-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 28px; /* Offset for column labels */
+}
+
+.sequencer-row-label {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  width: 32px;
+}
+
+.sequencer-grid-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sequencer-col-labels {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  margin-bottom: 4px;
+}
+
+.sequencer-col-label {
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sequencer-col-label.beat-marker {
+  color: var(--text-color);
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.sequencer-grid-row {
+  display: flex;
+  gap: 2px;
+}
+
+.sequencer-cell {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 2px;
+  padding: 0;
+}
+
+.sequencer-cell.beat-marker {
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.sequencer-cell:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sequencer-cell.active {
+  background: var(--primary-color, #4a9eff);
+  border-color: var(--primary-color, #4a9eff);
+}
+
+.sequencer-cell.active:hover {
+  background: var(--primary-hover, #6bb0ff);
+  border-color: var(--primary-hover, #6bb0ff);
+}
+
+/* Root row (bass note) - slightly different styling */
+.sequencer-cell.root-row {
+  background: rgba(255, 180, 100, 0.1);
+  border-color: rgba(255, 180, 100, 0.25);
+}
+
+.sequencer-cell.root-row:hover {
+  background: rgba(255, 180, 100, 0.2);
+  border-color: rgba(255, 180, 100, 0.35);
+}
+
+.sequencer-cell.root-row.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.sequencer-cell.root-row.active:hover {
+  background: #fbbf24;
+  border-color: #fbbf24;
+}
+
+.sequencer-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sequencer-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sequencer-btn.primary {
+  background: var(--primary-color, #4a9eff);
+  color: white;
+}
+
+.sequencer-btn.primary:hover {
+  background: var(--primary-hover, #6bb0ff);
+}
+
+.sequencer-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.sequencer-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .sequencer-modal {
+    width: 98%;
+    max-height: 95vh;
+  }
+
+  .sequencer-body {
+    padding: 1rem;
+  }
+
+  .sequencer-cell,
+  .sequencer-col-label,
+  .sequencer-row-label {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+
+  .sequencer-actions {
+    flex-direction: column;
+  }
+
+  .sequencer-btn {
+    width: 100%;
+  }
+}
