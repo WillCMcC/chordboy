@@ -674,6 +674,12 @@
   gap: var(--space-1);
 }
 
+.playback-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .playback-mode-select {
   padding: var(--space-1) var(--space-2);
   padding-right: var(--space-4);
@@ -707,6 +713,7 @@
 .playback-mode-description {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font-size: 0.6rem;
   color: var(--text-muted);
@@ -724,7 +731,7 @@
 }
 
 .mode-text {
-  flex: 1;
+  /* Remove flex: 1 so icon stays next to text */
 }
 
 .bpm-indicator {
@@ -1298,13 +1305,6 @@
   }
 }
 
-/* Playback mode controls with edit button */
-.playback-mode-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .edit-pattern-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1330,13 +1330,7 @@
   transform: scale(0.95);
 }
 
-/* Mobile playback row with edit button */
-.playback-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.playback-row .edit-pattern-btn {
-  margin-left: auto;
+/* Mobile playback row - selector fills remaining space */
+.playback-row .playback-mode-selector {
+  flex: 1;
 }

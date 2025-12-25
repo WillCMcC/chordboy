@@ -66,6 +66,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  /* Prevent text selection during drag */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .sequencer-info {
@@ -168,6 +171,27 @@
 .sequencer-cell.active:hover {
   background: var(--primary-hover, #6bb0ff);
   border-color: var(--primary-hover, #6bb0ff);
+}
+
+/* Root row (bass note) - slightly different styling */
+.sequencer-cell.root-row {
+  background: rgba(255, 180, 100, 0.1);
+  border-color: rgba(255, 180, 100, 0.25);
+}
+
+.sequencer-cell.root-row:hover {
+  background: rgba(255, 180, 100, 0.2);
+  border-color: rgba(255, 180, 100, 0.35);
+}
+
+.sequencer-cell.root-row.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+
+.sequencer-cell.root-row.active:hover {
+  background: #fbbf24;
+  border-color: #fbbf24;
 }
 
 .sequencer-actions {

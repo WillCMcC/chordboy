@@ -6,7 +6,7 @@
  * @module components/GridSequencerModal
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { CustomPlaybackPattern } from "../types";
 import {
   getCustomPattern,
@@ -34,6 +34,9 @@ export function GridSequencerModal({
     getCustomPattern()
   );
 
+  // Drag state: null = not dragging, true = activating cells, false = deactivating cells
+  const isDragging = useRef<boolean | null>(null);
+
   // Load pattern when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -41,13 +44,57 @@ export function GridSequencerModal({
     }
   }, [isOpen]);
 
-  // Toggle a cell in the grid
+  // Toggle a cell in the grid (used for initial click)
   const toggleCell = useCallback((row: number, col: number) => {
     setPattern((prev) => {
       const newGrid = prev.grid.map((r) => [...r]);
       newGrid[row][col] = !newGrid[row][col];
       return { ...prev, grid: newGrid };
     });
+  }, []);
+
+  // Set a cell to a specific state (used for dragging)
+  const setCell = useCallback((row: number, col: number, active: boolean) => {
+    setPattern((prev) => {
+      if (prev.grid[row]?.[col] === active) return prev; // No change needed
+      const newGrid = prev.grid.map((r) => [...r]);
+      newGrid[row][col] = active;
+      return { ...prev, grid: newGrid };
+    });
+  }, []);
+
+  // Handle mouse down on a cell - start dragging
+  const handleCellMouseDown = useCallback(
+    (row: number, col: number) => {
+      const currentState = pattern.grid[row]?.[col] ?? false;
+      isDragging.current = !currentState; // If cell is off, we're activating; if on, deactivating
+      toggleCell(row, col);
+    },
+    [pattern.grid, toggleCell]
+  );
+
+  // Handle mouse enter on a cell - continue dragging
+  const handleCellMouseEnter = useCallback(
+    (row: number, col: number) => {
+      if (isDragging.current !== null) {
+        setCell(row, col, isDragging.current);
+      }
+    },
+    [setCell]
+  );
+
+  // Handle mouse up - stop dragging
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = null;
+  }, []);
+
+  // Global mouse up listener to stop dragging even when mouse leaves grid
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      isDragging.current = null;
+    };
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, []);
 
   // Clear the entire grid
@@ -94,11 +141,11 @@ export function GridSequencerModal({
           </button>
         </div>
 
-        <div className="sequencer-body">
+        <div className="sequencer-body" onMouseUp={handleMouseUp}>
           <div className="sequencer-info">
             <p>
-              Click cells to create a pattern. Each row represents a note (low
-              to high), each column is a 16th note.
+              Click or drag to create a pattern. Row 1 is the root note, each
+              column is a 16th note.
             </p>
           </div>
 
@@ -106,9 +153,9 @@ export function GridSequencerModal({
             <div className="sequencer-grid">
               {/* Row labels */}
               <div className="sequencer-row-labels">
-                {Array.from({ length: pattern.rows }, (_, i) => (
-                  <div key={i} className="sequencer-row-label">
-                    {pattern.rows - i}
+                {Array.from({ length: pattern.rows }, (_, row) => (
+                  <div key={row} className="sequencer-row-label">
+                    {row === 0 ? "R" : row + 1}
                   </div>
                 ))}
               </div>
@@ -129,24 +176,24 @@ export function GridSequencerModal({
                   ))}
                 </div>
 
-                {/* Grid rows (reversed to show highest note at top) */}
-                {Array.from({ length: pattern.rows }, (_, rowIndex) => {
-                  const row = pattern.rows - 1 - rowIndex; // Reverse order
-                  return (
-                    <div key={row} className="sequencer-grid-row">
-                      {Array.from({ length: pattern.cols }, (_, col) => (
-                        <button
-                          key={col}
-                          className={`sequencer-cell ${
-                            pattern.grid[row]?.[col] ? "active" : ""
-                          } ${col % 4 === 0 ? "beat-marker" : ""}`}
-                          onClick={() => toggleCell(row, col)}
-                          title={`Row ${row + 1}, Step ${col + 1}`}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
+                {/* Grid rows (root at top) */}
+                {Array.from({ length: pattern.rows }, (_, row) => (
+                  <div key={row} className="sequencer-grid-row">
+                    {Array.from({ length: pattern.cols }, (_, col) => (
+                      <button
+                        key={col}
+                        className={`sequencer-cell ${
+                          pattern.grid[row]?.[col] ? "active" : ""
+                        } ${col % 4 === 0 ? "beat-marker" : ""} ${
+                          row === 0 ? "root-row" : ""
+                        }`}
+                        onMouseDown={() => handleCellMouseDown(row, col)}
+                        onMouseEnter={() => handleCellMouseEnter(row, col)}
+                        title={`${row === 0 ? "Root" : `Note ${row + 1}`}, Step ${col + 1}`}
+                      />
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

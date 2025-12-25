@@ -234,22 +234,22 @@ export function TransportControls({
         {/* Playback Mode Section */}
         <div className="transport-section playback-section">
           <label className="transport-label">Mode</label>
-          <div className="playback-mode-controls">
-            <PlaybackModeSelector
-              mode={playbackMode}
-              onModeChange={onPlaybackModeChange}
-            />
-            {playbackMode === "custom" && (
-              <button
-                className="edit-pattern-btn"
-                onClick={onOpenGridSequencer}
-                title="Edit custom pattern"
-                aria-label="Edit custom pattern"
-              >
-                ⋮⋮
-              </button>
-            )}
-          </div>
+          <PlaybackModeSelector
+            mode={playbackMode}
+            onModeChange={onPlaybackModeChange}
+            inlineAction={
+              playbackMode === "custom" ? (
+                <button
+                  className="edit-pattern-btn"
+                  onClick={onOpenGridSequencer}
+                  title="Edit custom pattern"
+                  aria-label="Edit custom pattern"
+                >
+                  ⋮⋮
+                </button>
+              ) : undefined
+            }
+          />
         </div>
 
         {/* Divider */}
@@ -537,17 +537,19 @@ export function TransportControls({
                 <PlaybackModeSelector
                   mode={playbackMode}
                   onModeChange={onPlaybackModeChange}
+                  inlineAction={
+                    playbackMode === "custom" ? (
+                      <button
+                        className="edit-pattern-btn"
+                        onClick={onOpenGridSequencer}
+                        title="Edit custom pattern"
+                        aria-label="Edit custom pattern"
+                      >
+                        ⋮⋮
+                      </button>
+                    ) : undefined
+                  }
                 />
-                {playbackMode === "custom" && (
-                  <button
-                    className="edit-pattern-btn"
-                    onClick={onOpenGridSequencer}
-                    title="Edit custom pattern"
-                    aria-label="Edit custom pattern"
-                  >
-                    ⋮⋮
-                  </button>
-                )}
               </div>
             </div>
           )}

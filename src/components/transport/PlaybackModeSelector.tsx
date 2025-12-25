@@ -16,6 +16,8 @@ export interface PlaybackModeSelectorProps {
   mode: PlaybackMode;
   /** Callback when mode changes */
   onModeChange: (mode: PlaybackMode) => void;
+  /** Optional element to render inline with the select (e.g., edit button) */
+  inlineAction?: React.ReactNode;
 }
 
 /**
@@ -30,6 +32,7 @@ export interface PlaybackModeSelectorProps {
 export function PlaybackModeSelector({
   mode,
   onModeChange,
+  inlineAction,
 }: PlaybackModeSelectorProps) {
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>): void => {
@@ -61,28 +64,31 @@ export function PlaybackModeSelector({
 
   return (
     <div className="playback-mode-selector">
-      <select
-        className="playback-mode-select"
-        value={mode}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        title={currentConfig?.description || "Select playback mode"}
-      >
-        <optgroup label="Instant">
-          {instantModes.map((config) => (
-            <option key={config.id} value={config.id}>
-              {config.name}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Rhythmic (BPM-synced)">
-          {rhythmicModes.map((config) => (
-            <option key={config.id} value={config.id}>
-              {config.name}
-            </option>
-          ))}
-        </optgroup>
-      </select>
+      <div className="playback-mode-row">
+        <select
+          className="playback-mode-select"
+          value={mode}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          title={currentConfig?.description || "Select playback mode"}
+        >
+          <optgroup label="Instant">
+            {instantModes.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Rhythmic (BPM-synced)">
+            {rhythmicModes.map((config) => (
+              <option key={config.id} value={config.id}>
+                {config.name}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        {inlineAction}
+      </div>
       {currentConfig && (
         <div
           key={mode}
