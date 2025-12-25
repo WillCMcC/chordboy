@@ -77,6 +77,7 @@ export type {
   ScheduledNoteGroup,
   PlaybackModeResult,
   ChordComponents,
+  CustomPlaybackPattern,
 } from "./playbackMode";
 
 export { PLAYBACK_MODES } from "./playbackMode";

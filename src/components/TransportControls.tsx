@@ -82,6 +82,8 @@ interface TransportControlsProps {
   playbackMode: PlaybackMode;
   /** Callback to change playback mode */
   onPlaybackModeChange: (mode: PlaybackMode) => void;
+  /** Callback to open grid sequencer modal */
+  onOpenGridSequencer: () => void;
 }
 
 /**
@@ -125,6 +127,7 @@ export function TransportControls({
   // Playback mode
   playbackMode,
   onPlaybackModeChange,
+  onOpenGridSequencer,
 }: TransportControlsProps) {
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<MobileTab>("transport");
@@ -231,10 +234,22 @@ export function TransportControls({
         {/* Playback Mode Section */}
         <div className="transport-section playback-section">
           <label className="transport-label">Mode</label>
-          <PlaybackModeSelector
-            mode={playbackMode}
-            onModeChange={onPlaybackModeChange}
-          />
+          <div className="playback-mode-controls">
+            <PlaybackModeSelector
+              mode={playbackMode}
+              onModeChange={onPlaybackModeChange}
+            />
+            {playbackMode === "custom" && (
+              <button
+                className="edit-pattern-btn"
+                onClick={onOpenGridSequencer}
+                title="Edit custom pattern"
+                aria-label="Edit custom pattern"
+              >
+                ⋮⋮
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Divider */}
@@ -523,6 +538,16 @@ export function TransportControls({
                   mode={playbackMode}
                   onModeChange={onPlaybackModeChange}
                 />
+                {playbackMode === "custom" && (
+                  <button
+                    className="edit-pattern-btn"
+                    onClick={onOpenGridSequencer}
+                    title="Edit custom pattern"
+                    aria-label="Edit custom pattern"
+                  >
+                    ⋮⋮
+                  </button>
+                )}
               </div>
             </div>
           )}

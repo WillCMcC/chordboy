@@ -11,6 +11,7 @@ import type {
   PlaybackModeResult,
   ScheduledNoteGroup,
   ChordComponents,
+  CustomPlaybackPattern,
 } from "../types";
 
 /**
@@ -257,6 +258,101 @@ function applyTremoloMode(notes: MIDINote[], bpm: number): PlaybackModeResult {
 }
 
 /**
+ * Get the saved custom pattern from localStorage.
+ * Returns a default pattern if none exists.
+ */
+export function getCustomPattern(): CustomPlaybackPattern {
+  try {
+    const stored = localStorage.getItem("chordboy-custom-pattern");
+    if (stored) {
+      return JSON.parse(stored) as CustomPlaybackPattern;
+    }
+  } catch (e) {
+    console.warn("Failed to load custom pattern:", e);
+  }
+
+  // Default pattern: simple 4-on-the-floor
+  return createDefaultPattern();
+}
+
+/**
+ * Save a custom pattern to localStorage.
+ */
+export function saveCustomPattern(pattern: CustomPlaybackPattern): void {
+  try {
+    localStorage.setItem("chordboy-custom-pattern", JSON.stringify(pattern));
+  } catch (e) {
+    console.error("Failed to save custom pattern:", e);
+  }
+}
+
+/**
+ * Create a default pattern (8 rows x 16 columns).
+ * Default: simple block on beat 1 (column 0).
+ */
+export function createDefaultPattern(): CustomPlaybackPattern {
+  const rows = 8;
+  const cols = 16;
+  const grid: boolean[][] = [];
+
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      // Default: all notes on beat 1 (column 0)
+      grid[r][c] = c === 0;
+    }
+  }
+
+  return { grid, rows, cols };
+}
+
+/**
+ * Custom mode - user-defined grid pattern.
+ * Plays notes according to the pattern stored in localStorage.
+ */
+function applyCustomMode(notes: MIDINote[], bpm: number): PlaybackModeResult {
+  const pattern = getCustomPattern();
+  const sixteenth = beatDuration(bpm) / 4; // Duration of one 16th note
+
+  // Sort notes by pitch (low to high) for consistent row mapping
+  const sortedNotes = [...notes].sort((a, b) => a - b);
+
+  const scheduledGroups: ScheduledNoteGroup[] = [];
+  const sustainedNotes: MIDINote[] = [];
+
+  // Process each column (16th note position)
+  for (let col = 0; col < pattern.cols; col++) {
+    const notesAtThisStep: MIDINote[] = [];
+
+    // Check which notes are active at this column
+    for (let row = 0; row < Math.min(sortedNotes.length, pattern.rows); row++) {
+      if (pattern.grid[row]?.[col]) {
+        notesAtThisStep.push(sortedNotes[row]);
+      }
+    }
+
+    if (notesAtThisStep.length > 0) {
+      if (col === 0) {
+        // First step: add to sustained notes (played immediately)
+        sustainedNotes.push(...notesAtThisStep);
+      } else {
+        // Schedule future steps
+        scheduledGroups.push({
+          notes: notesAtThisStep,
+          delayMs: sixteenth * col,
+          retrigger: true,
+        });
+      }
+    }
+  }
+
+  return {
+    scheduledGroups,
+    sustainedNotes,
+  };
+}
+
+/**
  * Apply a playback mode to transform chord playback.
  *
  * @param notes - MIDI notes in the chord
@@ -292,6 +388,8 @@ export function applyPlaybackMode(
       return applyBossaMode(notes, bpm);
     case "tremolo":
       return applyTremoloMode(notes, bpm);
+    case "custom":
+      return applyCustomMode(notes, bpm);
     default:
       return applyBlockMode(notes);
   }
