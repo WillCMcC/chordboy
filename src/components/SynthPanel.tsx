@@ -437,6 +437,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
             className={`mode-btn ${audioMode === "midi" ? "active" : ""}`}
             onClick={() => handleModeChange("midi")}
             title="MIDI output only"
+            data-testid="audio-mode-midi"
           >
             MIDI
           </button>
@@ -444,6 +445,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
             className={`mode-btn ${audioMode === "synth" ? "active" : ""}`}
             onClick={() => handleModeChange("synth")}
             title="Browser synth only"
+            data-testid="synth-enabled"
           >
             SYNTH
           </button>
@@ -451,6 +453,7 @@ export function SynthPanel({ onOpenSettings }: SynthPanelProps) {
             className={`mode-btn ${audioMode === "both" ? "active" : ""}`}
             onClick={() => handleModeChange("both")}
             title="Both MIDI and synth"
+            data-testid="audio-mode-both"
           >
             BOTH
           </button>

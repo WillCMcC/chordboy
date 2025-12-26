@@ -393,6 +393,7 @@ function App() {
             className="header-btn"
             onClick={() => setShowTutorial(true)}
             aria-label="Help"
+            data-testid="open-tutorial"
           >
             ?
           </button>
@@ -400,6 +401,7 @@ function App() {
             className="header-btn"
             onClick={() => setShowSettings(!showSettings)}
             aria-label="Settings"
+            data-testid="open-settings"
           >
             ⚙️
           </button>
@@ -442,15 +444,17 @@ function App() {
         style={{ paddingBottom: isMobile ? "55dvh" : "2rem" }}
       >
         {/* Chord display with aurora glow */}
-        <ChordDisplay
-          currentChord={currentChord}
-          displayChord={displayChord}
-          octave={octave}
-          inversionIndex={inversionIndex}
-          spreadAmount={spreadAmount}
-          voicingStyle={voicingStyle}
-          showHints={!isMobile}
-        />
+        <div data-testid="chord-display">
+          <ChordDisplay
+            currentChord={currentChord}
+            displayChord={displayChord}
+            octave={octave}
+            inversionIndex={inversionIndex}
+            spreadAmount={spreadAmount}
+            voicingStyle={voicingStyle}
+            showHints={!isMobile}
+          />
+        </div>
 
         {/* Grace note strip OR piano keyboard for mobile */}
         {isMobile && !showMobileKeyboard && currentChord && (
@@ -519,13 +523,15 @@ function App() {
 
         {/* Desktop piano keyboard */}
         {!isMobile && (
-          <PianoKeyboard
-            activeNotes={displayNotes}
-            triggeredNotes={triggeredNotes}
-            startOctave={1}
-            endOctave={7}
-            getNoteColor={getNoteColor}
-          />
+          <div data-testid="piano-keyboard">
+            <PianoKeyboard
+              activeNotes={displayNotes}
+              triggeredNotes={triggeredNotes}
+              startOctave={1}
+              endOctave={7}
+              getNoteColor={getNoteColor}
+            />
+          </div>
         )}
 
         {/* Mobile controls */}

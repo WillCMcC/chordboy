@@ -7,6 +7,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { CustomSynthEngine } from "../lib/customSynthEngine";
+import { enableSynthDebug } from "../lib/synthDebug";
 import type { ADSREnvelope } from "../lib/synthPresets";
 import type { useCustomPatches } from "./useCustomPatches";
 
@@ -57,6 +58,9 @@ export function useCustomSynth(
       // Note: CustomSynthEngine manages its own output chain and connects to destination
       customSynthRef.current = new CustomSynthEngine(patch);
       lastPatchUpdateRef.current = patch.updatedAt;
+
+      // Enable debug hooks for E2E testing (development only)
+      enableSynthDebug(customSynthRef.current);
 
       return true;
     },

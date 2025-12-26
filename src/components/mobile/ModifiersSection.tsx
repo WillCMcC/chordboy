@@ -35,6 +35,7 @@ export function ModifiersSection({
           <button
             key={key}
             className={`mobile-btn ${mobileKeys.has(key) ? "active" : ""}`}
+            data-testid={`mobile-quality-${label.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
             onPointerDown={(e: PointerEvent<HTMLButtonElement>) => {
               e.preventDefault();
               handleModifierTap(key);

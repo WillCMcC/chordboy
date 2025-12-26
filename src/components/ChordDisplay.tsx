@@ -79,7 +79,7 @@ export function ChordDisplay({
       />
 
       <div className="chord-display">
-        <p className="chord-name">
+        <p className="chord-name" data-testid="chord-name">
           {hasChord ? displayChord.name : "Press keys to play chords"}
         </p>
 
@@ -87,15 +87,22 @@ export function ChordDisplay({
           <div className="chord-info" style={{ opacity: hasChord ? 1 : 0 }}>
             <p>
               <strong>Notes:</strong>{" "}
-              {hasChord ? displayChord.notes.join(", ") : "C, E, G"}{" "}
+              <span data-testid="chord-notes">
+                {hasChord ? displayChord.notes.join(", ") : "C, E, G"}
+              </span>{" "}
               <span style={{ opacity: 0.5 }}>|</span> <strong>Octave:</strong>{" "}
-              {octave}
+              <span data-testid="chord-octave">{octave}</span>
             </p>
             <p>
-              <strong>Voicing:</strong> {VOICING_STYLE_LABELS[voicingStyle]}{" "}
+              <strong>Voicing:</strong>{" "}
+              <span data-testid="voicing-style">
+                {VOICING_STYLE_LABELS[voicingStyle]}
+              </span>{" "}
               <span style={{ opacity: 0.5 }}>|</span> <strong>Inv:</strong>{" "}
-              {inversionIndex} <span style={{ opacity: 0.5 }}>|</span>{" "}
-              <strong>Spread:</strong> {spreadAmount}
+              <span data-testid="inversion-index">{inversionIndex}</span>{" "}
+              <span style={{ opacity: 0.5 }}>|</span>{" "}
+              <strong>Spread:</strong>{" "}
+              <span data-testid="spread-amount">{spreadAmount}</span>
             </p>
           </div>
         )}
