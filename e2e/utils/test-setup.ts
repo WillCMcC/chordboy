@@ -6,8 +6,12 @@ import { Page } from '@playwright/test';
 
 /**
  * Reset application state before each test
+ * Must be called after navigating to the app (or will navigate for you)
  */
 export async function resetAppState(page: Page) {
+  // Navigate to app first so we have access to storage APIs
+  await page.goto('/');
+
   // Clear IndexedDB databases
   await page.evaluate(() => {
     const databases = [
@@ -42,9 +46,11 @@ export async function resetAppState(page: Page) {
 
 /**
  * Initialize app for testing
+ * Call after resetAppState to reload with clean state
  */
 export async function initializeApp(page: Page) {
-  await page.goto('/');
+  // Reload to apply cleared storage state
+  await page.reload();
 
   // Wait for app to be ready
   await page.waitForSelector('[data-testid="chord-display"]', {

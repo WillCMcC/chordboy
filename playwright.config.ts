@@ -31,7 +31,7 @@ export default defineConfig({
   // Global test settings
   use: {
     // Base URL for the app
-    baseURL: process.env.BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || 'http://localhost:4000',
 
     // Tracing and debugging
     trace: 'on-first-retry',
@@ -96,7 +96,7 @@ export default defineConfig({
   // Web server (dev server for testing)
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:4000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     stdout: 'pipe',

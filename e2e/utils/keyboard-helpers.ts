@@ -5,47 +5,55 @@ import { Page, expect } from '@playwright/test';
  * Maps musical concepts to physical keyboard keys
  */
 
-// Root note mappings (left hand)
+// Root note mappings (left hand) - matches src/lib/keyboardMappings.ts
 export const ROOT_KEYS: Record<string, string> = {
+  // Row 1 (QWER): C, C#, D, D#
   C: 'q',
-  'C#': 'a',
-  D: 'w',
-  'D#': 's',
-  E: 'e',
-  F: 'r',
+  'C#': 'w',
+  D: 'e',
+  'D#': 'r',
+  // Row 2 (ASDF): E, F, F#, G
+  E: 'a',
+  F: 's',
   'F#': 'd',
   G: 'f',
-  'G#': 'g',
-  A: 'v',
-  'A#': 'h',
-  B: 'b',
+  // Row 3 (ZXCV): G#, A, A#, B
+  'G#': 'z',
+  A: 'x',
+  'A#': 'c',
+  B: 'v',
 };
 
-// Quality mappings (right hand)
+// Quality mappings (right hand) - single keys for basic qualities
 export const QUALITY_KEYS: Record<string, string> = {
   major: 'j',
   minor: 'u',
   diminished: 'm',
   augmented: '7',
-  dom7: 'k',
-  maj7: 'i',
-  min7: ',',
+  dom7: 'k',    // Dominant 7th (adds b7)
+  maj7: 'i',    // Major 7th (adds M7)
 };
 
-// Extension mappings
+// Extension/alteration mappings
 export const EXTENSION_KEYS: Record<string, string> = {
   '9th': 'l',
   '11th': 'o',
   '13th': '.',
-  'b5': '[',
-  '#5': ']',
-  'b9': '[',
-  '#9': ']',
-  '#11': "'",
+  'b5': '/',      // flat5
+  '#9': '[',      // sharp9
+  'b9': ']',      // flat9
+  '#11': "'",     // sharp11
+};
+
+// Compound qualities that require multiple keys
+const COMPOUND_QUALITIES: Record<string, string[]> = {
+  min7: ['minor', 'dom7'],     // Minor 7th = minor + dom7
+  minmaj7: ['minor', 'maj7'],  // Minor-major 7th
 };
 
 /**
  * Play a chord on the keyboard
+ * Keys are held down until releaseAllKeys is called
  */
 export async function playChord(
   page: Page,
@@ -54,40 +62,56 @@ export async function playChord(
   extensions: string[] = []
 ) {
   const rootKey = ROOT_KEYS[root];
-  const qualityKey = QUALITY_KEYS[quality];
 
   if (!rootKey) {
     throw new Error(`Unknown root note: ${root}`);
   }
-  if (!qualityKey) {
-    throw new Error(`Unknown quality: ${quality}`);
+
+  // Hold down root key
+  await page.keyboard.down(rootKey);
+
+  // Handle compound qualities (e.g., min7 = minor + dom7)
+  const qualityKeys = COMPOUND_QUALITIES[quality]
+    ? COMPOUND_QUALITIES[quality].map(q => QUALITY_KEYS[q])
+    : [QUALITY_KEYS[quality]];
+
+  for (const qKey of qualityKeys) {
+    if (!qKey) {
+      throw new Error(`Unknown quality: ${quality}`);
+    }
+    await page.keyboard.down(qKey);
   }
 
-  // Press root
-  await page.keyboard.press(rootKey);
-
-  // Press quality
-  await page.keyboard.press(qualityKey);
-
-  // Press extensions
+  // Hold down extension keys
   for (const ext of extensions) {
     const extKey = EXTENSION_KEYS[ext];
     if (!extKey) {
       throw new Error(`Unknown extension: ${ext}`);
     }
-    await page.keyboard.press(extKey);
+    await page.keyboard.down(extKey);
   }
+
+  // Wait for React state updates to propagate
+  await page.waitForTimeout(150);
 }
 
 /**
  * Release all keys (simulates releasing hands from keyboard)
  */
 export async function releaseAllKeys(page: Page) {
-  // Press Escape to clear all keys (assuming this behavior exists)
-  await page.keyboard.press('Escape');
+  // Release all possible chord keys
+  const allKeys = [
+    ...Object.values(ROOT_KEYS),
+    ...Object.values(QUALITY_KEYS),
+    ...Object.values(EXTENSION_KEYS),
+  ];
 
-  // Alternative: manually release all pressed keys
-  // This is more reliable but requires tracking which keys are down
+  for (const key of allKeys) {
+    await page.keyboard.up(key);
+  }
+
+  // Wait for React state updates
+  await page.waitForTimeout(100);
 }
 
 /**
