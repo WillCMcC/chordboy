@@ -95,6 +95,7 @@ export function PresetsPanel({
               <button
                 onClick={onOpenWizard}
                 className="wizard-btn"
+                data-testid="open-wizard"
               >
                 Chord Wizard
               </button>

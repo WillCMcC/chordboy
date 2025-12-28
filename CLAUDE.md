@@ -7,9 +7,12 @@ ChordBoy is a web-based MIDI chord controller for jazz performance. Users play c
 ```bash
 npm run dev      # Vite dev server
 npm run build    # Production build
-npm run test:run # Run tests once
+npm run test:run # Run unit tests once
+npm run test:e2e # Run e2e tests (Playwright)
 npm run deploy   # Build and deploy to CapRover (chordboy.com)
 ```
+
+**IMPORTANT:** Run `npm run test:e2e` after implementing features that touch chord building, presets, voicing, sequencer, or UI. E2E tests catch integration regressions that unit tests miss.
 
 ## Project Structure
 
@@ -64,7 +67,7 @@ See `agent_docs/` for in-depth reference:
 | `playback-modes.md` | Playback mode patterns and implementation |
 | `chord-wizard.md` | Jazz progression generator (ii-V-I, turnarounds, etc.) |
 | `midi-integration.md` | MIDI/BLE setup, clock sync, humanization |
-| `testing.md` | Test patterns and coverage |
+| `testing.md` | Unit tests, e2e tests (Playwright), coverage gaps |
 
 ## Critical Notes
 

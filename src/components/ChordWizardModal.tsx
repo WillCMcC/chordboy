@@ -185,11 +185,11 @@ export function ChordWizardModal({
     totalChordsNeeded <= availableSlots;
 
   return (
-    <div className="wizard-overlay" onClick={onClose}>
-      <div className="wizard-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="wizard-overlay" onClick={onClose} data-testid="wizard-overlay">
+      <div className="wizard-modal" onClick={(e) => e.stopPropagation()} data-testid="chord-wizard-modal">
         <div className="wizard-header">
           <h2>Chord Wizard</h2>
-          <button className="wizard-close" onClick={onClose}>
+          <button className="wizard-close" onClick={onClose} data-testid="wizard-close">
             x
           </button>
         </div>
