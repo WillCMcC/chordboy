@@ -29,7 +29,7 @@ export const II_V_I_C: PresetFixture = {
       root: 'D',
       quality: 'minor',
       extensions: [],
-      expectedName: 'Dm',
+      expectedName: 'D min',
     },
     {
       slot: 2,
@@ -43,7 +43,7 @@ export const II_V_I_C: PresetFixture = {
       root: 'C',
       quality: 'maj7',
       extensions: [],
-      expectedName: 'Cmaj7',
+      expectedName: 'C Maj7',
     },
   ],
 };
@@ -58,9 +58,9 @@ export const II_V_I_EXTENDED: PresetFixture = {
     {
       slot: 1,
       root: 'D',
-      quality: 'minor',
+      quality: 'min7',
       extensions: ['9th'],
-      expectedName: 'Dm9',
+      expectedName: 'D min9',
     },
     {
       slot: 2,
@@ -74,7 +74,7 @@ export const II_V_I_EXTENDED: PresetFixture = {
       root: 'C',
       quality: 'maj7',
       extensions: ['9th'],
-      expectedName: 'Cmaj9',
+      expectedName: 'C Maj7 9',
     },
   ],
 };
@@ -89,16 +89,16 @@ export const MODAL_VAMP: PresetFixture = {
     {
       slot: 1,
       root: 'D',
-      quality: 'minor',
+      quality: 'min7',
       extensions: ['9th'],
-      expectedName: 'Dm9',
+      expectedName: 'D min9',
     },
     {
       slot: 2,
       root: 'E',
-      quality: 'minor',
+      quality: 'min7',
       extensions: ['9th'],
-      expectedName: 'Em9',
+      expectedName: 'E min9',
     },
   ],
 };
@@ -115,7 +115,7 @@ export const RHYTHM_CHANGES_A: PresetFixture = {
       root: 'B',
       quality: 'maj7',
       extensions: [],
-      expectedName: 'Bmaj7',
+      expectedName: 'B Maj7',
     },
     {
       slot: 2,
@@ -129,7 +129,7 @@ export const RHYTHM_CHANGES_A: PresetFixture = {
       root: 'C',
       quality: 'minor',
       extensions: [],
-      expectedName: 'Cm',
+      expectedName: 'C min',
     },
     {
       slot: 4,
@@ -155,26 +155,27 @@ export const ALTERED_DOMINANTS: PresetFixture = {
       extensions: ['b5'],
       expectedName: 'G7♭5',
     },
+    // Note: #5 not available as keyboard modifier
     {
       slot: 2,
-      root: 'G',
-      quality: 'dom7',
-      extensions: ['#5'],
-      expectedName: 'G7♯5',
-    },
-    {
-      slot: 3,
       root: 'G',
       quality: 'dom7',
       extensions: ['b9'],
       expectedName: 'G7♭9',
     },
     {
-      slot: 4,
+      slot: 3,
       root: 'G',
       quality: 'dom7',
       extensions: ['#9'],
       expectedName: 'G7♯9',
+    },
+    {
+      slot: 4,
+      root: 'G',
+      quality: 'dom7',
+      extensions: ['#11'],
+      expectedName: 'G7♯11',
     },
   ],
 };
@@ -184,7 +185,7 @@ export const ALTERED_DOMINANTS: PresetFixture = {
  */
 export const BASIC_TRIADS: PresetFixture = {
   name: 'Basic Triads',
-  description: 'Major, minor, diminished, augmented',
+  description: 'Major, minor, diminished',
   presets: [
     {
       slot: 1,
@@ -198,22 +199,16 @@ export const BASIC_TRIADS: PresetFixture = {
       root: 'C',
       quality: 'minor',
       extensions: [],
-      expectedName: 'Cm',
+      expectedName: 'C min',
     },
     {
       slot: 3,
       root: 'C',
       quality: 'diminished',
       extensions: [],
-      expectedName: 'Cdim',
+      expectedName: 'C dim',
     },
-    {
-      slot: 4,
-      root: 'C',
-      quality: 'augmented',
-      extensions: [],
-      expectedName: 'Caug',
-    },
+    // Note: augmented uses '7' key which conflicts with preset slot 7
   ],
 };
 

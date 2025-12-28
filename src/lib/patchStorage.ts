@@ -42,6 +42,7 @@ export async function savePatchesToStorage(
     });
   } catch (error) {
     console.error("Failed to save patches:", error);
+    throw error;
   }
 }
 

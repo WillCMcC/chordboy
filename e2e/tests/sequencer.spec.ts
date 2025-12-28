@@ -3,10 +3,41 @@ import {
   playChord,
   releaseAllKeys,
   savePreset,
-  recallPreset,
 } from '../utils/keyboard-helpers';
 import { resetAppState, initializeApp, dismissTutorial } from '../utils/test-setup';
 import { II_V_I_C } from '../fixtures/preset-data';
+
+/**
+ * Helper to get the sequencer open button.
+ * Uses the actual data-testid from TransportControls.tsx
+ */
+async function getSequencerButton(page: import('@playwright/test').Page) {
+  return page.getByTestId('open-sequencer');
+}
+
+/**
+ * Helper to get the sequencer modal.
+ * Uses the actual data-testid from SequencerModal.tsx
+ */
+function getSequencerModal(page: import('@playwright/test').Page) {
+  return page.getByTestId('sequencer-modal');
+}
+
+/**
+ * Helper to close sequencer if open.
+ */
+async function closeSequencerIfOpen(page: import('@playwright/test').Page) {
+  const modal = getSequencerModal(page);
+  if (await modal.isVisible().catch(() => false)) {
+    const closeBtn = page.getByTestId('close-sequencer');
+    if ((await closeBtn.count()) > 0) {
+      await closeBtn.click({ force: true });
+    } else {
+      await page.keyboard.press('Escape');
+    }
+    await page.waitForTimeout(200);
+  }
+}
 
 test.describe('Sequencer', () => {
   test.beforeEach(async ({ page }) => {
@@ -16,66 +47,66 @@ test.describe('Sequencer', () => {
   });
 
   test('should open sequencer modal', async ({ page }) => {
-    // Look for sequencer button/trigger
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    // Get the sequencer button using data-testid
+    const sequencerButton = await getSequencerButton(page);
 
     // Open sequencer
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Verify modal is visible
-    const sequencerModal = page.locator('[data-testid="sequencer-modal"], [data-testid="sequencer"]');
+    // Verify modal is visible using data-testid
+    const sequencerModal = getSequencerModal(page);
     await expect(sequencerModal).toBeVisible();
   });
 
   test('should close sequencer modal', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Close sequencer
-    const closeButton = page.locator('[data-testid="close-sequencer"], [data-testid="sequencer-close"]');
+    const sequencerModal = getSequencerModal(page);
+    await expect(sequencerModal).toBeVisible();
+
+    // Close sequencer using the close button (Escape is not supported)
+    const closeButton = page.getByTestId('close-sequencer');
     await closeButton.click();
     await page.waitForTimeout(200);
 
     // Verify modal is hidden
-    const sequencerModal = page.locator('[data-testid="sequencer-modal"], [data-testid="sequencer"]');
     await expect(sequencerModal).not.toBeVisible();
   });
 
   test('should configure number of steps', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Find steps control
-    const stepsControl = page.locator('[data-testid="sequencer-steps"], input[type="number"][name*="steps"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    // Set to 8 steps
-    await stepsControl.fill('8');
+    // Steps are configured via button group with values 4, 8, 16, 32
+    // Click the "8" button to set 8 steps
+    const stepsButton8 = modal.locator('.setting-group').filter({ hasText: 'Steps' }).getByRole('button', { name: '8', exact: true });
+    await stepsButton8.click();
     await page.waitForTimeout(100);
 
-    // Verify value
-    await expect(stepsControl).toHaveValue('8');
+    // Verify button is active
+    await expect(stepsButton8).toHaveClass(/active/);
 
-    // Verify 8 step buttons/slots are visible
-    const stepButtons = page.locator('[data-testid*="step-"], [data-step]');
-    const count = await stepButtons.count();
-    expect(count).toBeGreaterThanOrEqual(8);
+    // Verify 8 step cells are visible
+    const stepCells = modal.locator('.step-cell');
+    const count = await stepCells.count();
+    expect(count).toBe(8);
   });
 
   test('should configure BPM (tempo)', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
-    await sequencerButton.click();
-    await page.waitForTimeout(200);
+    // BPM control is in TransportControls, not in the sequencer modal
+    // Find BPM input in the transport controls
+    const bpmControl = page.getByTestId('bpm-input');
 
-    // Find BPM control
-    const bpmControl = page.locator('[data-testid="sequencer-bpm"], input[type="number"][name*="bpm"]').first();
-
-    // Set BPM to 120
+    // Clear and set BPM to 120
     await bpmControl.fill('120');
     await page.waitForTimeout(100);
 
@@ -84,25 +115,23 @@ test.describe('Sequencer', () => {
     expect(parseInt(bpmValue)).toBe(120);
   });
 
-  test('should configure steps per beat', async ({ page }) => {
+  test('should configure steps per beat (resolution)', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Find steps per beat control
-    const stepsPerBeatControl = page.locator(
-      '[data-testid="steps-per-beat"], input[type="number"][name*="steps"][name*="beat"]'
-    ).first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    if ((await stepsPerBeatControl.count()) > 0) {
-      // Set to 4 steps per beat
-      await stepsPerBeatControl.fill('4');
-      await page.waitForTimeout(100);
+    // Resolution is configured via button group with "1/4", "1/8", "1/16"
+    // Click the "1/16" button to set 4 steps per beat
+    const resolutionButton = modal.locator('.setting-group').filter({ hasText: 'Resolution' }).getByRole('button', { name: '1/16', exact: true });
+    await resolutionButton.click();
+    await page.waitForTimeout(100);
 
-      // Verify value
-      await expect(stepsPerBeatControl).toHaveValue('4');
-    }
+    // Verify button is active
+    await expect(resolutionButton).toHaveClass(/active/);
   });
 
   test('should enable preset on specific step', async ({ page }) => {
@@ -114,73 +143,82 @@ test.describe('Sequencer', () => {
     await releaseAllKeys(page);
 
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Find step 1 and enable preset 1
-    const step1 = page.locator('[data-testid="step-1"], [data-step="1"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    // Click to select/enable
-    await step1.click();
+    // First, select preset 1 from the palette
+    const presetPaletteBtn = modal.locator('.palette-preset').filter({ hasText: '1' });
+    await presetPaletteBtn.click();
     await page.waitForTimeout(100);
 
-    // Look for preset selector for this step
-    const presetSelector = page.locator('[data-testid="step-1-preset"], select[name*="preset"]').first();
+    // Verify preset is selected
+    await expect(presetPaletteBtn).toHaveClass(/selected/);
 
-    if ((await presetSelector.count()) > 0) {
-      await presetSelector.selectOption('1');
-      await page.waitForTimeout(100);
-    }
+    // Click on step 0 (first step) to place the preset
+    const step0 = page.getByTestId('step-0');
+    await step0.click();
+    await page.waitForTimeout(100);
+
+    // Verify step has the preset (should show "1" and have class "filled")
+    await expect(step0).toHaveClass(/filled/);
   });
 
   test('should start sequencer playback', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    // Open sequencer and enable it
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Find play button
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    // Start playback
-    await playButton.click();
+    // Enable sequencer first (click the ON/OFF button)
+    const enableBtn = modal.locator('.enable-btn');
+    const isEnabled = await enableBtn.textContent();
+    if (isEnabled === 'OFF') {
+      await enableBtn.click();
+      await page.waitForTimeout(100);
+    }
+
+    // Close the modal first using the close button
+    const closeButton = page.getByTestId('close-sequencer');
+    await closeButton.click();
     await page.waitForTimeout(100);
 
-    // Verify playback started (button might change to pause/stop)
-    const isPlaying = await page.evaluate(() => {
-      return (window as any).__SEQUENCER_DEBUG__?.isPlaying?.() ?? false;
-    });
+    // Verify modal is closed
+    await expect(modal).not.toBeVisible();
 
-    // Visual indicator might be visible
-    const playingIndicator = page.locator('[data-testid="sequencer-playing"], [data-playing="true"]');
-    const hasIndicator = (await playingIndicator.count()) > 0;
+    // Play button is in TransportControls, not in sequencer modal
+    const playButton = page.getByTestId('play-button');
+    await playButton.click();
+    await page.waitForTimeout(200);
 
-    if (hasIndicator) {
-      await expect(playingIndicator).toBeVisible();
-    }
+    // Verify playback started - the play button should now be stop button
+    const stopButton = page.getByTestId('stop-button');
+    await expect(stopButton).toBeVisible();
   });
 
   test('should stop sequencer playback', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
-    await sequencerButton.click();
+    // Start playback first (play button is in TransportControls)
+    const playButton = page.getByTestId('play-button');
+    await playButton.click();
     await page.waitForTimeout(200);
 
-    // Start playback
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
-    await playButton.click();
-    await page.waitForTimeout(500);
+    // Verify it's now showing stop button
+    const stopButton = page.getByTestId('stop-button');
+    await expect(stopButton).toBeVisible();
 
     // Stop playback
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
     await stopButton.click();
     await page.waitForTimeout(100);
 
-    // Verify playback stopped
-    const playingIndicator = page.locator('[data-playing="true"]');
-    const count = await playingIndicator.count();
-    expect(count).toBe(0);
+    // Verify playback stopped - should now show play button again
+    const playButtonAfterStop = page.getByTestId('play-button');
+    await expect(playButtonAfterStop).toBeVisible();
   });
 
   test('should show active step indicator during playback', async ({ page }) => {
@@ -196,143 +234,191 @@ test.describe('Sequencer', () => {
     }
 
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Configure steps with presets (if UI allows)
-    // This depends on the UI implementation
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
+
+    // Enable sequencer
+    const enableBtn = modal.locator('.enable-btn');
+    const isEnabled = await enableBtn.textContent();
+    if (isEnabled === 'OFF') {
+      await enableBtn.click();
+      await page.waitForTimeout(100);
+    }
+
+    // Place presets on steps
+    for (let i = 0; i < chords.length && i < 3; i++) {
+      const presetBtn = modal.locator('.palette-preset').filter({ hasText: String(chords[i].slot) });
+      await presetBtn.click();
+      await page.waitForTimeout(50);
+
+      const stepCell = page.getByTestId(`step-${i}`);
+      await stepCell.click();
+      await page.waitForTimeout(50);
+    }
+
+    // Close modal to start playback (use close button)
+    const closeButton = page.getByTestId('close-sequencer');
+    await closeButton.click();
+    await page.waitForTimeout(100);
 
     // Start playback
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
+    const playButton = page.getByTestId('play-button');
     await playButton.click();
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(200);
+
+    // Reopen sequencer to see the step indicators
+    await sequencerButton.click();
+    await page.waitForTimeout(200);
 
     // Wait for a couple of beats
     await page.waitForTimeout(1000);
 
-    // Look for active step indicator
-    const activeStep = page.locator('[data-testid*="step-"][data-active="true"], [data-step][data-active="true"]');
+    // Look for active step indicator (step with "playing" class)
+    const playingStep = modal.locator('.step-cell.playing');
+    const hasPlayingStep = (await playingStep.count()) > 0;
 
-    const hasActiveStep = (await activeStep.count()) > 0;
-    if (hasActiveStep) {
-      await expect(activeStep.first()).toBeVisible();
-    }
+    // At least one step should be marked as playing
+    expect(hasPlayingStep).toBe(true);
 
-    // Stop playback
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
-    if ((await stopButton.count()) > 0) {
-      await stopButton.click();
-    }
+    // Stop playback - close modal first, then stop
+    await closeButton.click();
+    await page.waitForTimeout(100);
+    const stopButton = page.getByTestId('stop-button');
+    await stopButton.click();
   });
 
   test('should cycle through steps during playback', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    // Set fast BPM for quick testing (BPM is in TransportControls)
+    const bpmControl = page.getByTestId('bpm-input');
+    await bpmControl.fill('240'); // Fast tempo
+    await page.waitForTimeout(100);
+
+    // Open sequencer and enable it
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Set fast BPM for quick testing
-    const bpmControl = page.locator('[data-testid="sequencer-bpm"], input[type="number"][name*="bpm"]').first();
-    if ((await bpmControl.count()) > 0) {
-      await bpmControl.fill('240'); // Fast tempo
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
+
+    // Enable sequencer
+    const enableBtn = modal.locator('.enable-btn');
+    const isEnabled = await enableBtn.textContent();
+    if (isEnabled === 'OFF') {
+      await enableBtn.click();
       await page.waitForTimeout(100);
     }
 
-    // Start playback
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
+    // Close modal using close button and start playback
+    const closeButton = page.getByTestId('close-sequencer');
+    await closeButton.click();
+    await page.waitForTimeout(100);
+
+    const playButton = page.getByTestId('play-button');
     await playButton.click();
     await page.waitForTimeout(100);
 
-    // Collect active step numbers over time
-    const activeSteps: number[] = [];
+    // Reopen sequencer to observe step cycling
+    await sequencerButton.click();
+    await page.waitForTimeout(200);
+
+    // Collect indices of playing steps over time
+    const playingStepIndices: number[] = [];
 
     for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(150);
 
-      const currentStep = await page.evaluate(() => {
-        return (window as any).__SEQUENCER_DEBUG__?.getCurrentStep?.() ?? -1;
-      });
+      // Find which step cell has the "playing" class
+      const stepCells = modal.locator('.step-cell');
+      const count = await stepCells.count();
 
-      if (currentStep >= 0) {
-        activeSteps.push(currentStep);
+      for (let j = 0; j < count; j++) {
+        const cell = stepCells.nth(j);
+        const classes = await cell.getAttribute('class');
+        if (classes?.includes('playing')) {
+          playingStepIndices.push(j);
+          break;
+        }
       }
     }
 
     // Should have seen multiple different steps
-    const uniqueSteps = new Set(activeSteps);
+    const uniqueSteps = new Set(playingStepIndices);
     expect(uniqueSteps.size).toBeGreaterThan(1);
 
-    // Stop playback
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
-    if ((await stopButton.count()) > 0) {
-      await stopButton.click();
-    }
+    // Stop playback - close modal first, then stop
+    await closeButton.click();
+    await page.waitForTimeout(100);
+    const stopButton = page.getByTestId('stop-button');
+    await stopButton.click();
   });
 
   test('should support retrig mode', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Look for mode selector
-    const modeSelector = page.locator('[data-testid="sequencer-mode"], select[name*="mode"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    if ((await modeSelector.count()) > 0) {
-      // Select retrig mode
-      await modeSelector.selectOption('retrig');
-      await page.waitForTimeout(100);
+    // Mode is configured via button group with "Retrig" and "Sustain"
+    const retrigButton = modal.locator('.setting-group').filter({ hasText: 'Mode' }).getByRole('button', { name: 'Retrig', exact: true });
+    await retrigButton.click();
+    await page.waitForTimeout(100);
 
-      // Verify selection
-      await expect(modeSelector).toHaveValue('retrig');
-    }
+    // Verify button is active
+    await expect(retrigButton).toHaveClass(/active/);
   });
 
-  test('should support gate mode', async ({ page }) => {
+  test('should support sustain mode', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Look for mode selector
-    const modeSelector = page.locator('[data-testid="sequencer-mode"], select[name*="mode"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    if ((await modeSelector.count()) > 0) {
-      // Select gate mode
-      await modeSelector.selectOption('gate');
-      await page.waitForTimeout(100);
+    // Mode is configured via button group with "Retrig" and "Sustain"
+    const sustainButton = modal.locator('.setting-group').filter({ hasText: 'Mode' }).getByRole('button', { name: 'Sustain', exact: true });
+    await sustainButton.click();
+    await page.waitForTimeout(100);
 
-      // Verify selection
-      await expect(modeSelector).toHaveValue('gate');
-    }
+    // Verify button is active
+    await expect(sustainButton).toHaveClass(/active/);
   });
 
   test('should persist sequencer configuration after reload', async ({ page }) => {
+    // Configure BPM (in TransportControls)
+    const bpmControl = page.getByTestId('bpm-input');
+    await bpmControl.fill('135');
+    await page.waitForTimeout(100);
+
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Configure sequencer
-    const bpmControl = page.locator('[data-testid="sequencer-bpm"], input[type="number"][name*="bpm"]').first();
-    if ((await bpmControl.count()) > 0) {
-      await bpmControl.fill('135');
-      await page.waitForTimeout(100);
-    }
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    const stepsControl = page.locator('[data-testid="sequencer-steps"], input[type="number"][name*="steps"]').first();
-    if ((await stepsControl.count()) > 0) {
-      await stepsControl.fill('12');
-      await page.waitForTimeout(200);
-    }
+    // Configure steps to 16
+    const stepsButton16 = modal.locator('.setting-group').filter({ hasText: 'Steps' }).getByRole('button', { name: '16', exact: true });
+    await stepsButton16.click();
+    await page.waitForTimeout(100);
+
+    // Verify 16 steps
+    await expect(stepsButton16).toHaveClass(/active/);
 
     // Close sequencer
-    const closeButton = page.locator('[data-testid="close-sequencer"], [data-testid="sequencer-close"]');
-    if ((await closeButton.count()) > 0) {
-      await closeButton.click();
-      await page.waitForTimeout(100);
-    }
+    const closeButton = page.getByTestId('close-sequencer');
+    await closeButton.click();
+    await page.waitForTimeout(100);
 
     // Reload page
     await page.reload();
@@ -340,130 +426,157 @@ test.describe('Sequencer', () => {
     await dismissTutorial(page);
     await page.waitForTimeout(200);
 
+    // Verify BPM persisted (BPM is in TransportControls)
+    const savedBPM = await bpmControl.inputValue();
+    expect(parseInt(savedBPM)).toBe(135);
+
     // Reopen sequencer
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Verify BPM persisted
-    if ((await bpmControl.count()) > 0) {
-      const savedBPM = await bpmControl.inputValue();
-      expect(parseInt(savedBPM)).toBe(135);
-    }
-
-    // Verify steps persisted
-    if ((await stepsControl.count()) > 0) {
-      const savedSteps = await stepsControl.inputValue();
-      expect(parseInt(savedSteps)).toBe(12);
-    }
+    // Verify steps persisted (16 button should be active)
+    const stepsButton16After = modal.locator('.setting-group').filter({ hasText: 'Steps' }).getByRole('button', { name: '16', exact: true });
+    await expect(stepsButton16After).toHaveClass(/active/);
   });
 
-  test('should toggle step enable/disable', async ({ page }) => {
+  test('should toggle step preset assignment', async ({ page }) => {
+    // First save a preset to be able to assign it
+    await playChord(page, 'C', 'maj7');
+    await page.waitForTimeout(50);
+    await savePreset(page, 1);
+    await page.waitForTimeout(50);
+    await releaseAllKeys(page);
+
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Find first step
-    const step1 = page.locator('[data-testid="step-1"], [data-step="1"]').first();
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    // Get initial state
-    const initialState = await step1.getAttribute('data-enabled');
+    // Select preset 1 from palette
+    const presetBtn = modal.locator('.palette-preset').filter({ hasText: '1' });
+    await presetBtn.click();
+    await page.waitForTimeout(50);
 
-    // Click to toggle
-    await step1.click();
+    // Click on step 0 to place preset
+    const step0 = page.getByTestId('step-0');
+    await step0.click();
     await page.waitForTimeout(100);
 
-    // Get new state
-    const newState = await step1.getAttribute('data-enabled');
+    // Verify step is now filled
+    await expect(step0).toHaveClass(/filled/);
 
-    // State should have changed (if this feature exists)
-    // Or we just verify the click worked
-    expect(step1).toBeDefined();
+    // Right-click to clear
+    await step0.click({ button: 'right' });
+    await page.waitForTimeout(100);
+
+    // Verify step is now empty
+    await expect(step0).toHaveClass(/empty/);
   });
 
   test('should display step grid', async ({ page }) => {
     // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
-    // Verify step grid is visible
-    const stepGrid = page.locator('[data-testid="step-grid"], [data-testid="sequencer-steps"]');
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
 
-    // Should have multiple step elements
-    const steps = page.locator('[data-testid*="step-"], [data-step]');
-    const stepCount = await steps.count();
+    // Verify step grid is visible (default is 16 steps)
+    const stepCells = modal.locator('.step-cell');
+    const stepCount = await stepCells.count();
 
+    // Default is 16 steps
     expect(stepCount).toBeGreaterThan(0);
   });
 
   test('should handle playback with empty steps', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
+    // Open sequencer and enable it
+    const sequencerButton = await getSequencerButton(page);
     await sequencerButton.click();
     await page.waitForTimeout(200);
 
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
+
+    // Enable sequencer
+    const enableBtn = modal.locator('.enable-btn');
+    const isEnabled = await enableBtn.textContent();
+    if (isEnabled === 'OFF') {
+      await enableBtn.click();
+      await page.waitForTimeout(100);
+    }
+
+    // Close modal using close button
+    const closeButton = page.getByTestId('close-sequencer');
+    await closeButton.click();
+    await page.waitForTimeout(100);
+
     // Start playback with no presets configured
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
+    const playButton = page.getByTestId('play-button');
     await playButton.click();
     await page.waitForTimeout(500);
 
     // Should not crash - sequencer should run but produce no output
-    const sequencerModal = page.locator('[data-testid="sequencer-modal"], [data-testid="sequencer"]');
-    await expect(sequencerModal).toBeVisible();
+    // Verify play button changed to stop button
+    const stopButton = page.getByTestId('stop-button');
+    await expect(stopButton).toBeVisible();
 
-    // Stop playback
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
-    if ((await stopButton.count()) > 0) {
-      await stopButton.click();
-    }
+    // Reopen sequencer modal to verify it's still functional
+    await sequencerButton.click();
+    await page.waitForTimeout(200);
+    await expect(modal).toBeVisible();
+
+    // Stop playback - close modal first, then stop
+    await closeButton.click();
+    await page.waitForTimeout(100);
+    await stopButton.click();
   });
 
   test('should update transport controls during playback', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
-    await sequencerButton.click();
-    await page.waitForTimeout(200);
-
-    // Start playback
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
+    // Start playback using transport controls
+    const playButton = page.getByTestId('play-button');
     await playButton.click();
     await page.waitForTimeout(200);
 
-    // Play button might change appearance (to pause or stop icon)
-    const transportControls = page.locator('[data-testid="sequencer-transport"], [data-testid*="sequencer-"][data-testid*="button"]');
-    expect(await transportControls.count()).toBeGreaterThan(0);
+    // Play button should now be stop button
+    const stopButton = page.getByTestId('stop-button');
+    await expect(stopButton).toBeVisible();
 
-    // Stop
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
-    if ((await stopButton.count()) > 0) {
-      await stopButton.click();
-      await page.waitForTimeout(100);
-    }
+    // Stop playback
+    await stopButton.click();
+    await page.waitForTimeout(100);
+
+    // Should be back to play button
+    const playButtonAfterStop = page.getByTestId('play-button');
+    await expect(playButtonAfterStop).toBeVisible();
   });
 
   test('should handle rapid start/stop cycles', async ({ page }) => {
-    // Open sequencer
-    const sequencerButton = page.locator('[data-testid="open-sequencer"], [data-testid="sequencer-button"]');
-    await sequencerButton.click();
-    await page.waitForTimeout(200);
-
-    const playButton = page.locator('[data-testid="sequencer-play"], [data-testid="play-button"]').first();
-    const stopButton = page.locator('[data-testid="sequencer-stop"], [data-testid="stop-button"]').first();
-
-    // Rapidly start and stop
+    // Rapidly start and stop using transport controls
     for (let i = 0; i < 5; i++) {
+      const playButton = page.getByTestId('play-button');
       await playButton.click();
       await page.waitForTimeout(100);
 
-      if ((await stopButton.count()) > 0) {
-        await stopButton.click();
-        await page.waitForTimeout(100);
-      }
+      const stopButton = page.getByTestId('stop-button');
+      await stopButton.click();
+      await page.waitForTimeout(100);
     }
 
-    // Sequencer should still be functional
-    const sequencerModal = page.locator('[data-testid="sequencer-modal"], [data-testid="sequencer"]');
-    await expect(sequencerModal).toBeVisible();
+    // Transport should still be functional - play button visible
+    const playButton = page.getByTestId('play-button');
+    await expect(playButton).toBeVisible();
+
+    // Sequencer modal should still be openable
+    const sequencerButton = await getSequencerButton(page);
+    await sequencerButton.click();
+    await page.waitForTimeout(200);
+
+    const modal = getSequencerModal(page);
+    await expect(modal).toBeVisible();
   });
 });

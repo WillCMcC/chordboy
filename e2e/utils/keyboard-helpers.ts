@@ -110,6 +110,11 @@ export async function releaseAllKeys(page: Page) {
     await page.keyboard.up(key);
   }
 
+  // Also release number keys (for preset recall)
+  for (let i = 0; i <= 9; i++) {
+    await page.keyboard.up(i.toString());
+  }
+
   // Wait for React state updates
   await page.waitForTimeout(100);
 }
@@ -167,35 +172,35 @@ export async function cycleVoicingStyle(page: Page, times: number = 1) {
 }
 
 /**
- * Transpose octave up
+ * Transpose octave up (ArrowRight in the app)
  */
 export async function octaveUp(page: Page, times: number = 1) {
-  for (let i = 0; i < times; i++) {
-    await page.keyboard.press('ArrowUp');
-  }
-}
-
-/**
- * Transpose octave down
- */
-export async function octaveDown(page: Page, times: number = 1) {
-  for (let i = 0; i < times; i++) {
-    await page.keyboard.press('ArrowDown');
-  }
-}
-
-/**
- * Change spread/width
- */
-export async function increaseSpread(page: Page, times: number = 1) {
   for (let i = 0; i < times; i++) {
     await page.keyboard.press('ArrowRight');
   }
 }
 
-export async function decreaseSpread(page: Page, times: number = 1) {
+/**
+ * Transpose octave down (ArrowLeft in the app)
+ */
+export async function octaveDown(page: Page, times: number = 1) {
   for (let i = 0; i < times; i++) {
     await page.keyboard.press('ArrowLeft');
+  }
+}
+
+/**
+ * Change spread/width (ArrowUp/Down in the app)
+ */
+export async function increaseSpread(page: Page, times: number = 1) {
+  for (let i = 0; i < times; i++) {
+    await page.keyboard.press('ArrowUp');
+  }
+}
+
+export async function decreaseSpread(page: Page, times: number = 1) {
+  for (let i = 0; i < times; i++) {
+    await page.keyboard.press('ArrowDown');
   }
 }
 
@@ -208,20 +213,35 @@ export async function cycleInversion(page: Page) {
 
 /**
  * Save preset to slot (1-10, or 0 for slot 10)
+ * NOTE: Chord keys must be held down when calling this function.
+ * The save happens when you press the slot number while holding chord keys.
  */
 export async function savePreset(page: Page, slot: number) {
   const slotKey = slot === 10 ? '0' : slot.toString();
-  await page.keyboard.press(`Shift+${slotKey}`);
+  // Just press the number key - save happens because chord keys are still held
+  await page.keyboard.press(slotKey);
   await page.waitForTimeout(100); // Wait for save confirmation
 }
 
 /**
  * Recall preset from slot (1-10, or 0 for slot 10)
+ * NOTE: The preset stays active while the key is held. This function
+ * holds the key down so subsequent getActiveNotes() calls see the notes.
+ * Call releasePreset() or releaseAllKeys() when done.
  */
 export async function recallPreset(page: Page, slot: number) {
   const slotKey = slot === 10 ? '0' : slot.toString();
-  await page.keyboard.press(slotKey);
+  // Hold the key down to keep the preset active
+  await page.keyboard.down(slotKey);
   await page.waitForTimeout(50); // Wait for recall
+}
+
+/**
+ * Release a recalled preset (release the number key)
+ */
+export async function releasePreset(page: Page, slot: number) {
+  const slotKey = slot === 10 ? '0' : slot.toString();
+  await page.keyboard.up(slotKey);
 }
 
 /**
