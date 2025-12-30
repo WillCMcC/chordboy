@@ -24,6 +24,8 @@ interface PresetsPanelProps {
   onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
   /** Callback to open the chord wizard modal */
   onOpenWizard: () => void;
+  /** Callback to open the chord history modal */
+  onOpenHistory: () => void;
 }
 
 /**
@@ -34,6 +36,7 @@ export function PresetsPanel({
   onClearPreset,
   onSolvePresets,
   onOpenWizard,
+  onOpenHistory,
 }: PresetsPanelProps) {
   /** Currently selected preset slots */
   const [selectedPresets, setSelectedPresets] = useState<string[]>([]);
@@ -88,7 +91,29 @@ export function PresetsPanel({
   return (
     <div className="presets-panel">
       <div className="presets-header">
-        <h3>Saved Presets</h3>
+        <div className="presets-title">
+          <h3>Saved Presets</h3>
+          <button
+            className="history-icon-btn"
+            onClick={onOpenHistory}
+            title="View chord history"
+            data-testid="open-history"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
+        </div>
         <div className="presets-actions">
           {!isSelectMode ? (
             <>

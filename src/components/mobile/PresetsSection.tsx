@@ -27,6 +27,7 @@ interface PresetsSectionProps {
   activePresetSlot: string | null;
   onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
   setMobileKeys: Dispatch<SetStateAction<Set<string>>>;
+  onOpenHistory?: () => void;
 }
 
 export function PresetsSection({
@@ -38,6 +39,7 @@ export function PresetsSection({
   activePresetSlot,
   onSolvePresets,
   setMobileKeys,
+  onOpenHistory,
 }: PresetsSectionProps) {
   const [clearMode, setClearMode] = useState<boolean>(false);
   const [solveMode, setSolveMode] = useState<boolean>(false);
@@ -253,6 +255,20 @@ export function PresetsSection({
             </div>
           ) : (
             <>
+              {onOpenHistory && (
+                <button
+                  className="control-btn history-btn"
+                  style={{ flex: 0, padding: "0.25rem 0.5rem" }}
+                  onClick={onOpenHistory}
+                  data-testid="open-history"
+                  aria-label="Chord History"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 8v4l3 3" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </button>
+              )}
               <button
                 className="control-btn solve-mode-btn"
                 style={{ flex: 0 }}

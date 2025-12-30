@@ -89,6 +89,7 @@ interface MobileControlsProps {
   playbackMode: PlaybackMode;
   onPlaybackModeChange: (mode: PlaybackMode) => void;
   onOpenGridSequencer: () => void;
+  onOpenHistory?: () => void;
 }
 
 /**
@@ -145,6 +146,7 @@ export function MobileControls({
   playbackMode,
   onPlaybackModeChange,
   onOpenGridSequencer,
+  onOpenHistory,
 }: MobileControlsProps) {
 
   return (
@@ -196,6 +198,7 @@ export function MobileControls({
         activePresetSlot={activePresetSlot}
         onSolvePresets={onSolvePresets}
         setMobileKeys={setMobileKeys}
+        onOpenHistory={onOpenHistory}
       />
 
       {!isPatchBuilderOpen && (

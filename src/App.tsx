@@ -24,6 +24,7 @@ import { GridSequencerModal } from "./components/GridSequencerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
 import { ChordWizardModal } from "./components/ChordWizardModal";
+import { ChordHistoryModal } from "./components/ChordHistoryModal";
 import { ChordDisplay } from "./components/ChordDisplay";
 import { TutorialModal } from "./components/TutorialModal";
 import { GraceNoteStrip } from "./components/GraceNoteStrip";
@@ -38,6 +39,7 @@ import { usePWAInstall } from "./hooks/usePWAInstall";
 import { useWakeLock } from "./hooks/useWakeLock";
 import { useEventSubscription } from "./hooks/useEventSubscription";
 import { useToneSynth } from "./hooks/useToneSynth";
+import { useChordHistory } from "./hooks/useChordHistory";
 import { appEvents } from "./lib/eventBus";
 import { getNoteColor } from "./lib/noteColors";
 import "./App.css";
@@ -111,6 +113,7 @@ function App() {
   const [showSequencer, setShowSequencer] = useState<boolean>(false);
   const [showGridSequencer, setShowGridSequencer] = useState<boolean>(false);
   const [showWizard, setShowWizard] = useState<boolean>(false);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [lastChord, setLastChord] = useState<VoicedChord | null>(null);
   const [triggeredNotes, setTriggeredNotes] = useState<MIDINote[]>([]);
@@ -169,6 +172,15 @@ function App() {
     savePreset,
     findNextAvailableSlot,
   } = useChordEngine(allPressedKeys, { isMobile });
+
+  // Track chord history for quick preset assignment
+  const { history: chordHistory, clearHistory: clearChordHistory } = useChordHistory({
+    pressedKeys: allPressedKeys,
+    octave,
+    inversionIndex,
+    spreadAmount,
+    voicingStyle,
+  });
 
   // Enable grace notes when holding preset keys (ghjkl = single notes, yuiop = pairs, vbnm,. = intervals)
   // Pass activePresetSlot to ensure grace notes only fire when a preset is actually recalled,
@@ -518,6 +530,7 @@ function App() {
             onClearPreset={clearPreset}
             onSolvePresets={solvePresets}
             onOpenWizard={() => setShowWizard(true)}
+            onOpenHistory={() => setShowHistory(true)}
           />
         )}
 
@@ -590,6 +603,7 @@ function App() {
             playbackMode={playbackMode}
             onPlaybackModeChange={setPlaybackMode}
             onOpenGridSequencer={() => setShowGridSequencer(true)}
+            onOpenHistory={() => setShowHistory(true)}
           />
         )}
 
@@ -636,6 +650,16 @@ function App() {
         currentOctave={octave}
         onSavePresets={handleSaveWizardPresets}
         findNextAvailableSlot={findNextAvailableSlot}
+      />
+
+      {/* Chord History modal */}
+      <ChordHistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        history={chordHistory}
+        savedPresets={savedPresets}
+        onSavePreset={savePreset}
+        onClearHistory={clearChordHistory}
       />
 
       {/* Grid Sequencer modal */}
