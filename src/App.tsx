@@ -120,14 +120,6 @@ function App() {
   const mobileKeyboardRef = useRef<HTMLDivElement>(null);
   const triggeredTimeoutRef = useRef<number | null>(null);
 
-  // Show tutorial on first visit
-  useEffect(() => {
-    const hasSeenTutorial = localStorage.getItem(TUTORIAL_SEEN_KEY);
-    if (!hasSeenTutorial) {
-      setShowTutorial(true);
-    }
-  }, []);
-
   // Hide mobile browser URL bar by scrolling on mount
   useEffect(() => {
     if (!isMobile) return;
