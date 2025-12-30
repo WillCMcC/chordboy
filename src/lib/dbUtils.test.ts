@@ -26,6 +26,7 @@ describe("dbUtils", () => {
       expect(db.objectStoreNames.contains(STORE_NAMES.PRESETS)).toBe(true);
       expect(db.objectStoreNames.contains(STORE_NAMES.SEQUENCER)).toBe(true);
       expect(db.objectStoreNames.contains(STORE_NAMES.PATCHES)).toBe(true);
+      expect(db.objectStoreNames.contains(STORE_NAMES.BANKS)).toBe(true);
       db.close();
     });
 
@@ -93,12 +94,13 @@ describe("dbUtils", () => {
       expect(STORE_NAMES.PRESETS).toBe("presets");
       expect(STORE_NAMES.SEQUENCER).toBe("sequencer");
       expect(STORE_NAMES.PATCHES).toBe("patches");
+      expect(STORE_NAMES.BANKS).toBe("banks");
     });
   });
 
   describe("DB_VERSION", () => {
-    it("is version 3", () => {
-      expect(DB_VERSION).toBe(3);
+    it("is version 4", () => {
+      expect(DB_VERSION).toBe(4);
     });
   });
 

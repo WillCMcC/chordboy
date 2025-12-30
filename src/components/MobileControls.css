@@ -60,6 +60,23 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.mobile-presets-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Mobile bank selector overrides */
+.mobile-controls .bank-selector-trigger {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+.mobile-controls .bank-menu {
+  min-width: 180px;
+  max-width: 240px;
+}
+
 .mobile-controls-section {
   display: flex;
   flex-direction: column;

@@ -8,7 +8,8 @@
 
 import { useState, useCallback } from "react";
 import type { MouseEvent } from "react";
-import type { Preset } from "../types";
+import type { Preset, ChordBankEntry } from "../types";
+import { BankSelector } from "./BankSelector";
 import "./PresetsPanel.css";
 
 /** Preset slot identifiers in display order */
@@ -26,6 +27,20 @@ interface PresetsPanelProps {
   onOpenWizard: () => void;
   /** Callback to open the chord history modal */
   onOpenHistory: () => void;
+  /** List of available banks */
+  banks: ChordBankEntry[];
+  /** ID of currently active bank */
+  activeBankId: string;
+  /** Callback when bank is switched */
+  onSwitchBank: (bankId: string) => void;
+  /** Callback when new bank is created */
+  onCreateBank: (name: string) => void;
+  /** Callback when bank is renamed */
+  onRenameBank: (bankId: string, newName: string) => void;
+  /** Callback when bank is deleted */
+  onDeleteBank: (bankId: string) => void;
+  /** Callback when bank is duplicated */
+  onDuplicateBank: (bankId: string, newName: string) => void;
 }
 
 /**
@@ -37,6 +52,13 @@ export function PresetsPanel({
   onSolvePresets,
   onOpenWizard,
   onOpenHistory,
+  banks,
+  activeBankId,
+  onSwitchBank,
+  onCreateBank,
+  onRenameBank,
+  onDeleteBank,
+  onDuplicateBank,
 }: PresetsPanelProps) {
   /** Currently selected preset slots */
   const [selectedPresets, setSelectedPresets] = useState<string[]>([]);
@@ -91,8 +113,17 @@ export function PresetsPanel({
   return (
     <div className="presets-panel">
       <div className="presets-header">
-        <div className="presets-title">
-          <h3>Saved Presets</h3>
+        <div className="presets-header-left">
+          <BankSelector
+            banks={banks}
+            activeBankId={activeBankId}
+            onSwitchBank={onSwitchBank}
+            onCreateBank={onCreateBank}
+            onRenameBank={onRenameBank}
+            onDeleteBank={onDeleteBank}
+            onDuplicateBank={onDuplicateBank}
+          />
+          <h3>Presets</h3>
           <button
             className="history-icon-btn"
             onClick={onOpenHistory}

@@ -36,6 +36,9 @@ export type {
   SpecialKeyMap,
   PianoKey,
   HumanizeManager,
+  ChordBank,
+  SerializedChordBank,
+  ChordBankEntry,
 } from "./music";
 
 export { VOICING_STYLES, VOICING_STYLE_LABELS } from "./music";

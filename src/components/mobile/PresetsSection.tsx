@@ -5,7 +5,8 @@ import type {
   TouchEvent,
   MouseEvent,
 } from "react";
-import type { Preset } from "../../types";
+import type { Preset, ChordBankEntry } from "../../types";
+import { BankSelector } from "../BankSelector";
 
 /** Threshold in pixels for swipe gesture to "lock" a preset */
 const SWIPE_LOCK_THRESHOLD = 30;
@@ -28,6 +29,16 @@ interface PresetsSectionProps {
   onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
   setMobileKeys: Dispatch<SetStateAction<Set<string>>>;
   onOpenHistory?: () => void;
+  // Bank management
+  banks: ChordBankEntry[];
+  activeBankId: string;
+  onSwitchBank: (bankId: string) => void;
+  onCreateBank: (name: string) => void;
+  onRenameBank: (bankId: string, newName: string) => void;
+  onDeleteBank: (bankId: string) => void;
+  onDuplicateBank: (bankId: string, newName: string) => void;
+  // Chord wizard
+  onOpenWizard: () => void;
 }
 
 export function PresetsSection({
@@ -40,6 +51,14 @@ export function PresetsSection({
   onSolvePresets,
   setMobileKeys,
   onOpenHistory,
+  banks,
+  activeBankId,
+  onSwitchBank,
+  onCreateBank,
+  onRenameBank,
+  onDeleteBank,
+  onDuplicateBank,
+  onOpenWizard,
 }: PresetsSectionProps) {
   const [clearMode, setClearMode] = useState<boolean>(false);
   const [solveMode, setSolveMode] = useState<boolean>(false);
@@ -213,7 +232,17 @@ export function PresetsSection({
   return (
     <div className="mobile-controls-section presets-section">
       <div className="mobile-controls-header">
-        <span className="mobile-controls-label">Presets</span>
+        <div className="mobile-presets-header-left">
+          <BankSelector
+            banks={banks}
+            activeBankId={activeBankId}
+            onSwitchBank={onSwitchBank}
+            onCreateBank={onCreateBank}
+            onRenameBank={onRenameBank}
+            onDeleteBank={onDeleteBank}
+            onDuplicateBank={onDuplicateBank}
+          />
+        </div>
         <div style={{ display: "flex", gap: "0.4rem" }}>
           {solveMode ? (
             <div className="mobile-solve-controls">
@@ -270,11 +299,19 @@ export function PresetsSection({
                 </button>
               )}
               <button
+                className="control-btn"
+                style={{ flex: 0 }}
+                onClick={onOpenWizard}
+                data-testid="mobile-open-wizard"
+              >
+                Wizard
+              </button>
+              <button
                 className="control-btn solve-mode-btn"
                 style={{ flex: 0 }}
                 onClick={() => setSolveMode(true)}
               >
-                Solve...
+                Solve
               </button>
               <button
                 className={`control-btn ${clearMode ? "active" : ""}`}
@@ -284,7 +321,7 @@ export function PresetsSection({
                 }}
                 onClick={() => setClearMode(!clearMode)}
               >
-                {clearMode ? "Cancel" : "Clear..."}
+                {clearMode ? "Cancel" : "Clear"}
               </button>
             </>
           )}

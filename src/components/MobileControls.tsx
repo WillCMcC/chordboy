@@ -5,6 +5,7 @@ import type {
   MIDIInputInfoDisplay,
   VoicingStyle,
   PlaybackMode,
+  ChordBankEntry,
 } from "../types";
 import type { TriggerMode } from "../hooks/useMIDI";
 import { TransportControls } from "./TransportControls";
@@ -90,6 +91,16 @@ interface MobileControlsProps {
   onPlaybackModeChange: (mode: PlaybackMode) => void;
   onOpenGridSequencer: () => void;
   onOpenHistory?: () => void;
+  // Bank management
+  banks: ChordBankEntry[];
+  activeBankId: string;
+  onSwitchBank: (bankId: string) => void;
+  onCreateBank: (name: string) => void;
+  onRenameBank: (bankId: string, newName: string) => void;
+  onDeleteBank: (bankId: string) => void;
+  onDuplicateBank: (bankId: string, newName: string) => void;
+  // Chord wizard
+  onOpenWizard: () => void;
 }
 
 /**
@@ -147,6 +158,16 @@ export function MobileControls({
   onPlaybackModeChange,
   onOpenGridSequencer,
   onOpenHistory,
+  // Bank management
+  banks,
+  activeBankId,
+  onSwitchBank,
+  onCreateBank,
+  onRenameBank,
+  onDeleteBank,
+  onDuplicateBank,
+  // Chord wizard
+  onOpenWizard,
 }: MobileControlsProps) {
 
   return (
@@ -199,6 +220,14 @@ export function MobileControls({
         onSolvePresets={onSolvePresets}
         setMobileKeys={setMobileKeys}
         onOpenHistory={onOpenHistory}
+        banks={banks}
+        activeBankId={activeBankId}
+        onSwitchBank={onSwitchBank}
+        onCreateBank={onCreateBank}
+        onRenameBank={onRenameBank}
+        onDeleteBank={onDeleteBank}
+        onDuplicateBank={onDuplicateBank}
+        onOpenWizard={onOpenWizard}
       />
 
       {!isPatchBuilderOpen && (

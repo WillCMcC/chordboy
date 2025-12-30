@@ -27,6 +27,10 @@ import type { Chord, MIDINote, Octave, Preset, ParsedKeys, VoicingStyle } from "
 export interface UseChordEngineOptions {
   /** Whether the device is mobile (affects chord triggering) */
   isMobile?: boolean;
+  /** Initial presets from active bank (used for bank switching) */
+  initialPresets?: Map<string, Preset>;
+  /** Callback when presets change (for syncing to bank) */
+  onPresetsChange?: (presets: Map<string, Preset>) => void;
 }
 
 /** Extended chord with voicing information */
@@ -89,6 +93,10 @@ export interface UseChordEngineReturn {
   // Progression settings
   trueRandomMode: boolean;
   setTrueRandomMode: (enabled: boolean) => void;
+
+  // Preset utilities
+  savePreset: (slotNumber: string, presetData: import("./usePresets").PresetInput) => boolean;
+  findNextAvailableSlot: () => string | null;
 }
 
 /**
@@ -109,7 +117,7 @@ export interface UseChordEngineReturn {
  */
 export function useChordEngine(
   pressedKeys: Set<string>,
-  { isMobile = false }: UseChordEngineOptions = {}
+  { isMobile = false, initialPresets, onPresetsChange }: UseChordEngineOptions = {}
 ): UseChordEngineReturn {
   /** Current inversion index */
   const [inversionIndex, setInversionIndex] = useState<number>(0);
@@ -151,7 +159,7 @@ export function useChordEngine(
     setRecalledSpread,
     setRecalledVoicingStyle,
     setActivePresetSlot,
-  } = usePresets({ defaultOctave: octave });
+  } = usePresets({ defaultOctave: octave, initialPresets, onPresetsChange });
 
   // Use progression settings for smart chord generation
   const { trueRandomMode, setTrueRandomMode } = useProgressionSettings();

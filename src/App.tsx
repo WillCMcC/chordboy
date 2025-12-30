@@ -32,6 +32,7 @@ import { SynthPanel } from "./components/SynthPanel";
 import { useTransport } from "./hooks/useTransport";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useChordEngine } from "./hooks/useChordEngine";
+import { useBanks } from "./hooks/useBanks";
 import { useMIDI } from "./hooks/useMIDI";
 import { useGraceNotes } from "./hooks/useGraceNotes";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -140,6 +141,20 @@ function App() {
     return new Set([...keyboardKeys, ...mobileKeys]);
   }, [keyboardKeys, mobileKeys]);
 
+  // Bank management for organizing presets into collections
+  const {
+    bankList,
+    activeBankId,
+    activeBank,
+    isLoaded: banksLoaded,
+    switchBank,
+    createBank,
+    renameBank,
+    deleteBank,
+    duplicateBank,
+    updateBankPresets,
+  } = useBanks();
+
   // Chord engine - pass isMobile for retrigger behavior
   const {
     currentChord,
@@ -163,7 +178,11 @@ function App() {
     setTrueRandomMode,
     savePreset,
     findNextAvailableSlot,
-  } = useChordEngine(allPressedKeys, { isMobile });
+  } = useChordEngine(allPressedKeys, {
+    isMobile,
+    initialPresets: activeBank?.presets,
+    onPresetsChange: updateBankPresets,
+  });
 
   // Track chord history for quick preset assignment
   const { history: chordHistory, clearHistory: clearChordHistory } = useChordHistory({
@@ -516,13 +535,20 @@ function App() {
         )}
 
         {/* Desktop presets panel */}
-        {!isMobile && (
+        {!isMobile && banksLoaded && (
           <PresetsPanel
             savedPresets={savedPresets}
             onClearPreset={clearPreset}
             onSolvePresets={solvePresets}
             onOpenWizard={() => setShowWizard(true)}
             onOpenHistory={() => setShowHistory(true)}
+            banks={bankList}
+            activeBankId={activeBankId}
+            onSwitchBank={switchBank}
+            onCreateBank={createBank}
+            onRenameBank={renameBank}
+            onDeleteBank={deleteBank}
+            onDuplicateBank={duplicateBank}
           />
         )}
 
@@ -596,6 +622,16 @@ function App() {
             onPlaybackModeChange={setPlaybackMode}
             onOpenGridSequencer={() => setShowGridSequencer(true)}
             onOpenHistory={() => setShowHistory(true)}
+            // Bank management
+            banks={bankList}
+            activeBankId={activeBankId}
+            onSwitchBank={switchBank}
+            onCreateBank={createBank}
+            onRenameBank={renameBank}
+            onDeleteBank={deleteBank}
+            onDuplicateBank={duplicateBank}
+            // Chord wizard
+            onOpenWizard={() => setShowWizard(true)}
           />
         )}
 

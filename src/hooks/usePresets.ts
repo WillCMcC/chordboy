@@ -10,7 +10,7 @@
  * @module hooks/usePresets
  */
 
-import { useState, useCallback, useRef, useMemo, Dispatch, SetStateAction } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect, Dispatch, SetStateAction } from "react";
 import {
   loadPresetsFromStorage,
   savePresetsToStorage,
@@ -39,6 +39,10 @@ export interface PresetInput {
 export interface UsePresetsOptions {
   /** Default octave for new presets */
   defaultOctave?: Octave;
+  /** Initial presets from active bank (used for bank switching) */
+  initialPresets?: Map<string, Preset>;
+  /** Callback when presets change (for syncing to bank) */
+  onPresetsChange?: (presets: Map<string, Preset>) => void;
 }
 
 /** Voicing updates for presets */
@@ -97,7 +101,11 @@ export interface UsePresetsReturn {
  *   clearPreset,
  * } = usePresets({ defaultOctave: 4 });
  */
-export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOptions = {}): UsePresetsReturn {
+export function usePresets({
+  defaultOctave: _defaultOctave = 4,
+  initialPresets,
+  onPresetsChange,
+}: UsePresetsOptions = {}): UsePresetsReturn {
   // Memoize storage functions to prevent re-subscriptions
   const storageConfig = useMemo(
     () => ({
@@ -116,6 +124,28 @@ export function usePresets({ defaultOctave: _defaultOctave = 4 }: UsePresetsOpti
     setValue: setSavedPresets,
     isLoaded,
   } = useAsyncStorage(storageConfig);
+
+  // Track if we're syncing from bank to avoid infinite loops
+  const isSyncingFromBankRef = useRef(false);
+
+  // Sync presets from bank when initialPresets changes (bank switch)
+  useEffect(() => {
+    if (initialPresets && isLoaded) {
+      isSyncingFromBankRef.current = true;
+      setSavedPresets(initialPresets);
+      // Reset flag after state update is processed
+      requestAnimationFrame(() => {
+        isSyncingFromBankRef.current = false;
+      });
+    }
+  }, [initialPresets, isLoaded, setSavedPresets]);
+
+  // Notify parent when presets change (for syncing to bank)
+  useEffect(() => {
+    if (isLoaded && onPresetsChange && !isSyncingFromBankRef.current) {
+      onPresetsChange(savedPresets);
+    }
+  }, [savedPresets, isLoaded, onPresetsChange]);
 
   /** Currently recalled keys */
   const [recalledKeys, setRecalledKeys] = useState<Set<string> | null>(null);

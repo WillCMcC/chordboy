@@ -395,3 +395,39 @@ export interface GeneratedChord {
   /** Human-readable reasoning */
   reasoning: string;
 }
+
+// ============================================================================
+// Chord Bank Types
+// ============================================================================
+
+/** Chord bank containing a collection of presets (0-9) */
+export interface ChordBank {
+  /** Unique identifier (UUID) */
+  id: string;
+  /** User-defined bank name */
+  name: string;
+  /** Map of preset slot ("0"-"9") to Preset data */
+  presets: Map<string, Preset>;
+  /** Creation timestamp */
+  createdAt: number;
+  /** Last modified timestamp */
+  updatedAt: number;
+}
+
+/** Serialized chord bank for IndexedDB storage */
+export interface SerializedChordBank {
+  id: string;
+  name: string;
+  /** Presets as array of [slot, SerializedPreset] tuples */
+  presets: [string, SerializedPreset][];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Bank metadata for UI display (lightweight) */
+export interface ChordBankEntry {
+  id: string;
+  name: string;
+  presetCount: number;
+  updatedAt: number;
+}

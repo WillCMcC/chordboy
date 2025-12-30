@@ -1,0 +1,246 @@
+/**
+ * BankSelector Styles
+ * Styles for the chord bank selector dropdown.
+ */
+
+.bank-selector {
+  position: relative;
+}
+
+.bank-selector-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--tertiary-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bank-selector-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--tertiary-bg);
+}
+
+.bank-name {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-count {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+
+.dropdown-arrow {
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  margin-left: 0.25rem;
+}
+
+.bank-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--secondary-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.bank-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.bank-item {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bank-item:last-child {
+  border-bottom: none;
+}
+
+.bank-item.active {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.bank-select-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bank-select-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bank-select-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-preset-count {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  margin-left: 0.5rem;
+}
+
+.bank-actions {
+  display: flex;
+  gap: 0.125rem;
+  padding-right: 0.375rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.bank-item:hover .bank-actions {
+  opacity: 1;
+}
+
+.bank-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.bank-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.bank-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.action-icon {
+  font-weight: 600;
+}
+
+.bank-rename-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: var(--primary-bg);
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.bank-menu-footer {
+  padding: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.create-bank-btn {
+  width: 100%;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.create-bank-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.create-bank-form {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.create-bank-input {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  background: var(--primary-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.create-bank-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.create-bank-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.create-bank-submit,
+.create-bank-cancel {
+  padding: 0.375rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.create-bank-submit {
+  background: var(--accent-primary);
+  border: none;
+  color: white;
+}
+
+.create-bank-submit:hover:not(:disabled) {
+  background: var(--accent-hover, #2563eb);
+}
+
+.create-bank-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-bank-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.create-bank-cancel:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
