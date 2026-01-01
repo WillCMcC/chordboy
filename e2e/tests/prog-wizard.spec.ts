@@ -8,12 +8,12 @@ import {
 } from '../utils/keyboard-helpers';
 import { resetAppState, initializeApp, dismissTutorial } from '../utils/test-setup';
 
-// Chord Wizard is only available on desktop (not mobile)
-test.describe('Chord Wizard', () => {
-  // Skip mobile - Chord Wizard is in PresetsPanel which is desktop-only
+// Prog Wizard is only available on desktop (not mobile)
+test.describe('Prog Wizard', () => {
+  // Skip mobile - Prog Wizard is in PresetsPanel which is desktop-only
   test.skip(({ browserName }, testInfo) => {
     return testInfo.project.name.includes('mobile');
-  }, 'Chord Wizard is desktop-only');
+  }, 'Prog Wizard is desktop-only');
 
   test.beforeEach(async ({ page }) => {
     await resetAppState(page);
@@ -27,30 +27,30 @@ test.describe('Chord Wizard', () => {
     await wizardButton.click();
 
     // Verify wizard modal opens
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).toBeVisible();
-    await expect(page.locator('text=Chord Wizard')).toBeVisible();
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).toBeVisible();
+    await expect(page.locator('text=Prog Wizard')).toBeVisible();
   });
 
   test('should close wizard with close button', async ({ page }) => {
     // Open wizard
     const wizardButton = page.locator('[data-testid="open-wizard"]');
     await wizardButton.click();
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).toBeVisible();
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).toBeVisible();
 
     // Close it
     await page.locator('[data-testid="wizard-close"]').click();
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).not.toBeVisible();
   });
 
   test('should close wizard by clicking overlay', async ({ page }) => {
     // Open wizard
     const wizardButton = page.locator('[data-testid="open-wizard"]');
     await wizardButton.click();
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).toBeVisible();
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).toBeVisible();
 
     // Click overlay to close
     await page.locator('[data-testid="wizard-overlay"]').click({ position: { x: 10, y: 10 } });
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).not.toBeVisible();
   });
 
   test('should show "From Preset" and "Play In" source tabs', async ({ page }) => {
@@ -195,7 +195,7 @@ test.describe('Chord Wizard', () => {
     await page.locator('.wizard-confirm').click();
 
     // Wait for wizard to close (success message then close)
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).not.toBeVisible({ timeout: 2000 });
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).not.toBeVisible({ timeout: 2000 });
 
     // Verify new presets were created - check slot 2 has a chord
     await recallPreset(page, 2);
@@ -286,7 +286,7 @@ test.describe('Chord Wizard', () => {
     await page.locator('.wizard-confirm').click();
 
     // Wizard should close
-    await expect(page.locator('[data-testid="chord-wizard-modal"]')).not.toBeVisible({ timeout: 2000 });
+    await expect(page.locator('[data-testid="prog-wizard-modal"]')).not.toBeVisible({ timeout: 2000 });
 
     // Release the played chord
     await releaseAllKeys(page);

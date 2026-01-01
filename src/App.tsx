@@ -23,7 +23,7 @@ import { SequencerModal } from "./components/SequencerModal";
 import { GridSequencerModal } from "./components/GridSequencerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PresetsPanel } from "./components/PresetsPanel";
-import { ChordWizardModal } from "./components/ChordWizardModal";
+import { ProgWizardModal } from "./components/ProgWizardModal";
 import { ChordHistoryModal } from "./components/ChordHistoryModal";
 import { ChordDisplay } from "./components/ChordDisplay";
 import { TutorialModal } from "./components/TutorialModal";
@@ -380,7 +380,7 @@ function App() {
     }
   }, [nextAvailableSlot, saveCurrentChordToSlot]);
 
-  // Handle saving presets from chord wizard
+  // Handle saving presets from prog wizard
   const handleSaveWizardPresets = useCallback(
     (presets: Array<{ keys: Set<string>; octave: Octave }>): void => {
       // Pre-calculate all available slots (since findNextAvailableSlot uses a ref
@@ -630,7 +630,7 @@ function App() {
             onRenameBank={renameBank}
             onDeleteBank={deleteBank}
             onDuplicateBank={duplicateBank}
-            // Chord wizard
+            // Prog wizard
             onOpenWizard={() => setShowWizard(true)}
           />
         )}
@@ -669,8 +669,8 @@ function App() {
         onSetRetrigMode={setRetrigMode}
       />
 
-      {/* Chord Wizard modal */}
-      <ChordWizardModal
+      {/* Prog Wizard modal */}
+      <ProgWizardModal
         isOpen={showWizard}
         onClose={() => setShowWizard(false)}
         savedPresets={savedPresets}

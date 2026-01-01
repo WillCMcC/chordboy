@@ -1,4 +1,4 @@
-# Chord Wizard
+# Prog Wizard
 
 Modal for generating jazz chord progressions from a starting chord.
 
@@ -23,7 +23,7 @@ Modal for generating jazz chord progressions from a starting chord.
 
 ## Key Files
 
-- `src/components/ChordWizardModal.tsx` - Modal UI component
+- `src/components/ProgWizardModal.tsx` - Modal UI component
 - `src/lib/progressionGenerator.ts` - Progression logic and chord analysis
 - `src/hooks/useProgressionSettings.ts` - Settings persistence
 

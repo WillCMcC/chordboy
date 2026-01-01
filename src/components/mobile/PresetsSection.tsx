@@ -37,7 +37,7 @@ interface PresetsSectionProps {
   onRenameBank: (bankId: string, newName: string) => void;
   onDeleteBank: (bankId: string) => void;
   onDuplicateBank: (bankId: string, newName: string) => void;
-  // Chord wizard
+  // Prog wizard
   onOpenWizard: () => void;
 }
 

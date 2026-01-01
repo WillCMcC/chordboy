@@ -17,7 +17,7 @@ main.tsx
         ├── SynthPanel
         ├── TutorialModal
         ├── SequencerModal
-        └── ChordWizardModal
+        └── ProgWizardModal
 ```
 
 ## Hook Responsibilities

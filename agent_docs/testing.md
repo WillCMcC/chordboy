@@ -122,7 +122,7 @@ e2e/tests/
   mobile.voicing-controls.spec.ts # Mobile voicing interactions
   visual-regression.spec.ts   # Screenshot comparisons (28 tests)
   audio-snapshots.spec.ts     # Audio synthesis validation
-  chord-wizard.spec.ts        # Jazz progression generator (17 tests, desktop-only)
+  prog-wizard.spec.ts         # Jazz progression generator (17 tests, desktop-only)
   grace-notes.spec.ts         # Grace note re-articulation (20+ tests)
   playback-modes.spec.ts      # All 10 playback modes (30+ tests)
   audio-modes.spec.ts         # MIDI/Synth/Both mode switching (25+ tests)
@@ -152,7 +152,7 @@ e2e/utils/
 | Mobile touch UI | ✅ Full | mobile.spec.ts |
 | Visual regression (3 viewports) | ✅ Full | visual-regression.spec.ts |
 | Audio synthesis output | ✅ Partial | audio-snapshots.spec.ts |
-| Chord Wizard | ✅ Full | chord-wizard.spec.ts (desktop-only) |
+| Prog Wizard | ✅ Full | prog-wizard.spec.ts (desktop-only) |
 | Grace notes (ghjkl keys) | ✅ Full | grace-notes.spec.ts |
 | Playback modes (all 10) | ✅ Full | playback-modes.spec.ts |
 | Audio mode switching (MIDI/Synth/Both) | ✅ Full | audio-modes.spec.ts |

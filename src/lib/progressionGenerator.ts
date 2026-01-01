@@ -17,7 +17,7 @@ import { LEFT_HAND_KEYS, RIGHT_HAND_MODIFIERS } from "./keyboardMappings";
 import type { NoteName, ModifierType, Preset, Octave } from "../types";
 
 // ============================================================================
-// Progression Type Definitions (for Chord Wizard)
+// Progression Type Definitions (for Prog Wizard)
 // ============================================================================
 
 /** Named progression types for the wizard */
@@ -602,12 +602,12 @@ export function getFilledSlotNumbers(presets: Map<string, Preset>): string[] {
 }
 
 // ============================================================================
-// Explicit Progression Builder (for Chord Wizard)
+// Explicit Progression Builder (for Prog Wizard)
 // ============================================================================
 
 /**
  * Build a complete progression from a starting chord and progression type.
- * Used by the Chord Wizard for explicit progression generation.
+ * Used by the Prog Wizard for explicit progression generation.
  *
  * @param startingKeys - Keys of the starting chord
  * @param progressionType - Type of progression to build

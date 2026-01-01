@@ -99,7 +99,7 @@ interface MobileControlsProps {
   onRenameBank: (bankId: string, newName: string) => void;
   onDeleteBank: (bankId: string) => void;
   onDuplicateBank: (bankId: string, newName: string) => void;
-  // Chord wizard
+  // Prog wizard
   onOpenWizard: () => void;
 }
 
@@ -166,7 +166,7 @@ export function MobileControls({
   onRenameBank,
   onDeleteBank,
   onDuplicateBank,
-  // Chord wizard
+  // Prog wizard
   onOpenWizard,
 }: MobileControlsProps) {
 

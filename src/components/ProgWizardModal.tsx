@@ -1,9 +1,9 @@
 /**
- * ChordWizardModal Component
+ * ProgWizardModal Component
  * Modal for building chord progressions with jazz theory assistance.
  * User selects a starting chord and progression type, then confirms to generate.
  *
- * @module components/ChordWizardModal
+ * @module components/ProgWizardModal
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -16,13 +16,13 @@ import {
   PROGRESSION_TYPES,
   type ProgressionType,
 } from "../lib/progressionGenerator";
-import "./ChordWizardModal.css";
+import "./ProgWizardModal.css";
 
 /** Preset slot identifiers in display order */
 const SLOT_ORDER: string[] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
-/** Props for ChordWizardModal */
-interface ChordWizardModalProps {
+/** Props for ProgWizardModal */
+interface ProgWizardModalProps {
   /** Whether modal is open */
   isOpen: boolean;
   /** Callback to close modal */
@@ -53,7 +53,7 @@ function getChordDisplayName(keys: Set<string>, octave: Octave = 4): string {
 /**
  * Modal wizard for building chord progressions
  */
-export function ChordWizardModal({
+export function ProgWizardModal({
   isOpen,
   onClose,
   savedPresets,
@@ -61,7 +61,7 @@ export function ChordWizardModal({
   currentOctave,
   onSavePresets,
   findNextAvailableSlot,
-}: ChordWizardModalProps) {
+}: ProgWizardModalProps) {
   // Source selection: "preset" or "play-in"
   const [sourceType, setSourceType] = useState<"preset" | "play-in">("preset");
 
@@ -186,9 +186,9 @@ export function ChordWizardModal({
 
   return (
     <div className="wizard-overlay" onClick={onClose} data-testid="wizard-overlay">
-      <div className="wizard-modal" onClick={(e) => e.stopPropagation()} data-testid="chord-wizard-modal">
+      <div className="wizard-modal" onClick={(e) => e.stopPropagation()} data-testid="prog-wizard-modal">
         <div className="wizard-header">
-          <h2>Chord Wizard</h2>
+          <h2>Prog Wizard</h2>
           <button className="wizard-close" onClick={onClose} data-testid="wizard-close">
             x
           </button>

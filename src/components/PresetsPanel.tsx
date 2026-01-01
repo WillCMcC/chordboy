@@ -23,7 +23,7 @@ interface PresetsPanelProps {
   onClearPreset: (slot: string) => void;
   /** Callback to solve voicings for selected presets, returns true on success */
   onSolvePresets: (slots: string[], spreadPreference?: number) => boolean;
-  /** Callback to open the chord wizard modal */
+  /** Callback to open the prog wizard modal */
   onOpenWizard: () => void;
   /** Callback to open the chord history modal */
   onOpenHistory: () => void;
@@ -153,7 +153,7 @@ export function PresetsPanel({
                 className="wizard-btn"
                 data-testid="open-wizard"
               >
-                Chord Wizard
+                Prog Wizard
               </button>
               <button
                 onClick={() => setIsSelectMode(true)}
